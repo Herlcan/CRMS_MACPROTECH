@@ -1,0 +1,106 @@
+<?php
+	include 'src/db/connection.php';
+
+// Ensure a session is started before reading/writing $_SESSION
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+	if (isset($_POST['login'])) {
+		$username = trim($_POST['username']);
+		$password = $_POST['password'];
+
+		// Use prepared statement to avoid SQL injection
+		$stmt = mysqli_prepare($conn, "SELECT id, username, password FROM users WHERE username = ? LIMIT 1");
+		mysqli_stmt_bind_param($stmt, "s", $username);
+		mysqli_stmt_execute($stmt);
+		$result = mysqli_stmt_get_result($stmt);
+
+		if (mysqli_num_rows($result) > 0) {
+
+			$row = mysqli_fetch_assoc($result);
+
+			if (password_verify($password, $row['password'])) {
+
+				// Prevent session fixation: generate new session id on successful login
+				session_regenerate_id(true);
+
+				$_SESSION['user_id'] = $row['id'];
+				$_SESSION['username'] = $row['username'];
+				header("Location: index.php");
+				exit();
+
+			} else {
+				$error = "Invalid login password";
+			}
+
+		} else {
+			$error = "Invalid login credentials";
+		}
+
+		if (isset($stmt) && is_object($stmt)) {
+			mysqli_stmt_close($stmt);
+		}
+	}
+
+?>
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Login</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css">
+</head>
+
+<body class="login-page">
+	<?php if (isset($error)): ?>
+		<div class="login-error-alert">
+			<div class="login-error-message">
+				<i class="dw dw-info"></i> <?= htmlspecialchars($error) ?>
+			</div>
+		</div>
+	<?php endif; ?>
+	<div class="login-wrap d-flex align-items-center flex-wrap justify-content-center">
+		<div class="container">
+			<div class="row-login align-items-center">
+				<div class="col-md-12">
+					<div class="login-box bg-white box-shadow border-radius-10">
+						<form method="POST">
+							<div class="text-center mb-30">
+								<h2 class="h2 text-primary">MACPROTECH</h2>
+							</div>
+							<div class="form-group">
+								<label class="form-label">Username</label>
+								<div class="input-group custom">
+									<input type="text" class="form-control form-control-lg" placeholder="Enter username" name="username" required autocomplete="off">
+									<div class="input-group-append custom">
+										<span class="input-group-text"><i class="dw dw-user1"></i></span>
+									</div>
+								</div>
+							</div>
+							<div class="form-group">
+								<label class="form-label">Password</label>
+								<div class="input-group custom">
+									<input type="password" class="form-control form-control-lg" placeholder="Enter password" name="password" required autocomplete="off">
+									<div class="input-group-append custom">
+										<span class="input-group-text"><i class="dw dw-padlock1"></i></span>
+									</div>
+								</div>
+							</div>
+							<div class="row-div-right pb-30">
+								<div class="col-6" style="display: grid; place-items: rigth;">
+									<div class="forgot-password"><a href="forgot-password.html">Forgot Password?</a></div>
+								</div>
+							</div>
+							<div class="form-group">
+								<input class="btn btn-primary btn-lg btn-block" type="submit" value="Login" name="login">
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
