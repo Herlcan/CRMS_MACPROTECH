@@ -38,19 +38,22 @@
 		<div class="header-right">
 			<div class="user-info-dropdown">
 				<div class="dropdown">
-					<a class="dropdown-toggle" href="#" role="button">
+					<a class="dropdown-toggle">
 						<span class="user-icon">
 							<div class="icon-letter-container">
-								<label class="icon-letter"><?= " ".  htmlspecialchars($first_name[0]) ." "; ?></label>
+								<label class="icon-letter"><?= " ".  htmlspecialchars($first_name[0]) . htmlspecialchars($user['last_name'][0]) ." "; ?></label>
 							</div>
 						</span>
-						<span class="user-name"><?= htmlspecialchars($_SESSION['username']); ?></span>
+						<span class="user-name">
+							<?= htmlspecialchars($_SESSION['username']); ?>
+							<small class="form-text text-muted" style="margin-top: 0;"><?= htmlspecialchars($user['role']); ?></small>
+						</span>
 					</a>
 					<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-						<label class="dropdown-item profile-toggle-label" for="profileToggle"><i class="dw dw-user1"></i> Profile</label>
-						<a class="dropdown-item" href="settings.php"><i class="dw dw-settings2"></i> Setting</a>
+						<label class="dropdown-item profile-toggle-label" for="profileToggle"><img src="src/images/user-dark.png" width="20px" height="20px"> Profile</label>
+						<a class="dropdown-item" href="settings.php"><img src="src/images/settings-sliders-dark.png" width="20px" height="20px"> Setting</a>
 						<hr>
-						<a class="dropdown-item" href="logout.php"><i class="dw dw-logout"></i> Log Out</a>
+						<a class="dropdown-item" href="logout.php"><img src="src/images/user-logout.png" width="20px" height="20px"> Log Out</a>
 					</div>
 				</div>
 			</div>
@@ -89,7 +92,7 @@
 
 				<!-- Profile Picture Section -->
 				<div class="profile-pic-container icon-letter-container profile-pic" style="margin-left: auto; margin-right: auto; margin-bottom: 20px;">
-					<label class="icon-letter text-center" style="font-size: 40px;"><?= " ".  htmlspecialchars($first_name[0]) ." "; ?></label>
+					<label class="icon-letter text-center" style="font-size: 30px;"><?= " ".  htmlspecialchars($first_name[0]) . htmlspecialchars($user['last_name'][0]) ." "; ?></label>
 				</div>
 
 				<!-- Profile Form -->

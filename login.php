@@ -1,4 +1,8 @@
 <?php
+	error_reporting(E_ALL);
+	ini_set('display_errors', '1');
+	ini_set('display_startup_errors', '1'); 
+
 	include 'src/db/connection.php';
 
 // Ensure a session is started before reading/writing $_SESSION
@@ -10,7 +14,7 @@ if (session_status() === PHP_SESSION_NONE) {
 		$username = trim($_POST['username']);
 		$password = $_POST['password'];
 
-		// Use prepared statement to avoid SQL injection
+		
 		$stmt = mysqli_prepare($conn, "SELECT id, username, password FROM users WHERE username = ? LIMIT 1");
 		mysqli_stmt_bind_param($stmt, "s", $username);
 		mysqli_stmt_execute($stmt);
@@ -75,7 +79,7 @@ if (session_status() === PHP_SESSION_NONE) {
 								<div class="input-group custom">
 									<input type="text" class="form-control form-control-lg" placeholder="Enter username" name="username" required autocomplete="off">
 									<div class="input-group-append custom">
-										<span class="input-group-text"><i class="dw dw-user1"></i></span>
+										<span class="input-group-text"><img src="src/images/user-dark.png" style="width: 20px;"></span>
 									</div>
 								</div>
 							</div>
@@ -84,7 +88,7 @@ if (session_status() === PHP_SESSION_NONE) {
 								<div class="input-group custom">
 									<input type="password" class="form-control form-control-lg" placeholder="Enter password" name="password" required autocomplete="off">
 									<div class="input-group-append custom">
-										<span class="input-group-text"><i class="dw dw-padlock1"></i></span>
+										<span class="input-group-text"><img src="src/images/lock.png" style="width: 20px;"></span>
 									</div>
 								</div>
 							</div>

@@ -1,4 +1,3 @@
-
 <?php
 
 	include 'header.php';
@@ -138,10 +137,6 @@
 
 				<!-- Clients Table Card -->
 				<div class="card-box mb-30">
-					
-					<!--<div class="">
-						<h4 class="text-blue">Client List</h4>
-					</div>-->
 
 					<!-- Table Controls -->
 					<div class="row mb-20">
@@ -232,12 +227,13 @@
 								<tbody>
 								<?php while ($row = mysqli_fetch_assoc($result)) { 
 
-								$first_name = $row['first_name'];?>
+								$first_name = $row['first_name'];
+								$last_name = $row['last_name'];?>
 								<tr>
 
 								    <td>
 								        <div class="icon-letter-container" style="margin: auto; text-align: center;">
-											<label class="icon-letter"><?= " ".  htmlspecialchars($first_name[0]) ." "; ?></label>
+											<label class="icon-letter"><?= " ".  htmlspecialchars($first_name[0]) . htmlspecialchars($last_name[0]) ." "; ?></label>
 										</div>
 								    </td>
 
@@ -256,8 +252,8 @@
 											</a>
 
 								            <div class="dropdown-menu dropdown-menu-right">
-								                <a class="dropdown-item" href="#">
-								                    <i class="dw dw-eye"></i> Add Work Order
+								                <a class="dropdown-item" href="client-view.php?client_id=<?= $row['id'] ?>">
+								                    <i class="dw dw-eye"></i> View
 								                </a>
 
 												<a>
@@ -277,6 +273,11 @@
 
 								</tr>
 								<?php } ?>
+								<?php if ($total_records == 0): ?>
+								<tr>
+									<td colspan="7" style="text-align: center;">No clients found</td>
+								</tr>
+								<?php endif; ?>
 							</tbody>
 						</table>
 					</div>

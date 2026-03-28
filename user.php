@@ -10,7 +10,7 @@
 	<label for="editUserToggle" class="css-modal-overlay edit-client-overlay"></label>
 
 	<!-- Pure CSS Modal -->
-	<div class="css-modal">
+	<div class="edit-client-modal-container">
 		<div class="css-modal-content">
 			<!-- Modal Header -->
 			<div class="css-modal-header">
@@ -77,7 +77,7 @@
 							<option value="">Select Role</option>
 							<option value="Administrator">Administrator</option>
 							<option value="Technician">Technician</option>
-							<option value="Staff">Staff</option>
+							<option value="Cashier/Front Desk">Cashier/Front Desk</option>
 						</select>
 					</div>
 
@@ -150,7 +150,7 @@
 									<th style="text-align: center;">Profile</th>
 									<th style="text-align: center;">Username</th>
 									<th style="text-align: center;">Full Name</th>
-									<th style="text-align: center;">Contact</th>
+									<th style="text-align: center;">Contact No.</th>
 									<th style="text-align: center;">Email</th>
 									<th style="text-align: center;">Role</th>
 									<th class="datatable-nosort" style="padding-left: 25px;">Action</th>
@@ -175,7 +175,7 @@
 								// Secure search
 								if (!empty($_GET['search'])) {
 								    $s = mysqli_real_escape_string($conn, $_GET['search']);
-								    $where .= " AND (LOWER(first_name) LIKE '%$s%' OR LOWER(last_name) LIKE '%$s%' OR LOWER(email) LIKE '%$s%')";
+								    $where .= " AND (LOWER(first_name) LIKE '%$s%' OR LOWER(last_name) LIKE '%$s%' OR LOWER(username) LIKE '%$s%')";
 								}
 
 								// Secure filter
@@ -203,19 +203,36 @@
 							<tbody>
 								<?php while ($row = mysqli_fetch_assoc($result)) { 
 
-								$first_name = $row['first_name'];?>
+								$first_name = $row['first_name'];
+								$last_name = $row['last_name'];?>
 
 								<tr>
 									<td>
 								        <div class="icon-letter-container"  style="margin: auto; text-align: center;">
-											<label class="icon-letter"><?= " ".  htmlspecialchars($first_name[0]) ." "; ?></label>
+											<label class="icon-letter"><?= " ".  htmlspecialchars($first_name[0]) . htmlspecialchars($last_name[0]) ." "; ?></label>
 										</div>
 								    </td>
 									<td style="text-align: center;"><?= htmlspecialchars($row['username']) ?></td>
 									<td style="text-align: center;"><?= htmlspecialchars($row['last_name'].', '.$row['first_name']) ?></td>
 									<td style="text-align: center;"><?= htmlspecialchars($row['contact_num']) ?></td>
 									<td style="text-align: center;"><?= htmlspecialchars($row['email']) ?></td>
-									<td><span class="badge bg-success" style="display: grid; align-items: center; justify-content: center;"><?= htmlspecialchars($row['role']) ?></span></td>
+									<td style="text-align: center;">
+										<?php
+											$role = strtolower($row['role']);
+											$role_class = '';
+
+											if ($role == 'administrator') {
+												$role_class = 'bg-admin';
+											} elseif ($role == 'technician') {
+												$role_class = 'bg-staff';
+											} elseif ($role == 'cashier/front desk') {
+												$role_class = 'bg-staff';
+											}
+										?>
+										<span class="badge <?= $role_class ?>" style="display: grid; align-items: center; justify-content: center;">
+											<?= htmlspecialchars($row['role']) ?>
+										</span>
+									</td>
 									<td>
 										<div class="dropdown">
 											<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
@@ -237,6 +254,11 @@
 									</td>
 								</tr>
 								<?php } ?>
+								<?php if ($total_records == 0): ?>
+								<tr>
+									<td colspan="7" style="text-align: center;">No users found</td>
+								</tr>
+								<?php endif; ?>
 							</tbody>
 						</table>
 					</div>
@@ -370,7 +392,7 @@
 							<option value="">Select Role</option>
 							<option value="Administrator">Administrator</option>
 							<option value="Technician">Technician</option>
-							<option value="Staff">Staff</option>
+							<option value="Cashier/Front Desk Staff">Cashier/Front Desk Staff</option>
 						</select>
 					</div>
 
@@ -396,7 +418,7 @@
 
 	// Function to populate edit modal and open it
 	function editUser(username, firstName, lastName, contact, email, role, userId) {
-		document.getElementById('editUsername').value = username
+		document.getElementById('editUsername').value = username;
 		document.getElementById('editFirstName').value = firstName;
 		document.getElementById('editLastName').value = lastName;
 		document.getElementById('editContactNum').value = contact;

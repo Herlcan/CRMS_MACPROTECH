@@ -23,7 +23,6 @@ MACPROTECH is a web-based platform designed to manage technical services operati
 ├── auth_check.php              # Authentication verification
 ├── login.php                   # User login page
 ├── logout.php                  # User logout handler
-├── register.php                # User registration
 ├── index.php                   # Dashboard/Home page
 ├── header.php                  # Page header component
 ├── footer.php                  # Page footer component

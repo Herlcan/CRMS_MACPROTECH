@@ -3,6 +3,39 @@
 	include 'header.php';
 	include 'sidebar.php'; 
 ?>
+	<!-- EDIT CATEGORY MODAL (Pure CSS) -->
+	<input type="checkbox" id="editCategoryToggle" class="edit-client-toggle">
+	<label for="editCategoryToggle" class="css-modal-overlay edit-client-overlay"></label>
+
+	<div class="edit-client-modal-container">
+		<div class="css-modal-content">
+			<!-- Modal Header -->
+			<div class="css-modal-header">
+				<h5 class="css-modal-title">Edit Category</h5>
+				<label for="editCategoryToggle" class="css-modal-close">&times;</label>
+			</div>
+
+			<!-- Modal Body -->
+			<div class="css-modal-body">
+				<!-- Form -->
+				<form method="POST" action="src/handlers/edit_category.php">
+
+					<input type="hidden" name="id" id="categoryIdField" value="">
+					
+					<div class="form-group">
+						<label class="form-label">Category Name</label>
+						<input type="text" class="form-control" id="editCategoryName" name="category" required>
+					</div>
+
+					<!-- Modal Footer -->
+					<div class="css-modal-footer">
+						<label for="editCategoryToggle" class="btn btn-secondary">Cancel</label>
+						<button type="submit" name="edit_category" class="btn btn-primary">Save Changes</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
 
 	<div class="mobile-menu-overlay"></div>
 
@@ -120,7 +153,11 @@
 													<img src="src/images/menu-dots.png" width="25px" style="border: none">
 												</a>
 												<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-													<a class="dropdown-item" href="#"><i class="dw dw-edit2"></i> Edit</a>
+													<a>
+														<label class="dropdown-item" onclick="editCategory('<?= htmlspecialchars($row['category_name']) ?>','<?= $row['id'] ?>');">
+															<i class="dw dw-edit2"></i> Edit
+														</label>
+													</a>
 													<a class="dropdown-item" href="#" data-toggle="modal" data-target="#delete"><i class="dw dw-delete-3"></i> Delete</a>
 												</div>
 											</div>
@@ -211,3 +248,23 @@
 					</div>
 
 </html>
+
+<script>
+	// Function to populate edit modal and open it
+	function editCategory(category_name, category_id) {
+		document.getElementById('editCategoryName').value = category_name;
+		document.getElementById('categoryIdField').value = category_id;
+		
+		// Trigger checkbox to open modal
+		document.getElementById('editCategoryToggle').checked = true;
+	}
+
+	// Close edit modal when clicking outside
+	document.getElementById('editCategoryToggle').addEventListener('change', function() {
+		if (!this.checked) {
+			// Clear form when modal closes
+			document.getElementById('editCategoryName').value = '';
+			document.getElementById('categoryIdFeild').value = '';
+		}
+	});
+</script>

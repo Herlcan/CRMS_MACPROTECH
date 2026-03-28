@@ -28,14 +28,6 @@
 						</a>
 					</li>
 					<li>
-						<a href="services.php" class="dropdown-toggle no-arrow">
-							<span class="micon fa fa-handshake-o">
-								<img src="src/images/hand-holding-box.png" width="20px" height="20px">
-							</span>
-							<span class="mtext">Services</span>
-						</a>
-					</li>
-					<li>
 						<a href="work-order.php" class="dropdown-toggle no-arrow">
 							<span class="micon dw dw-shopping-basket">
 									<img src="src/images/shopping-basket.png" width="20px" height="20px">
@@ -56,7 +48,7 @@
 							<span class="micon fa fa-cart-plus">
 								<img src="src/images/dolly-flatbed-alt.png" width="20px" height="20px">
 							</span>
-							<span class="mtext">Items</span>
+							<span class="mtext">Product Items</span>
 						</a>
 					</li>
 					<li>
@@ -91,6 +83,9 @@
 						</a>
 					</li>
 				</ul>
+			</div>
+			<div class="sidebar-footer">
+				<footer>Copyright © 2026 All Rights Reserved.</footer>
 			</div>
 		</div>
 	</div>
