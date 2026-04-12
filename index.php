@@ -188,8 +188,8 @@
 		<!-- ── CHART + QUICK ACTIONS ───────────────────── -->
 		<div class="row pb-10">
  
-			<div class="col-lg-8 mb-20">
-				<div class="card-box p-20">
+			<div class="col-lg-8 mb-20" style=" width:80%;">
+				<div class="card-box p-20" style="height:100%;">
 					<h5 class="mb-20">Work Order Status Distribution</h5>
 					<div style="max-width:340px; margin:auto; position:relative;">
 						<canvas id="statusChart" height="300"></canvas>
@@ -201,7 +201,7 @@
 				</div>
 			</div>
  
-			<div class="col-lg-4 mb-20">
+			<div class="col-lg-4 mb-20" style="width: 31%;">
 				<div class="card-box p-20" style="height:100%;">
 					<h5 class="mb-20">Quick Actions</h5>
 					<a href="work_order.php?action=create" class="quick-action-btn">
@@ -222,7 +222,7 @@
 		</div>
  
 		<!-- ── RECENT WORK ORDERS ──────────────────────── -->
-		<div class="card-box p-20 mb-30">
+		<div class="card-box pb-20 mb-30" style="width:95.5%; margin-left: 1%;">
 			<h5 class="mb-20">Recent Work Orders</h5>
 			<table class="table dashboard-table">
 				<thead>
