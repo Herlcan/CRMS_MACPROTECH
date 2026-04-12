@@ -966,6 +966,142 @@ h6, .h6 {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Stat Cards ─────────────── */
+.stat-card {
+	background: #fff;
+	border-radius: 12px;
+	box-shadow: 0 2px 8px rgba(0,0,0,.07);
+	padding: 20px 20px 0;
+	transition: box-shadow .2s;
+	overflow: hidden;
+}
+.stat-card:hover { box-shadow: 0 5px 18px rgba(0,0,0,.11); }
+ 
+.stat-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+}
+ 
+.stat-number {
+	font-size: 28px;
+	font-weight: 700;
+	color: #1b3133;
+	line-height: 1.1;
+}
+ 
+.stat-label {
+	font-size: 13px;
+	color: #888;
+	margin: 4px 0 8px;
+}
+ 
+.stat-trend {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	font-weight: 600;
+}
+.stat-trend.positive { color: #22c55e; }
+.stat-trend.negative { color: #ef4444; }
+.stat-trend.neutral  { color: #94a3b8; font-weight: 400; }
+.trend-sub { color: #94a3b8; font-weight: 400; }
+ 
+.stat-icon {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	color: #fff;
+}
+.stat-icon.green { background: #22c55e; }
+.stat-icon.red   { background: #ef4444; }
+.stat-icon.teal  { background: #14b8a6; }
+ 
+.stat-spark { display: block; width: 100%; margin-top: 14px; }
+ 
+/* ── Donut chart center ──────── */
+.donut-center {
+	position: absolute;
+	top: 50%; left: 50%;
+	transform: translate(-50%, -50%);
+	text-align: center;
+	pointer-events: none;
+}
+.donut-total { font-size: 28px; font-weight: 700; color: #1b3133; }
+.donut-sub   { font-size: 12px; color: #94a3b8; }
+ 
+/* ── Quick Action Buttons ───── */
+.quick-action-btn {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 16px 18px;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	margin-bottom: 12px;
+	color: #374151;
+	font-size: 14px;
+	font-weight: 500;
+	text-decoration: none;
+	transition: all .2s;
+}
+.quick-action-btn:hover {
+	border-color: #3a57e8;
+	background: #f0f3ff;
+	color: #3a57e8;
+}
+.qa-icon {
+	width: 34px; height: 34px;
+	background: #f3f4f6;
+	border-radius: 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	transition: background .2s;
+}
+.quick-action-btn:hover .qa-icon { background: #dde3fb; }
+ 
+/* ── Dashboard Table ─────────── */
+.dashboard-table { width: 100%; border-collapse: collapse; }
+.dashboard-table th {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	color: #6b7280;
+	padding: 10px 16px;
+	border-bottom: 1px solid #f3f4f6;
+	background: transparent;
+}
+.dashboard-table td {
+	padding: 14px 16px;
+	font-size: 14px;
+	color: #374151;
+	border-bottom: 1px solid #f9fafb;
+}
+.dashboard-table tbody tr:last-child td { border-bottom: none; }
+.dashboard-table tbody tr:hover td { background: #fafafa; }
+ 
+/* ── Status Pills ─────────────── */
+.status-pill {
+	display: inline-block;
+	padding: 4px 12px;
+	border-radius: 20px;
+	font-size: 12px;
+	font-weight: 600;
+}
+.badge-completed  { background: #dcfce7; color: #16a34a; }
+.badge-pending    { background: #fef9c3; color: #ca8a04; }
+.badge-inprogress { background: #dbeafe; color: #2563eb; }
+.badge-cancelled  { background: #fee2e2; color: #dc2626; }
+.badge-default    { background: #f3f4f6; color: #6b7280; }
+
 /* ======================= TABS ========================= */
 .tabs input[type="radio"] {
     display: none;

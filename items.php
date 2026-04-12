@@ -2,6 +2,14 @@
 <?php 
 	include 'header.php';
 	include 'sidebar.php'; 
+
+	function truncate_words($text, $limit = 10) {
+		$words = explode(' ', $text);
+		if (count($words) > $limit) {
+			return implode(' ', array_slice($words, 0, $limit)) . '...';
+		}
+		return $text;
+	}
 ?>
 
 	<!-- Hidden checkbox for add item modal toggle (reuse add-client modal CSS) -->
@@ -33,15 +41,23 @@
 							</div>
 
 							<div class="form-group">
-								<label class="form-label">Product Name</label>
-								<input type="text" class="form-control" placeholder="Input Product Name" name="product_name" required autocomplete="off">
+								<label class="form-label">Brand Name</label>
+								<input type="text" class="form-control" placeholder="Input Brand Name" name="brand_name" required autocomplete="off">
+							</div>
+
+							<div class="form-group">
+								<label class="form-label">Model</label>
+								<input type="text" class="form-control" placeholder="Input Model" name="model" required autocomplete="off">
 							</div>
 							
 							<div class="form-group">
 								<label class="form-label">Description</label>
-								<textarea class="form-control" style="height: 130px;" placeholder="Input Description" name="description" required autocomplete="off"></textarea>
-							</div>
-							
+								<textarea class="form-control" style="height: 220px;" placeholder="Input Description" name="description" required autocomplete="off"></textarea>
+							</div>				
+						</div>
+						
+						<div style="width: 55%; padding-left: 5%;">
+
 							<?php $result = mysqli_query($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
 							
 							<div class="form-group">
@@ -54,10 +70,8 @@
 									</option>
 								<?php } ?>
 							</select>
-					</div>
-						</div>
-						
-						<div style="width: 55%; padding-left: 5%;">
+							</div>
+
 							<div class="form-group">
 								<label class="form-label">Date</label>
 								<input type="date" class="form-control" name="date" required autocomplete="off">
@@ -162,7 +176,7 @@
 							<div id="DataTables_Table_0_filter" class="dataTables_filter">
 								<label>Search:
 									<form method="GET">
-										<input type="search" name="search" class="form-control form-control-sm" placeholder="Search clients..." value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
+										<input type="search" name="search" class="form-control form-control-sm" placeholder="Search items..." value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
 									</form>
 								</label>
 							</div>
@@ -172,7 +186,7 @@
 						<table class="data-table table responsive">
 							<thead>
 								<tr>
-									<th style="width: 10%; text-align: center;">Product Code</th>
+									<th style="width: 13%; text-align: center;">Product Code</th>
 									<th style="width: 10%; text-align: center;">Image</th>
 									<th style="text-align: center;">Product Name</th>
 									<th style="width: 10%; text-align: center;">Capital</th>
@@ -200,7 +214,7 @@
 								// Secure search
 								if (!empty($_GET['search'])) {
 								    $s = mysqli_real_escape_string($conn, $_GET['search']);
-								    $where .= " AND (LOWER(product_name) LIKE '%$s%' OR LOWER(product_code) LIKE '%$s%')";
+								    $where .= " AND (LOWER(brand_name) LIKE '%$s%' OR LOWER(model) LIKE '%$s%' OR LOWER(product_code) LIKE '%$s%')";
 								}
 
 								// Secure filter
@@ -226,7 +240,7 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT * FROM items WHERE $where ORDER BY product_code ASC LIMIT $limit OFFSET $offset");
+								$result = mysqli_query($conn, "SELECT * FROM items WHERE $where ORDER BY brand_name ASC LIMIT $limit OFFSET $offset");
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
@@ -239,10 +253,10 @@
 									<td>
 										<div style="display: flex; flex-direction: column;">
 											<span style="font-weight: 600; font-size: 14px;">
-												<?= htmlspecialchars($row['product_name']) ?>
+												<?= htmlspecialchars($row['brand_name'] . " " . $row['model']) ?>
 											</span>
 											<small style="color: #6c757d; font-size: 12px;">
-												<?= htmlspecialchars($row['description']) ?>
+												<?= htmlspecialchars(truncate_words($row['description'])) ?>
 											</small>
 										</div>
 									</td>

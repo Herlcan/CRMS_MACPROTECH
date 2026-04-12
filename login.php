@@ -15,7 +15,7 @@ if (session_status() === PHP_SESSION_NONE) {
 		$password = $_POST['password'];
 
 		
-		$stmt = mysqli_prepare($conn, "SELECT id, username, password FROM users WHERE username = ? LIMIT 1");
+		$stmt = mysqli_prepare($conn, "SELECT id, username, password, role FROM users WHERE username = ? LIMIT 1");
 		mysqli_stmt_bind_param($stmt, "s", $username);
 		mysqli_stmt_execute($stmt);
 		$result = mysqli_stmt_get_result($stmt);
@@ -26,13 +26,18 @@ if (session_status() === PHP_SESSION_NONE) {
 
 			if (password_verify($password, $row['password'])) {
 
-				// Prevent session fixation: generate new session id on successful login
-				session_regenerate_id(true);
+				if ($row['role'] === 'Administrator') {
+					$error = "No Staff or Technician with that username exists.";
+				} else {
+					// Prevent session fixation: generate new session id on successful login
+					session_regenerate_id(true);
 
-				$_SESSION['user_id'] = $row['id'];
-				$_SESSION['username'] = $row['username'];
-				header("Location: index.php");
-				exit();
+					$_SESSION['user_id'] = $row['id'];
+					$_SESSION['username'] = $row['username'];
+					$_SESSION['role'] = $row['role'];
+					header("Location: index.php");
+					exit();
+				}
 
 			} else {
 				$error = "Invalid login password";
@@ -99,6 +104,9 @@ if (session_status() === PHP_SESSION_NONE) {
 							</div>
 							<div class="form-group">
 								<input class="btn btn-primary btn-lg btn-block" type="submit" value="Login" name="login">
+							</div>
+							<div class="text-center">
+								<a href="admin-login.php">Admin Login</a>
 							</div>
 						</form>
 					</div>

@@ -26,6 +26,7 @@
 	<meta charset="utf-8">
 	<title>MACPROTECH</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval';">
 	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css">
 </head>
 

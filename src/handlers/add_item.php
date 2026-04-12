@@ -9,7 +9,8 @@ $add_item_error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
 
-    $product_name = trim($_POST['product_name']);
+    $brand_name = trim($_POST['brand_name']);
+    $model = trim($_POST['model']);
     $description  = trim($_POST['description']);
     $category     = (int) ($_POST['category']);
     $date         = $_POST['date'] ?? date('Y-m-d');
@@ -17,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     $quantity     = (int) ($_POST['quantity'] ?? 0);
     $price        = (float) ($_POST['price'] ?? 0);
 
-    if (empty($product_name) || $category <= 0) {
+    if (empty($brand_name) || empty($model) || $category <= 0) {
         $add_item_error = "Please fill all required fields.";
     }
 
@@ -30,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
         }
 
         $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $max_size = 5 * 1024 * 1024; // 5MB
+        $max_size = 10 * 1024 * 1024; // 5MB
 
         $file_tmp  = $_FILES['image']['tmp_name'];
         $file_size = $_FILES['image']['size'];
@@ -47,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
 
         // Validate size
         if ($file_size > $max_size) {
-            die("Image is too large. Maximum size is 5MB.");
+            die("Image is too large. Maximum size is 10MB.");
         }
 
         // Generate safe unique filename
@@ -73,14 +74,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
 
         $add_query = mysqli_prepare($conn,
             "INSERT INTO items
-            (product_name, description, category_id, capital, quantity, price, date, image)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            (brand_name, model, description, category_id, capital, quantity, price, date, image)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
 
         mysqli_stmt_bind_param(
             $add_query,
-            "ssididss",
-            $product_name,
+            "sssididss",
+            $brand_name,
+            $model,
             $description,
             $category,
             $capital,
@@ -93,7 +95,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
         if (mysqli_stmt_execute($add_query)) {
 
             $id = mysqli_insert_id($conn);
-            $code = "PI-" . sprintf("%04d", $id);
+
+            // Get category name
+            $cat_query = mysqli_prepare($conn, "SELECT category_name FROM item_category WHERE id = ?");
+            mysqli_stmt_bind_param($cat_query, "i", $category);
+            mysqli_stmt_execute($cat_query);
+            $cat_result = mysqli_stmt_get_result($cat_query);
+            $cat_row = mysqli_fetch_assoc($cat_result);
+            $category_name = $cat_row['category_name'];
+            mysqli_stmt_close($cat_query);
+
+            // Generate SKU: 3letter category - 3letter brand - PI - 0001
+            $cat_3 = strtoupper(substr($category_name, 0, 3));
+            $brand_3 = strtoupper(substr($brand_name, 0, 3));
+            $code = $cat_3 . '-' . $brand_3 . '-PI-' . sprintf("%04d", $id);
 
             $update_query = mysqli_prepare(
                 $conn,
