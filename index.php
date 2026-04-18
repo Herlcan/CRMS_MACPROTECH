@@ -192,7 +192,16 @@
 				<div class="card-box p-20" style="height:100%;">
 					<h5 class="mb-20">Work Order Status Distribution</h5>
 					<div style="max-width:340px; margin:auto; position:relative;">
-						<canvas id="statusChart" height="300"></canvas>
+						<canvas
+						id="statusChart"
+						height="300"
+						data-labels='<?= htmlspecialchars(json_encode($labels), ENT_QUOTES, 'UTF-8') ?>'
+						data-data='<?= htmlspecialchars(json_encode($data), ENT_QUOTES, 'UTF-8') ?>'
+						data-wo-trend='<?= htmlspecialchars(json_encode($wo_trend_data), ENT_QUOTES, 'UTF-8') ?>'
+						data-cl-trend='<?= htmlspecialchars(json_encode($cl_trend_data), ENT_QUOTES, 'UTF-8') ?>'
+						data-tech-total='<?= htmlspecialchars($total_technicians, ENT_QUOTES, 'UTF-8') ?>'
+						data-rev-total='<?= htmlspecialchars($total_revenue, ENT_QUOTES, 'UTF-8') ?>'
+					></canvas>
 						<div class="donut-center">
 							<div class="donut-total"><?= $total_chart ?></div>
 							<div class="donut-sub">Total</div>
@@ -262,98 +271,8 @@
 </div>
 
 <!-- ── SCRIPTS ─────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-document.addEventListener("DOMContentLoaded", function(){
- 
-	// ── Donut Chart ────────────────────────────────
-	const ctx = document.getElementById('statusChart');
-	if(ctx){
-		const labels  = <?= json_encode($labels) ?>;
-		const data    = <?= json_encode($data) ?>;
-		const colors  = ['#22c55e','#38bdf8','#facc15','#ef4444','#a78bfa'];
- 
-		new Chart(ctx, {
-			type: 'doughnut',
-			data: {
-				labels: labels,
-				datasets: [{
-					data: data,
-					backgroundColor: colors.slice(0, data.length),
-					borderWidth: 3,
-					borderColor: '#fff',
-					hoverBorderWidth: 4
-				}]
-			},
-			options: {
-				responsive: true,
-				cutout: '68%',
-				plugins: {
-					legend: {
-						position: 'bottom',
-						labels: {
-							padding: 18,
-							font: { size: 13 },
-							usePointStyle: true,
-							pointStyleWidth: 10
-						}
-					},
-					tooltip: {
-						callbacks: {
-							label: function(ctx){
-								const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
-								const pct   = ((ctx.parsed/total)*100).toFixed(1);
-								return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
-							}
-						}
-					}
-				}
-			}
-		});
-	}
- 
-	// ── Sparklines ─────────────────────────────────
-	function sparkline(id, rawData, color){
-		const el = document.getElementById(id);
-		if(!el) return;
-		// fill with at least 6 points
-		const d = rawData.length >= 2 ? rawData : [2,4,3,5,4,6,rawData[0]||5];
-		new Chart(el, {
-			type: 'line',
-			data: {
-				labels: d.map((_,i)=>i),
-				datasets:[{
-					data: d,
-					borderColor: color,
-					borderWidth: 2,
-					fill: true,
-					backgroundColor: color+'22',
-					tension: 0.45,
-					pointRadius: 0
-				}]
-			},
-			options: {
-				responsive: true,
-				plugins: { legend:{display:false}, tooltip:{enabled:false} },
-				scales: {
-					x: { display:false },
-					y: { display:false }
-				},
-				animation: { duration: 800 }
-			}
-		});
-	}
- 
-	const woData   = <?= json_encode($wo_trend_data ?: [3,5,4,7,6,9,$total_workorders]) ?>;
-	const clData   = <?= json_encode($cl_trend_data ?: [1,3,2,4,3,5,$total_clients]) ?>;
-	const techData = [1,1,1,1,1,1,<?= $total_technicians ?>];
-	const revData  = [0,0,0,0,0,0,<?= $total_revenue ?>];
- 
-	sparkline('spark-wo',   woData,   '#22c55e');
-	sparkline('spark-cl',   clData,   '#ef4444');
-	sparkline('spark-tech', techData, '#14b8a6');
-	sparkline('spark-rev',  revData,  '#22c55e');
-});
-</script>
+<script src="src/scripts/chart.js"></script>
+<script src="src/scripts/dashboard-charts.js"></script>
 
 <?php include 'footer.php'; ?>
+
