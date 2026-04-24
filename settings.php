@@ -1,31 +1,9 @@
 
-<?php include 'header.php';?>
-
-	<div class="header">
-		<div class="header-left">
-			<div class="menu-icon dw dw-menu"></div>
-		</div>
-		<div class="header-right">
-			<div class="user-info-dropdown">
-				<div class="dropdown">
-					<a class="dropdown-toggle" href="#" role="button" data-toggle="dropdown">
-						<span class="user-icon">
-							<img src="src/images/admin.png" width="50">
-						</span>
-						<span class="user-name">John Doe</span>
-					</a>
-					<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-						<a class="dropdown-item" href="#"><i class="dw dw-user1"></i> Profile</a>
-						<a class="dropdown-item" href="#"><i class="dw dw-settings2"></i> Setting</a>
-						<hr>
-						<a class="dropdown-item" href="login.php"><i class="dw dw-logout"></i> Log Out</a>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
-<?php include 'sidebar.php'; ?>
+<?php 
+	include 'header.php';
+	include 'sidebar.php'; 
+	include 'src/db/connection.php';
+ ?>
 
 	<div class="mobile-menu-overlay"></div>
 
@@ -58,12 +36,6 @@
 									<div class="row">
 										<div class="col-md-6 col-sm-12">
 											<div class="form-group">
-											<label>Shop Name</label>
-											<input class="form-control" type="text" placeholder="input shop name">
-											</div>
-										</div>
-										<div class="col-md-6 col-sm-12">
-											<div class="form-group">
 											<label>Owner Name</label>
 											<input class="form-control" type="text" placeholder="input owner name">
 											</div>
@@ -88,7 +60,7 @@
 										</div>
 										<div class="col-md-12 col-sm-12">
 											<div class="form-group">
-											<label>Website</label>
+											<label>Facebook Page</label>
 											<input class="form-control" type="text" placeholder="www.website.com">
 											</div>
 										</div>

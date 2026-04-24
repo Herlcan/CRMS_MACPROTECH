@@ -16,13 +16,6 @@
 								<h4><i class="micon dw dw-money mtext"></i> Payment</h4>
 							</div>
 						</div>
-						<div class="col-md-6 col-sm-12 text-right">
-							<div class="dropdown">
-								<a href="#" class="btn btn-primary" data-backdrop="static" data-toggle="modal" data-target="#add_payment">
-									Add New
-								</a>
-							</div>
-						</div>
 					</div>
 				</div>
 				<!-- Simple Datatable start -->

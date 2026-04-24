@@ -59,14 +59,14 @@
 							<span class="mtext">Payment</span>
 						</a>
 					</li>
-					<li>
+					<!--<li>
 						<a href="settings.php" class="dropdown-toggle no-arrow">
 							<span class="micon dw dw-settings2">
 								<img src="src/images/settings-sliders.png" width="20px" height="20px">
 							</span>
 							<span class="mtext">Settings</span>
 						</a>
-					</li>
+					</li>-->
 					<li>
 						<a href="user.php" class="dropdown-toggle no-arrow">
 							<span class="micon dw dw-user1">
@@ -74,14 +74,14 @@
 							</span><span class="mtext">Users</span>
 						</a>
 					</li>
-					<li>
+					<!--<li>
 						<a href="user-group.php" class="dropdown-toggle no-arrow">
 							<span class="micon fa fa-users">
 								<img src="src/images/users-class.png" width="20px" height="20px">
 							</span>
 							<span class="mtext">User Group</span>
 						</a>
-					</li>
+					</li>-->
 				</ul>
 			</div>
 			<div class="sidebar-footer">

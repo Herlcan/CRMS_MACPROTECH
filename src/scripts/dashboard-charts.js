@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", function(){
 	if(ctx){
 		const labels  = JSON.parse(document.getElementById('statusChart').dataset.labels);
 		const data    = JSON.parse(document.getElementById('statusChart').dataset.data);
-		const colors  = ['#22c55e','#38bdf8','#facc15','#ef4444','#a78bfa'];
+		const colors  = ['#ef4444','#22c55e','#38bdf8','#facc15','#a78bfa'];
 
 		new Chart(ctx, {
 			type: 'doughnut',

@@ -76,9 +76,9 @@ if (session_status() === PHP_SESSION_NONE) {
 				<div class="col-md-12">
 					<div class="login-box bg-white box-shadow border-radius-10">
 						<form method="POST">
-							<div class="text-center mb-30">
+							<div class="text-center mb-30" style="margin-bottom: 1px;">
 								<h2 class="h2 text-primary">MACPROTECH</h2>
-								<p class="h5 text-primary">Admin</p>
+								<p class="h5" style="margin-bottom: 5px;">Admin</p>
 							</div>
 							<div class="form-group">
 								<label class="form-label">Username</label>
