@@ -100,7 +100,7 @@ if (!isset($_POST['id'], $_POST['status'])) {
 $id = (int) $_POST['id'];
 $status = trim($_POST['status']);
 
-$allowedStatuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
+$allowedStatuses = ['Pending', 'In Progress', 'Repaired', 'Completed', 'Cancelled'];
 
 if (!in_array($status, $allowedStatuses, true)) {
     echo json_encode(['success' => false, 'message' => 'Invalid status value.']);

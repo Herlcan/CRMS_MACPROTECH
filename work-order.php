@@ -49,6 +49,7 @@
 									<option value="">All Status</option>
 									<option value="Pending" <?= (isset($_GET['filter']) && $_GET['filter']=='Pending')?'selected':'' ?>>Pending</option>
 									<option value="In Progress" <?= (isset($_GET['filter']) && $_GET['filter']=='In Progress')?'selected':'' ?>>In Progress</option>
+									<option value="Repaired" <?= (isset($_GET['filter']) && $_GET['filter']=='Repaired')?'selected':'' ?>>Repaired</option>
 									<option value="Completed" <?= (isset($_GET['filter']) && $_GET['filter']=='Completed')?'selected':'' ?>>Completed</option>
 									<option value="Cancelled" <?= (isset($_GET['filter']) && $_GET['filter']=='Cancelled')?'selected':'' ?>>Cancelled</option>
 								</select>
@@ -109,7 +110,7 @@
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
-									$allowed_status = ['Pending','In Progress','Completed','Cancelled'];
+									$allowed_status = ['Pending','In Progress','Repaired','Completed','Cancelled'];
 
 									if (in_array($_GET['filter'], $allowed_status)) {
 										$f = mysqli_real_escape_string($conn, $_GET['filter']);

@@ -1397,6 +1397,12 @@ table tbody tr:hover {
 .bg-warning { background-color: var(--warning); }
 .bg-info { background-color: var(--info); }
 
+.bg-pending{ background-color: #4D7CFF;}
+.bg-inprogress { background-color: #00ECCF;}
+.bg-repaired { background-color: #14D98F;}
+.bg-completed { background-color: #00BFA6;}
+.bg-cancelled { background-color: #FF5C75;}
+
 .bg-admin { background-color: #00eccf;}
 .bg-staff { background-color: #2c515b;}
 /* ================= MODALS ================= */
