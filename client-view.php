@@ -8,12 +8,21 @@
 	include 'sidebar.php'; 
 	include 'src/db/connection.php';
 	
-	if (isset($_GET['client_id'])) {
-		$client_id = intval($_GET['client_id']);
+	$client_id = isset($_GET['client_id']) ? intval($_GET['client_id']) : 0;
+	$row = null;
 
+	if ($client_id > 0) {
 		$query = "SELECT * FROM client WHERE id = $client_id";
 		$result = mysqli_query($conn, $query);
 		$row = mysqli_fetch_assoc($result);
+	}
+
+	if (!$row) {
+		echo '<div class="main-container"><div class="pd-ltr-20 xs-pd-20-10"><div class="min-height-200px">';
+		echo '<h4>Client not found.</h4>';
+		echo '<p>Please go back and select a client before searching work orders.</p>';
+		echo '</div></div></div>';
+		exit;
 	}
 
 ?>
@@ -28,53 +37,99 @@
 		<div class="css-modal-content" style="max-width: 800px;">
 			<!-- Modal Header -->
 			<div class="css-modal-header">
-				<h5 class="css-modal-title">Add New Work Order</h5>
+				<h5 class="css-modal-title" id="modalTitle">Add New Work Order</h5>
 				<label for="addWorkOrderToggle" class="css-modal-close">&times;</label>
 			</div>
 
 			<!-- Modal Body -->
 			<div class="css-modal-body">
 				<!-- Form -->
-				<form method="POST" action="src/handlers/add_work_order.php">
-					<div class="row">
-						<div style="width: 45%;">
-							<input type="hidden" name="client_id" value="<?=htmlspecialchars($client_id)?>">
-							<input type="hidden" name="status" value="Pending">
-							<div class="form-group">
-								<label class="form-label">Unit Type</label>
-								<input type="text" class="form-control" placeholder="Input Unit Type" name="unit_type" required autocomplete="off">
-							</div>
+				<form method="POST" action="src/handlers/add_work_order.php" id="workOrderForm">
+					<!-- STEP 1: WORK ORDER DETAILS -->
+					<div id="step1Form" class="form-step" style="display: block;">
+						<div class="row">
+							<div style="width: 45%;">
+								<input type="hidden" name="client_id" value="<?=htmlspecialchars($client_id)?>">
+								<input type="hidden" name="status" value="Pending">
+								<div class="form-group">
+									<label class="form-label">Unit Type</label>
+									<input type="text" class="form-control" placeholder="Input Unit Type" name="unit_type" required autocomplete="off">
+								</div>
 
-							<div class="form-group">
-								<label class="form-label">Brand</label>
-								<input type="text" class="form-control" placeholder="Input Brand Name" name="brand" required autocomplete="off">
-							</div>
+								<div class="form-group">
+									<label class="form-label">Brand</label>
+									<input type="text" class="form-control" placeholder="Input Brand Name" name="brand" required autocomplete="off">
+								</div>
 
-							<div class="form-group">
-								<label class="form-label">Model</label>
-								<input type="text" class="form-control" placeholder="Input Model" name="model" required autocomplete="off">
+								<div class="form-group">
+									<label class="form-label">Model</label>
+									<input type="text" class="form-control" placeholder="Input Model" name="model" required autocomplete="off">
+								</div>
+								
+								<div class="form-group">
+									<label class="form-label">Specifications/Accessories</label>
+									<textarea class="form-control" style="height: 80px;" placeholder="Input Specifications/Accessories" name="specs_acce" required autocomplete="off"></textarea>
+								</div>
 							</div>
 							
-							<div class="form-group">
-								<label class="form-label">Specifications/Accessories</label>
-								<textarea class="form-control" style="height: 80px;" placeholder="Input Specifications/Accessories" name="specs_acce" required autocomplete="off"></textarea>
+							<div style="width: 55%; padding-left: 5%;">
+								<div class="form-group">
+									<label class="form-label">Date</label>
+									<input type="date" class="form-control" name="request_date" required autocomplete="off">
+								</div>
+								
+								<div class="form-group">
+									<label class="form-label">Problems/Findings</label>
+									<textarea class="form-control" style="height: 150px;" placeholder="Input Problems/Findings" name="prob_find" required autocomplete="off"></textarea>
+								</div>
+
+								<div class="form-group">
+									<label class="form-label">Work Order Cost</label>
+									<input type="number" class="form-control" placeholder="Work Order Cost" name="work_order_cost" required autocomplete="off">
+								</div>
 							</div>
 						</div>
-						
-						<div style="width: 55%; padding-left: 5%;">
-							<div class="form-group">
-								<label class="form-label">Date</label>
-								<input type="date" class="form-control" name="request_date" required autocomplete="off">
-							</div>
-							
-							<div class="form-group">
-								<label class="form-label">Problems/Findings</label>
-								<textarea class="form-control" style="height: 150px;" placeholder="Input Problems/Findings" name="prob_find" required autocomplete="off"></textarea>
-							</div>
+					</div>
 
-							<div class="form-group">
-								<label class="form-label">Work Order Cost</label>
-								<input type="number" class="form-control" placeholder="Work Order Cost" name="work_order_cost" required autocomplete="off">
+					<!-- STEP 2: PARTS/PURCHASES -->
+					<div id="step2Form" class="form-step" style="display: none;">
+						<div class="row">
+							<div style="width: 100%;">
+								<h5 style="margin-bottom: 20px;">Parts to be Purchased</h5>
+								<div id="partsContainer">
+									<!-- First part entry (default) -->
+									<div class="part-entry" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+										<div class="row">
+											<div style="width: 45%;">
+												<div class="form-group">
+													<label class="form-label">Part Name</label>
+													<div style="position: relative;">
+														<input type="text" class="form-control part-search" placeholder="Search for a part..." autocomplete="off" data-item-id="">
+														<input type="hidden" class="part-item-id" name="part_item_id[]" value="">
+														<div class="part-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; z-index: 100; display: none;">
+														</div>
+													</div>
+												</div>
+											</div>
+											<div style="width: 25%;">
+												<div class="form-group">
+													<label class="form-label">Quantity</label>
+													<input type="number" class="form-control" placeholder="Qty" name="part_quantity[]" min="1" value="1" autocomplete="off">
+												</div>
+											</div>
+											<div style="width: 25%; padding-left: 3%;">
+												<div class="form-group">
+													<label class="form-label">Cost (Php)</label>
+													<input type="number" class="form-control" placeholder="Cost" name="part_cost[]" step="0.01" autocomplete="off">
+												</div>
+											</div>
+											<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+												<button type="button" class="btn btn-sm btn-danger" onclick="removePartEntry(this)">×</button>
+											</div>
+										</div>
+									</div>
+								</div>
+								<button type="button" class="btn btn-secondary" onclick="addPartEntry()" style="margin-top: 10px;">+ Add Another Part</button>
 							</div>
 						</div>
 					</div>
@@ -82,12 +137,212 @@
 					<!-- Modal Footer -->
 					<div class="css-modal-footer">
 						<label for="addWorkOrderToggle" class="btn btn-secondary">Cancel</label>
-						<button type="submit" name="add_work_order" class="btn btn-primary">Add Work Order</button>
+						<button type="button" id="backBtn" class="btn btn-secondary" onclick="goToStep(1)" style="display: none;">Back</button>
+						<button type="button" id="nextBtn" class="btn btn-primary" onclick="goToStep(2)">Next</button>
+						<button type="submit" id="submitBtn" name="add_work_order" class="btn btn-primary" style="display: none;">Add Work Order</button>
 					</div>
 				</form>
 			</div>
 		</div>
 	</div>
+
+	<!-- JavaScript for multi-step form -->
+	<script>
+		console.log('Modal script loaded');
+		
+		document.addEventListener('DOMContentLoaded', function() {
+			// Handle part search autocomplete
+			document.addEventListener('input', function(e) {
+				if (e.target.classList.contains('part-search')) {
+					const searchInput = e.target;
+					const searchTerm = searchInput.value.trim();
+					const dropdown = searchInput.closest('div').querySelector('.part-dropdown');
+
+					if (searchTerm.length === 0) {
+						dropdown.style.display = 'none';
+						return;
+					}
+
+					// Search for items
+					fetch(`/MACPROTECH/src/handlers/search_items.php?q=${encodeURIComponent(searchTerm)}`)
+						.then(response => {
+							if (!response.ok) {
+								throw new Error(`HTTP error! status: ${response.status}`);
+							}
+							return response.json();
+						})
+						.then(data => {
+							dropdown.innerHTML = '';
+							
+							if (data.length === 0) {
+								dropdown.innerHTML = '<div style="padding: 10px; color: #999;">No items found</div>';
+								dropdown.style.display = 'block';
+								return;
+							}
+
+							data.forEach(item => {
+								const option = document.createElement('div');
+								option.style.cssText = 'padding: 10px; cursor: pointer; border-bottom: 1px solid #eee;';
+								option.innerHTML = `${item.product_name}`;
+								
+								option.addEventListener('mouseenter', function() {
+									this.style.backgroundColor = '#f5f5f5';
+								});
+								
+								option.addEventListener('mouseleave', function() {
+									this.style.backgroundColor = 'white';
+								});
+
+								option.addEventListener('click', function() {
+									selectItem(searchInput, item);
+								});
+
+								dropdown.appendChild(option);
+							});
+
+							dropdown.style.display = 'block';
+						})
+						.catch(error => {
+							console.error('Error searching items:', error);
+							dropdown.innerHTML = '<div style="padding: 10px; color: #f00;">Error loading items</div>';
+							dropdown.style.display = 'block';
+						});
+				}
+			});
+		});
+		
+		function goToStep(step) {
+			console.log('goToStep called with step:', step);
+			const step1 = document.getElementById('step1Form');
+			const step2 = document.getElementById('step2Form');
+			const nextBtn = document.getElementById('nextBtn');
+			const backBtn = document.getElementById('backBtn');
+			const submitBtn = document.getElementById('submitBtn');
+			const modalTitle = document.getElementById('modalTitle');
+
+			console.log('Elements found:', { step1, step2, nextBtn, backBtn, submitBtn, modalTitle });
+
+			if (step === 1) {
+				// Show step 1
+				step1.style.display = 'block';
+				step2.style.display = 'none';
+				nextBtn.style.display = 'inline-block';
+				backBtn.style.display = 'none';
+				submitBtn.style.display = 'none';
+				modalTitle.textContent = 'Add New Work Order';
+			} else if (step === 2) {
+				// Validate step 1 before moving to step 2
+				const form = document.getElementById('workOrderForm');
+				const inputs = step1.querySelectorAll('input[required], textarea[required]');
+				let isValid = true;
+				let emptyFields = [];
+
+				inputs.forEach(input => {
+					const value = input.value.trim();
+					console.log('Checking field:', input.name, 'value:', value, 'type:', input.type);
+					if (!value) {
+						isValid = false;
+						emptyFields.push(input.name);
+						input.style.borderColor = 'red';
+					} else {
+						input.style.borderColor = '';
+					}
+				});
+
+				console.log('Validation result:', isValid, 'empty fields:', emptyFields);
+
+				if (!isValid) {
+					alert('Please fill in all required fields before proceeding. Empty fields: ' + emptyFields.join(', '));
+					return;
+				}
+
+				// Show step 2
+				step1.style.display = 'none';
+				step2.style.display = 'block';
+				nextBtn.style.display = 'none';
+				backBtn.style.display = 'inline-block';
+				submitBtn.style.display = 'inline-block';
+				modalTitle.textContent = 'Add Work Order - Parts to be Purchased';
+			}
+		}
+
+		function selectItem(inputElement, item) {
+			const displayText = item.product_name;
+			inputElement.value = displayText;
+			inputElement.dataset.itemId = item.id;
+			inputElement.closest('div').querySelector('.part-item-id').value = item.id;
+			
+			// Autofill the cost field with the item price
+			const partEntry = inputElement.closest('.part-entry');
+			const costInput = partEntry.querySelector('input[name="part_cost[]"]');
+			if (costInput) {
+				costInput.value = parseFloat(item.price).toFixed(2);
+			}
+			
+			inputElement.closest('div').querySelector('.part-dropdown').style.display = 'none';
+		}
+
+		// Close dropdowns when clicking outside
+		document.addEventListener('click', function(e) {
+			if (!e.target.classList.contains('part-search')) {
+				document.querySelectorAll('.part-dropdown').forEach(dropdown => {
+					dropdown.style.display = 'none';
+				});
+			}
+		});
+
+		function addPartEntry() {
+			const partsContainer = document.getElementById('partsContainer');
+			const partEntry = document.createElement('div');
+			partEntry.className = 'part-entry';
+			partEntry.style.marginBottom = '20px';
+			partEntry.style.padding = '15px';
+			partEntry.style.border = '1px solid #ddd';
+			partEntry.style.borderRadius = '4px';
+
+			partEntry.innerHTML = `
+				<div class="row">
+					<div style="width: 45%;">
+						<div class="form-group">
+							<label class="form-label">Part Name</label>
+							<div style="position: relative;">
+								<input type="text" class="form-control part-search" placeholder="Search for a part..." autocomplete="off" data-item-id="">
+								<input type="hidden" class="part-item-id" name="part_item_id[]" value="">
+								<div class="part-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; z-index: 100; display: none;">
+								</div>
+							</div>
+						</div>
+					</div>
+					<div style="width: 25%;">
+						<div class="form-group">
+							<label class="form-label">Quantity</label>
+							<input type="number" class="form-control" placeholder="Qty" name="part_quantity[]" min="1" value="1" autocomplete="off">
+						</div>
+					</div>
+					<div style="width: 25%; padding-left: 3%;">
+						<div class="form-group">
+							<label class="form-label">Cost (Php)</label>
+							<input type="number" class="form-control" placeholder="Cost" name="part_cost[]" step="0.01" autocomplete="off">
+						</div>
+					</div>
+					<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+						<button type="button" class="btn btn-sm btn-danger" onclick="removePartEntry(this)">×</button>
+					</div>
+				</div>
+			`;
+
+			partsContainer.appendChild(partEntry);
+		}
+
+		function removePartEntry(button) {
+			const partsContainer = document.getElementById('partsContainer');
+			if (partsContainer.children.length > 1) {
+				button.closest('.part-entry').remove();
+			} else {
+				alert('You must have at least one part entry.');
+			}
+		}
+	</script>
 	
 <body>
 	<div class="main-container">
@@ -128,7 +383,8 @@
 								<div class="dataTables_length" id="DataTables_Table_0_length">
 									<label>Show 
 										<form method="GET" style="display: inline;">
-											<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
+											<input type="hidden" name="client_id" value="<?= htmlspecialchars($client_id) ?>">
+						<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
 											<select name="limit" aria-controls="DataTables_Table_0" class="custom-select custom-select-sm form-control form-control-sm" onchange="this.form.submit();">
 												<option value="10" <?= (isset($_GET['limit']) && $_GET['limit'] == '10') ? 'selected' : '' ?>>10</option>
 												<option value="25" <?= (isset($_GET['limit']) && $_GET['limit'] == '25') ? 'selected' : '' ?>>25</option>
@@ -143,7 +399,8 @@
 								<div id="DataTables_Table_0_filter" class="dataTables_filter">
 									<label>Search:
 										<form method="GET">
-											<input type="search" name="search" class="form-control form-control-sm" placeholder="Search clients..." value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
+											<input type="hidden" name="client_id" value="<?= htmlspecialchars($client_id) ?>">
+						<input type="search" name="search" class="form-control form-control-sm" placeholder="Search work order..." value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
 										</form>
 									</label>
 								</div>
@@ -273,6 +530,7 @@
 													</a>
 													<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 														<a class="dropdown-item" href="#"><i class="dw dw-eye"></i> View</a>
+														<a class="dropdown-item" href="#"><i class="dw dw-eye"></i> Edit</a>
 														<a class="dropdown-item" href="#" data-toggle="modal" data-target="#delete"><i class="dw dw-delete-3"></i> Delete</a>
 													</div>
 												</div>
@@ -301,7 +559,7 @@
 											<ul class="pagination justify-content-end">
 												<!-- Previous Button -->
 												<li class="paginate_button page-item previous <?= ($current_page <= 1) ? 'disabled' : '' ?>">
-													<a href="?page=<?= max(1, $current_page - 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
+													<a href="?page=<?= max(1, $current_page - 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>&client_id=<?= htmlspecialchars($client_id) ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
 														<i class="ion-chevron-left">
 															<img src="src/images/angle-double-small-left.png" width="20px" style="border: none">
 														</i> 
@@ -314,7 +572,7 @@
 													$end_page = min($total_pages, $current_page + 2);
 													
 													if ($start_page > 1) {
-														echo '<li class="paginate_button page-item"><a href="?page=1&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">1</a></li>';
+														echo '<li class="paginate_button page-item"><a href="?page=1&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '&client_id=' . htmlspecialchars($client_id) . '" class="page-link">1</a></li>';
 														if ($start_page > 2) {
 															echo '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
 														}
@@ -322,20 +580,19 @@
 													
 													for ($i = $start_page; $i <= $end_page; $i++) {
 														$active = ($i == $current_page) ? 'active' : '';
-														echo '<li class="paginate_button page-item ' . $active . '"><a href="?page=' . $i . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">' . $i . '</a></li>';
-													}
-													
+											echo '<li class="paginate_button page-item ' . $active . '"><a href="?page=' . $i . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '&client_id=' . htmlspecialchars($client_id) . '" class="page-link">' . $i . '</a></li>';
+									}
 													if ($end_page < $total_pages) {
 														if ($end_page < $total_pages - 1) {
 															echo '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
 														}
-														echo '<li class="paginate_button page-item"><a href="?page=' . $total_pages . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">' . $total_pages . '</a></li>';
+														echo '<li class="paginate_button page-item"><a href="?page=' . $total_pages . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '&client_id=' . htmlspecialchars($client_id) . '" class="page-link">' . $total_pages . '</a></li>';
 													}
 												?>
 
 												<!-- Next Button -->
 												<li class="paginate_button page-item next <?= ($current_page >= $total_pages) ? 'disabled' : '' ?>">
-													<a href="?page=<?= min($total_pages, $current_page + 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
+													<a href="?page=<?= min($total_pages, $current_page + 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>&client_id=<?= htmlspecialchars($client_id) ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
 														<i class="ion-chevron-right">
 															<img src="src/images/angle-double-small-right.png" width="20px" style="border: none">
 														</i>
