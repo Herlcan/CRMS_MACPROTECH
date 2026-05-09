@@ -251,14 +251,14 @@
 							<?php
 								$status = $row['status'];
 								$badge_class = match($status) {
-									'Completed'   => 'badge-completed',
-									'Pending'     => 'badge-pending',
-									'In Progress' => 'badge-inprogress',
-									'Cancelled'   => 'badge-cancelled',
-									default       => 'badge-default'
+									'Completed'   => 'bg-completed',
+									'Pending'     => 'bg-pending',
+									'In Progress' => 'bg-inprogress',
+									'Cancelled'   => 'bg-cancelled',
+									'Repaired'       => 'bg-repaired'
 								};
 							?>
-							<span class="status-pill <?= $badge_class ?>"><?= htmlspecialchars($status) ?></span>
+							<span class="status-pill <?= $badge_class ?>" style="color: #fff"><?= htmlspecialchars($status) ?></span>
 						</td>
 						<td><?= htmlspecialchars($row['request_date']) ?></td>
 					</tr>

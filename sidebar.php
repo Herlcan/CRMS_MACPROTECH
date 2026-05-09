@@ -19,6 +19,7 @@
 						<span class="mtext">Dashboard</span>
 					</a>
 				</li>
+				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk'): ?>
 				<li>
 					<a href="clients.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-user">
@@ -27,6 +28,8 @@
 						<span class="mtext">Clients</span>
 					</a>
 				</li>
+				<?php endif; ?>
+				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Technician'): ?>
 				<li>
 					<a href="work-order.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-shopping-basket">
@@ -35,6 +38,8 @@
 						<span class="mtext">Work Order</span>
 					</a>
 				</li>
+				<?php endif; ?>
+				<?php if ($_SESSION['role'] == 'Administrator'): ?>
 				<li>
 					<a href="item-category.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-file">
@@ -43,6 +48,8 @@
 						<span class="mtext">Item Category</span>
 					</a>
 				</li>
+				<?php endif; ?>
+				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk' || $_SESSION['role'] == 'Technician'): ?>
 				<li>
 					<a href="items.php" class="dropdown-toggle no-arrow">
 						<span class="micon fa fa-cart-plus">
@@ -51,6 +58,8 @@
 						<span class="mtext">Product Items</span>
 					</a>
 				</li>
+				<?php endif; ?>
+				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk'): ?>
 				<li>
 					<a href="payment.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-money">
@@ -59,6 +68,7 @@
 						<span class="mtext">Payment</span>
 					</a>
 				</li>
+				<?php endif; ?>
 				<!--<li>
 					<a href="settings.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-settings2">
@@ -67,6 +77,7 @@
 						<span class="mtext">Settings</span>
 					</a>
 				</li>-->
+				<?php if ($_SESSION['role'] == 'Administrator'): ?>
 				<li>
 					<a href="user.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-user1">
@@ -74,6 +85,7 @@
 						</span><span class="mtext">Users</span>
 					</a>
 				</li>
+				<?php endif; ?>
 				<!--<li>
 					<a href="user-group.php" class="dropdown-toggle no-arrow">
 						<span class="micon fa fa-users">

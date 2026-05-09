@@ -580,8 +580,8 @@
 													
 													for ($i = $start_page; $i <= $end_page; $i++) {
 														$active = ($i == $current_page) ? 'active' : '';
-											echo '<li class="paginate_button page-item ' . $active . '"><a href="?page=' . $i . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '&client_id=' . htmlspecialchars($client_id) . '" class="page-link">' . $i . '</a></li>';
-									}
+														echo '<li class="paginate_button page-item ' . $active . '"><a href="?page=' . $i . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '&client_id=' . htmlspecialchars($client_id) . '" class="page-link">' . $i . '</a></li>';
+													}
 													if ($end_page < $total_pages) {
 														if ($end_page < $total_pages - 1) {
 															echo '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
