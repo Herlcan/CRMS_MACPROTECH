@@ -27,7 +27,7 @@
 
 ?>
 	<!-- Hidden checkbox for add transaction modal toggle -->
-	<input type="checkbox" id="addWorkOrderToggle" class="add-client-toggle">
+	<input type="checkbox" id="addWorkOrderToggle" class="add-client-toggle" onchange="if (!this.checked) resetFormToAdd();">
 
 	<!-- Add transaction Modal Overlay -->
 	<label for="addWorkOrderToggle" class="css-modal-overlay add-client-overlay"></label>
@@ -68,7 +68,7 @@
 								
 								<div class="form-group">
 									<label class="form-label">Specifications/Accessories</label>
-									<textarea class="form-control" style="height: 80px;" placeholder="Input Specifications/Accessories" name="specs_acce" required autocomplete="off"></textarea>
+									<textarea class="form-control" style="height: 151px;" placeholder="Input Specifications/Accessories" name="specs_acce" required autocomplete="off"></textarea>
 								</div>
 							</div>
 							
@@ -84,6 +84,11 @@
 								</div>
 
 								<div class="form-group">
+									<label class="form-label">Diagnostic Fee</label>
+									<input type="number" class="form-control" placeholder="Diagnostic Fee" name="diagnostic_fee" required autocomplete="off">
+								</div>
+
+								<div class="form-group">
 									<label class="form-label">Work Order Cost</label>
 									<input type="number" class="form-control" placeholder="Work Order Cost" name="work_order_cost" required autocomplete="off">
 								</div>
@@ -91,21 +96,25 @@
 						</div>
 					</div>
 
-					<!-- STEP 2: PARTS/PURCHASES -->
-					<div id="step2Form" class="form-step" style="display: none;">
-						<div class="row">
-							<div style="width: 100%;">
-								<h5 style="margin-bottom: 20px;">Parts to be Purchased</h5>
-								<div id="partsContainer">
-									<!-- First part entry (default) -->
-									<div class="part-entry" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
+<!-- STEP 2: PARTS -->
+				<div id="step2Form" class="form-step" style="display: none;">
+					<div class="row">
+						<div style="width: 100%;">
+							<h5 style="margin-bottom: 20px;">Parts</h5>
+							
+							<!-- PURCHASED PARTS SECTION -->
+							<div style="margin-bottom: 30px;">
+								<h6 style="margin-bottom: 15px; font-weight: 600; border-bottom: 2px solid #007bff; padding-bottom: 10px;">Purchase Parts</h6>
+								<div id="purchasedPartsContainer">
+									<!-- First purchase part entry (default) -->
+									<div class="purchased-part-entry" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
 										<div class="row">
-											<div style="width: 45%;">
+											<div style="width: 70%;">
 												<div class="form-group">
 													<label class="form-label">Part Name</label>
 													<div style="position: relative;">
 														<input type="text" class="form-control part-search" placeholder="Search for a part..." autocomplete="off" data-item-id="">
-														<input type="hidden" class="part-item-id" name="part_item_id[]" value="">
+														<input type="hidden" class="part-item-id" name="purchased_part_item_id[]" value="">
 														<div class="part-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; z-index: 100; display: none;">
 														</div>
 													</div>
@@ -114,29 +123,60 @@
 											<div style="width: 25%;">
 												<div class="form-group">
 													<label class="form-label">Quantity</label>
-													<input type="number" class="form-control" placeholder="Qty" name="part_quantity[]" min="1" value="1" autocomplete="off">
-												</div>
-											</div>
-											<div style="width: 25%; padding-left: 3%;">
-												<div class="form-group">
-													<label class="form-label">Cost (Php)</label>
-													<input type="number" class="form-control" placeholder="Cost" name="part_cost[]" step="0.01" autocomplete="off">
+													<input type="number" class="form-control" placeholder="Qty" name="purchased_part_quantity[]" min="1" value="1" autocomplete="off">
 												</div>
 											</div>
 											<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
-												<button type="button" class="btn btn-sm btn-danger" onclick="removePartEntry(this)">×</button>
+												<button type="button" class="btn btn-sm btn-danger" onclick="removePurchasedPartEntry(this)">×</button>
 											</div>
 										</div>
 									</div>
 								</div>
-								<button type="button" class="btn btn-secondary" onclick="addPartEntry()" style="margin-top: 10px;">+ Add Another Part</button>
+								<button type="button" class="btn btn-secondary" onclick="addPurchasedPartEntry()" style="margin-top: 10px;">+ Add Purchased Part</button>
+							</div>
+
+							<!-- CLIENT PROVIDED PARTS SECTION -->
+							<div>
+								<h6 style="margin-bottom: 15px; font-weight: 600; border-bottom: 2px solid #28a745; padding-bottom: 10px;">Client Provided Parts</h6>
+								<div id="clientProvidedPartsContainer">
+									<!-- First client provided part entry (default) -->
+									<div class="client-part-entry" style="margin-bottom: 20px; padding: 15px; border: 1px solid #28a745; border-radius: 4px; background-color: #f1f9f4;">
+										<div class="row">
+											<div style="width: 45%;">
+												<div class="form-group">
+													<label class="form-label">Product Name</label>
+													<input type="text" class="form-control" placeholder="Enter product name" name="client_part_product_name[]" autocomplete="off">
+												</div>
+											</div>
+											<div style="width: 50%; padding-left: 3%;">
+												<div class="form-group">
+													<label class="form-label">Description</label>
+													<textarea class="form-control" placeholder="Enter description" name="client_part_description[]" style="height: 40px;" autocomplete="off"></textarea>
+												</div>
+											</div>
+											<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+												<button type="button" class="btn btn-sm btn-danger" onclick="removeClientPartEntry(this)">×</button>
+											</div>
+										</div>
+										<div class="row">
+											<div style="width: 45%;">
+												<div class="form-group">
+													<label class="form-label">Quantity</label>
+													<input type="number" class="form-control" placeholder="Qty" name="client_part_quantity[]" min="1" value="1" autocomplete="off">
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+								<button type="button" class="btn btn-secondary" onclick="addClientProvidedPartEntry()" style="margin-top: 10px;">+ Add Client Provided Part</button>
+							</div>
 							</div>
 						</div>
 					</div>
 					
 					<!-- Modal Footer -->
 					<div class="css-modal-footer">
-						<label for="addWorkOrderToggle" class="btn btn-secondary">Cancel</label>
+						<label for="addWorkOrderToggle" class="btn btn-secondary" onclick="resetFormToAdd()">Cancel</label>
 						<button type="button" id="backBtn" class="btn btn-secondary" onclick="goToStep(1)" style="display: none;">Back</button>
 						<button type="button" id="nextBtn" class="btn btn-primary" onclick="goToStep(2)">Next</button>
 						<button type="submit" id="submitBtn" name="add_work_order" class="btn btn-primary" style="display: none;">Add Work Order</button>
@@ -151,7 +191,7 @@
 		console.log('Modal script loaded');
 		
 		document.addEventListener('DOMContentLoaded', function() {
-			// Handle part search autocomplete
+			// Handle part search autocomplete for purchased parts
 			document.addEventListener('input', function(e) {
 				if (e.target.classList.contains('part-search')) {
 					const searchInput = e.target;
@@ -262,7 +302,7 @@
 				nextBtn.style.display = 'none';
 				backBtn.style.display = 'inline-block';
 				submitBtn.style.display = 'inline-block';
-				modalTitle.textContent = 'Add Work Order - Parts to be Purchased';
+				modalTitle.textContent = 'Add Work Order - Parts';
 			}
 		}
 
@@ -271,13 +311,6 @@
 			inputElement.value = displayText;
 			inputElement.dataset.itemId = item.id;
 			inputElement.closest('div').querySelector('.part-item-id').value = item.id;
-			
-			// Autofill the cost field with the item price
-			const partEntry = inputElement.closest('.part-entry');
-			const costInput = partEntry.querySelector('input[name="part_cost[]"]');
-			if (costInput) {
-				costInput.value = parseFloat(item.price).toFixed(2);
-			}
 			
 			inputElement.closest('div').querySelector('.part-dropdown').style.display = 'none';
 		}
@@ -291,23 +324,25 @@
 			}
 		});
 
-		function addPartEntry() {
-			const partsContainer = document.getElementById('partsContainer');
+		// PURCHASED PARTS FUNCTIONS
+		function addPurchasedPartEntry() {
+			const purchasedPartsContainer = document.getElementById('purchasedPartsContainer');
 			const partEntry = document.createElement('div');
-			partEntry.className = 'part-entry';
+			partEntry.className = 'purchased-part-entry';
 			partEntry.style.marginBottom = '20px';
 			partEntry.style.padding = '15px';
 			partEntry.style.border = '1px solid #ddd';
 			partEntry.style.borderRadius = '4px';
+			partEntry.style.backgroundColor = '#f9f9f9';
 
 			partEntry.innerHTML = `
 				<div class="row">
-					<div style="width: 45%;">
+					<div style="width: 70%;">
 						<div class="form-group">
 							<label class="form-label">Part Name</label>
 							<div style="position: relative;">
 								<input type="text" class="form-control part-search" placeholder="Search for a part..." autocomplete="off" data-item-id="">
-								<input type="hidden" class="part-item-id" name="part_item_id[]" value="">
+								<input type="hidden" class="part-item-id" name="purchased_part_item_id[]" value="">
 								<div class="part-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; z-index: 100; display: none;">
 								</div>
 							</div>
@@ -316,37 +351,444 @@
 					<div style="width: 25%;">
 						<div class="form-group">
 							<label class="form-label">Quantity</label>
-							<input type="number" class="form-control" placeholder="Qty" name="part_quantity[]" min="1" value="1" autocomplete="off">
-						</div>
-					</div>
-					<div style="width: 25%; padding-left: 3%;">
-						<div class="form-group">
-							<label class="form-label">Cost (Php)</label>
-							<input type="number" class="form-control" placeholder="Cost" name="part_cost[]" step="0.01" autocomplete="off">
+							<input type="number" class="form-control" placeholder="Qty" name="purchased_part_quantity[]" min="1" value="1" autocomplete="off">
 						</div>
 					</div>
 					<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
-						<button type="button" class="btn btn-sm btn-danger" onclick="removePartEntry(this)">×</button>
+						<button type="button" class="btn btn-sm btn-danger" onclick="removePurchasedPartEntry(this)">×</button>
 					</div>
 				</div>
 			`;
 
-			partsContainer.appendChild(partEntry);
+			purchasedPartsContainer.appendChild(partEntry);
 		}
 
-		function removePartEntry(button) {
-			const partsContainer = document.getElementById('partsContainer');
-			if (partsContainer.children.length > 1) {
-				button.closest('.part-entry').remove();
+		function removePurchasedPartEntry(button) {
+			const purchasedPartsContainer = document.getElementById('purchasedPartsContainer');
+			if (purchasedPartsContainer.children.length > 1) {
+				button.closest('.purchased-part-entry').remove();
 			} else {
-				alert('You must have at least one part entry.');
+				alert('You must have at least one purchased part entry.');
 			}
+		}
+
+		// CLIENT PROVIDED PARTS FUNCTIONS
+		function addClientProvidedPartEntry() {
+			const clientProvidedPartsContainer = document.getElementById('clientProvidedPartsContainer');
+			const partEntry = document.createElement('div');
+			partEntry.className = 'client-part-entry';
+			partEntry.style.marginBottom = '20px';
+			partEntry.style.padding = '15px';
+			partEntry.style.border = '1px solid #28a745';
+			partEntry.style.borderRadius = '4px';
+			partEntry.style.backgroundColor = '#f1f9f4';
+
+			partEntry.innerHTML = `
+				<div class="row">
+					<div style="width: 45%;">
+						<div class="form-group">
+							<label class="form-label">Product Name</label>
+							<input type="text" class="form-control" placeholder="Enter product name" name="client_part_product_name[]" autocomplete="off">
+						</div>
+					</div>
+					<div style="width: 50%; padding-left: 3%;">
+						<div class="form-group">
+							<label class="form-label">Description</label>
+							<textarea class="form-control" placeholder="Enter description" name="client_part_description[]" style="height: 40px;" autocomplete="off"></textarea>
+						</div>
+					</div>
+					<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+						<button type="button" class="btn btn-sm btn-danger" onclick="removeClientPartEntry(this)">×</button>
+					</div>
+				</div>
+				<div class="row">
+					<div style="width: 45%;">
+						<div class="form-group">
+							<label class="form-label">Quantity</label>
+							<input type="number" class="form-control" placeholder="Qty" name="client_part_quantity[]" min="1" value="1" autocomplete="off">
+						</div>
+					</div>
+				</div>
+			`;
+
+			clientProvidedPartsContainer.appendChild(partEntry);
+		}
+
+		function removeClientPartEntry(button) {
+			const clientProvidedPartsContainer = document.getElementById('clientProvidedPartsContainer');
+			if (clientProvidedPartsContainer.children.length > 1) {
+				button.closest('.client-part-entry').remove();
+			} else {
+				alert('You must have at least one client provided part entry.');
+			}
+		}
+
+		// DELETE WORK ORDER
+		let workOrderIdToDelete = null;
+
+		function openDeleteModal() {
+			document.getElementById('deleteWorkOrderModal').style.display = 'block';
+			document.body.classList.add('modal-open');
+		}
+
+		function closeDeleteModal() {
+			document.getElementById('deleteWorkOrderModal').style.display = 'none';
+			document.body.classList.remove('modal-open');
+		}
+
+		function deleteWorkOrder(event, id, code) {
+			if (event && typeof event.preventDefault === 'function') {
+				event.preventDefault();
+			}
+			workOrderIdToDelete = id;
+			document.getElementById('workOrderCodeDelete').textContent = code;
+			openDeleteModal();
+		}
+
+		function confirmDeleteWorkOrder() {
+			if (!workOrderIdToDelete) {
+				alert('No work order selected for deletion');
+				return;
+			}
+
+			const yesBtn = document.getElementById('confirmDeleteBtn');
+			yesBtn.disabled = true;
+			yesBtn.textContent = 'Deleting...';
+
+			fetch('/MACPROTECH/src/handlers/delete_work_order.php', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'id=' + encodeURIComponent(workOrderIdToDelete)
+			})
+			.then(response => {
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				return response.json();
+			})
+			.then(data => {
+				console.log('Delete response:', data);
+				if (data.success) {
+					alert('Work Order deleted successfully!');
+					location.reload();
+				} else {
+					alert('Error: ' + (data.message || 'Unknown error'));
+					yesBtn.disabled = false;
+					yesBtn.textContent = 'Yes';
+				}
+			})
+			.catch(error => {
+				console.error('Delete error:', error);
+				alert('Failed to delete work order: ' + error.message);
+				yesBtn.disabled = false;
+				yesBtn.textContent = 'Yes';
+			});
+
+			closeDeleteModal();
+		}
+
+		// EDIT WORK ORDER
+		function editWorkOrder(id) {
+			// Fetch the work order data
+			fetch('/MACPROTECH/src/handlers/get_work_order.php?id=' + encodeURIComponent(id))
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					populateEditForm(data.workOrder, data.purchasedParts, data.clientParts);
+					// Switch to step 1 and open modal
+					goToStep(1);
+					document.getElementById('addWorkOrderToggle').checked = true;
+				} else {
+					alert('Error: ' + data.message);
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				alert('Failed to load work order');
+			});
+		}
+
+		function populateEditForm(workOrder, purchasedParts, clientParts) {
+			// Store the work order ID for update
+			let workOrderIdInput = document.querySelector('input[name="work_order_id"]');
+			if (!workOrderIdInput) {
+				workOrderIdInput = document.createElement('input');
+				workOrderIdInput.type = 'hidden';
+				workOrderIdInput.name = 'work_order_id';
+				document.getElementById('workOrderForm').appendChild(workOrderIdInput);
+			}
+			workOrderIdInput.value = workOrder.id;
+
+			// Change form action to update handler
+			const form = document.getElementById('workOrderForm');
+			form.action = 'src/handlers/update_work_order.php';
+
+			// Change submit button text and input name
+			const submitBtn = document.getElementById('submitBtn');
+			submitBtn.textContent = 'Update Work Order';
+			submitBtn.name = 'update_work_order';
+
+			// Change modal title
+			document.getElementById('modalTitle').textContent = 'Edit Work Order';
+
+			// Populate Step 1 fields
+			document.querySelector('input[name="unit_type"]').value = workOrder.unit_type || '';
+			document.querySelector('input[name="brand"]').value = workOrder.brand || '';
+			document.querySelector('input[name="model"]').value = workOrder.model || '';
+			document.querySelector('textarea[name="specs_acce"]').value = workOrder.specs_acce || '';
+			document.querySelector('input[name="request_date"]').value = workOrder.request_date || '';
+			document.querySelector('textarea[name="prob_find"]').value = workOrder.prob_find || '';
+			document.querySelector('input[name="diagnostic_fee"]').value = workOrder.diagnostic_fee || '';
+			document.querySelector('input[name="work_order_cost"]').value = workOrder.work_order_cost || '';
+			document.querySelector('input[name="status"]').value = workOrder.status || 'Pending';
+
+			// Clear and populate purchased parts
+			const purchasedContainer = document.getElementById('purchasedPartsContainer');
+			purchasedContainer.innerHTML = '';
+
+			if (purchasedParts && purchasedParts.length > 0) {
+				purchasedParts.forEach(part => {
+					const partEntry = document.createElement('div');
+					partEntry.className = 'purchased-part-entry';
+					partEntry.style.marginBottom = '20px';
+					partEntry.style.padding = '15px';
+					partEntry.style.border = '1px solid #ddd';
+					partEntry.style.borderRadius = '4px';
+					partEntry.style.backgroundColor = '#f9f9f9';
+
+					partEntry.innerHTML = `
+						<div class="row">
+							<div style="width: 70%;">
+								<div class="form-group">
+									<label class="form-label">Part Name</label>
+									<div style="position: relative;">
+										<input type="text" class="form-control part-search" placeholder="Search for a part..." autocomplete="off" value="${part.product_name || ''}">
+										<input type="hidden" class="part-item-id" name="purchased_part_item_id[]" value="${part.product_id}">
+										<div class="part-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; z-index: 100; display: none;">
+										</div>
+									</div>
+								</div>
+							</div>
+							<div style="width: 25%;">
+								<div class="form-group">
+									<label class="form-label">Quantity</label>
+									<input type="number" class="form-control" placeholder="Qty" name="purchased_part_quantity[]" min="1" value="${part.quantity}" autocomplete="off">
+								</div>
+							</div>
+							<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+								<button type="button" class="btn btn-sm btn-danger" onclick="removePurchasedPartEntry(this)">×</button>
+							</div>
+						</div>
+					`;
+					purchasedContainer.appendChild(partEntry);
+				});
+			} else {
+				// Add empty entry
+				const partEntry = document.createElement('div');
+				partEntry.className = 'purchased-part-entry';
+				partEntry.style.marginBottom = '20px';
+				partEntry.style.padding = '15px';
+				partEntry.style.border = '1px solid #ddd';
+				partEntry.style.borderRadius = '4px';
+				partEntry.style.backgroundColor = '#f9f9f9';
+
+				partEntry.innerHTML = `
+					<div class="row">
+						<div style="width: 70%;">
+							<div class="form-group">
+								<label class="form-label">Part Name</label>
+								<div style="position: relative;">
+									<input type="text" class="form-control part-search" placeholder="Search for a part..." autocomplete="off" data-item-id="">
+									<input type="hidden" class="part-item-id" name="purchased_part_item_id[]" value="">
+									<div class="part-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; z-index: 100; display: none;">
+									</div>
+								</div>
+							</div>
+						</div>
+						<div style="width: 25%;">
+							<div class="form-group">
+								<label class="form-label">Quantity</label>
+								<input type="number" class="form-control" placeholder="Qty" name="purchased_part_quantity[]" min="1" value="1" autocomplete="off">
+							</div>
+						</div>
+						<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+							<button type="button" class="btn btn-sm btn-danger" onclick="removePurchasedPartEntry(this)">×</button>
+						</div>
+					</div>
+				`;
+				purchasedContainer.appendChild(partEntry);
+			}
+
+			// Clear and populate client provided parts
+			const clientContainer = document.getElementById('clientProvidedPartsContainer');
+			clientContainer.innerHTML = '';
+
+			if (clientParts && clientParts.length > 0) {
+				clientParts.forEach(part => {
+					const partEntry = document.createElement('div');
+					partEntry.className = 'client-part-entry';
+					partEntry.style.marginBottom = '20px';
+					partEntry.style.padding = '15px';
+					partEntry.style.border = '1px solid #28a745';
+					partEntry.style.borderRadius = '4px';
+					partEntry.style.backgroundColor = '#f1f9f4';
+
+					partEntry.innerHTML = `
+						<div class="row">
+							<div style="width: 45%;">
+								<div class="form-group">
+									<label class="form-label">Product Name</label>
+									<input type="text" class="form-control" placeholder="Enter product name" name="client_part_product_name[]" value="${part.product_name || ''}" autocomplete="off">
+								</div>
+							</div>
+							<div style="width: 50%; padding-left: 3%;">
+								<div class="form-group">
+									<label class="form-label">Description</label>
+									<textarea class="form-control" placeholder="Enter description" name="client_part_description[]" style="height: 40px;" autocomplete="off">${part.description || ''}</textarea>
+								</div>
+							</div>
+							<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+								<button type="button" class="btn btn-sm btn-danger" onclick="removeClientPartEntry(this)">×</button>
+							</div>
+						</div>
+						<div class="row">
+							<div style="width: 45%;">
+								<div class="form-group">
+									<label class="form-label">Quantity</label>
+									<input type="number" class="form-control" placeholder="Qty" name="client_part_quantity[]" min="1" value="${part.quantity}" autocomplete="off">
+								</div>
+							</div>
+						</div>
+					`;
+					clientContainer.appendChild(partEntry);
+				});
+			} else {
+				// Add empty entry
+				const partEntry = document.createElement('div');
+				partEntry.className = 'client-part-entry';
+				partEntry.style.marginBottom = '20px';
+				partEntry.style.padding = '15px';
+				partEntry.style.border = '1px solid #28a745';
+				partEntry.style.borderRadius = '4px';
+				partEntry.style.backgroundColor = '#f1f9f4';
+
+				partEntry.innerHTML = `
+					<div class="row">
+						<div style="width: 45%;">
+							<div class="form-group">
+								<label class="form-label">Product Name</label>
+								<input type="text" class="form-control" placeholder="Enter product name" name="client_part_product_name[]" autocomplete="off">
+							</div>
+						</div>
+						<div style="width: 50%; padding-left: 3%;">
+							<div class="form-group">
+								<label class="form-label">Description</label>
+								<textarea class="form-control" placeholder="Enter description" name="client_part_description[]" style="height: 40px;" autocomplete="off"></textarea>
+							</div>
+						</div>
+						<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+							<button type="button" class="btn btn-sm btn-danger" onclick="removeClientPartEntry(this)">×</button>
+						</div>
+					</div>
+					<div class="row">
+						<div style="width: 45%;">
+							<div class="form-group">
+								<label class="form-label">Quantity</label>
+								<input type="number" class="form-control" placeholder="Qty" name="client_part_quantity[]" min="1" value="1" autocomplete="off">
+							</div>
+						</div>
+					</div>
+				`;
+				clientContainer.appendChild(partEntry);
+			}
+		}
+
+		function resetFormToAdd() {
+			// Reset form for new addition
+			const form = document.getElementById('workOrderForm');
+			form.action = 'src/handlers/add_work_order.php';
+			form.reset();
+
+			// Remove work order ID input
+			let workOrderIdInput = document.querySelector('input[name="work_order_id"]');
+			if (workOrderIdInput) {
+				workOrderIdInput.remove();
+			}
+
+			// Reset submit button
+			const submitBtn = document.getElementById('submitBtn');
+			submitBtn.textContent = 'Add Work Order';
+			submitBtn.name = 'add_work_order';
+
+			// Reset modal title
+			document.getElementById('modalTitle').textContent = 'Add New Work Order';
+
+			// Reset parts to single empty entries
+			const purchasedContainer = document.getElementById('purchasedPartsContainer');
+			purchasedContainer.innerHTML = `
+				<div class="purchased-part-entry" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
+					<div class="row">
+						<div style="width: 70%;">
+							<div class="form-group">
+								<label class="form-label">Part Name</label>
+								<div style="position: relative;">
+									<input type="text" class="form-control part-search" placeholder="Search for a part..." autocomplete="off" data-item-id="">
+									<input type="hidden" class="part-item-id" name="purchased_part_item_id[]" value="">
+									<div class="part-dropdown" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; z-index: 100; display: none;">
+									</div>
+								</div>
+							</div>
+						</div>
+						<div style="width: 25%;">
+							<div class="form-group">
+								<label class="form-label">Quantity</label>
+								<input type="number" class="form-control" placeholder="Qty" name="purchased_part_quantity[]" min="1" value="1" autocomplete="off">
+							</div>
+						</div>
+						<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+							<button type="button" class="btn btn-sm btn-danger" onclick="removePurchasedPartEntry(this)">×</button>
+						</div>
+					</div>
+				</div>
+			`;
+
+			const clientContainer = document.getElementById('clientProvidedPartsContainer');
+			clientContainer.innerHTML = `
+				<div class="client-part-entry" style="margin-bottom: 20px; padding: 15px; border: 1px solid #28a745; border-radius: 4px; background-color: #f1f9f4;">
+					<div class="row">
+						<div style="width: 45%;">
+							<div class="form-group">
+								<label class="form-label">Product Name</label>
+								<input type="text" class="form-control" placeholder="Enter product name" name="client_part_product_name[]" autocomplete="off">
+							</div>
+						</div>
+						<div style="width: 50%; padding-left: 3%;">
+							<div class="form-group">
+								<label class="form-label">Description</label>
+								<textarea class="form-control" placeholder="Enter description" name="client_part_description[]" style="height: 40px;" autocomplete="off"></textarea>
+							</div>
+						</div>
+						<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+							<button type="button" class="btn btn-sm btn-danger" onclick="removeClientPartEntry(this)">×</button>
+						</div>
+					</div>
+					<div class="row">
+						<div style="width: 45%;">
+							<div class="form-group">
+								<label class="form-label">Quantity</label>
+								<input type="number" class="form-control" placeholder="Qty" name="client_part_quantity[]" min="1" value="1" autocomplete="off">
+							</div>
+						</div>
+					</div>
+				</div>
+			`;
 		}
 	</script>
 	
 <body>
 	<div class="main-container">
-		<div class="pd-ltr-20 xs-pd-20-10">
 			<div class="min-height-200px">
 				<div class="page-header">
 					<div class="row">
@@ -499,7 +941,7 @@
 											
 											<td style="text-align: center;"><?= htmlspecialchars($wo['prob_find']) ?></td>
 											
-											<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost']) ?></td>
+											<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost'] + $wo['diagnostic_fee']) ?></td>
 											
 											<td style="text-align: center;"><?= htmlspecialchars($wo['completion_date'] ?? '—')?></td>
 											
@@ -529,9 +971,9 @@
 														<img src="src/images/menu-dots.png" width="25px" style="border: none">
 													</a>
 													<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-														<a class="dropdown-item" href="#"><i class="dw dw-eye"></i> View</a>
-														<a class="dropdown-item" href="#"><i class="dw dw-eye"></i> Edit</a>
-														<a class="dropdown-item" href="#" data-toggle="modal" data-target="#delete"><i class="dw dw-delete-3"></i> Delete</a>
+														<a class="dropdown-item" href="#" onclick="viewWorkOrder(<?= $wo['id'] ?>); return false;"><i class="dw dw-eye"></i> View</a>
+														<a class="dropdown-item" href="#" onclick="editWorkOrder(<?= $wo['id'] ?>); return false;"><i class="dw dw-edit"></i> Edit</a>
+														<a class="dropdown-item" href="javascript:void(0)" onclick="deleteWorkOrder(event, <?= $wo['id'] ?>, '<?= htmlspecialchars($wo['code']) ?>'); return false;"><i class="dw dw-delete-3"></i> Delete</a>
 													</div>
 												</div>
 											</td>
@@ -616,19 +1058,21 @@
 		</div>
 	</div>
 					
-						<!-- Delete modal -->
-					<div class="col-md-4 col-sm-12 mb-30">
-							<div class="modal fade" id="delete" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">
-								<div class="modal-dialog modal-sm modal-dialog-centered">
-									<div class="modal-content bg-danger text-white">
-										<div class="modal-body text-center">
-											<h3 class="text-white mb-15"><i class="fa fa-exclamation-triangle"></i> Alert</h3>
-											<p>Are you sure you want to delete this Work Order?</p>
-											<button type="button" class="btn btn-light" data-dismiss="modal">Yes</button>
-											<button type="button" class="btn btn-light" data-dismiss="modal">Cancel</button>
-										</div>
-									</div>
-								</div>
-							</div>
-					</div>
+					
+	<!-- Delete Confirmation Modal -->
+	<div id="deleteWorkOrderModal" style="display:none; position:fixed; inset:0; z-index:2000;">
+		<div style="position:absolute; inset:0; background:rgba(0,0,0,0.5);" onclick="closeDeleteModal()"></div>
+		<div style="position:relative; width:100%; max-width:420px; margin:80px auto; background:#fff; border-radius:8px; box-shadow:0 20px 50px rgba(0,0,0,0.2); overflow:hidden; z-index:2001;">
+			<div style="padding:20px; border-bottom:1px solid #eee;">
+				<h4 style="margin:0;">Confirm Delete</h4>
+			</div>
+			<div style="padding:20px;">
+				<p style="margin:0 0 16px;">Are you sure you want to delete work order <strong id="workOrderCodeDelete"></strong>?</p>
+				<div style="display:flex; gap:10px; justify-content:flex-end;">
+					<button type="button" class="btn btn-secondary" onclick="closeDeleteModal()" style="padding:10px 16px;">Cancel</button>
+					<button type="button" id="confirmDeleteBtn" class="btn btn-danger" onclick="confirmDeleteWorkOrder()" style="padding:10px 16px;">Yes, Delete</button>
+				</div>
+			</div>
+		</div>
+	</div>
 </html>

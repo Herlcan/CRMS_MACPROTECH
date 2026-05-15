@@ -6,7 +6,7 @@
 			
 	<td style="text-align: center;"><?= htmlspecialchars($wo['prob_find']) ?></td>
 			
-	<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost']) ?></td>
+	<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost'] + $wo['diagnostic_fee']) ?></td>
 			
 	<td style="text-align: center;"><?= htmlspecialchars($wo['completion_date'] ?? '—')?></td>
 	
