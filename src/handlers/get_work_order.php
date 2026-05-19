@@ -21,8 +21,13 @@ try {
         throw new Exception('Invalid work order ID');
     }
 
-    // Fetch work order
-    $query = mysqli_prepare($conn, "SELECT * FROM work_order WHERE id = ?");
+    // Fetch work order with technician name
+    $query = mysqli_prepare($conn, "
+        SELECT wo.*, CONCAT(u.first_name, ' ', u.last_name) AS technician_name
+        FROM work_order wo
+        LEFT JOIN users u ON wo.technician_id = u.id
+        WHERE wo.id = ?
+    ");
     if (!$query) {
         throw new Exception('Database error: ' . mysqli_error($conn));
     }
@@ -43,7 +48,7 @@ try {
     // Fetch purchased parts (returns empty array if no parts exist)
     $purchased_parts = [];
     $purchased_query = mysqli_prepare($conn, "
-        SELECT pi.*, COALESCE(i.brand_name, 'Unknown Item') as product_name 
+        SELECT pi.*, COALESCE(i.brand_name, 'Unknown Item') as product_name, COALESCE(i.price, 0) as product_price
         FROM purchased_item pi
         LEFT JOIN items i ON pi.product_id = i.id
         WHERE pi.work_order_id = ?

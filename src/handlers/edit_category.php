@@ -49,7 +49,8 @@
             if (mysqli_stmt_execute($update_query)) {
 
                 mysqli_stmt_close($update_query);
-                header("Location: ../../item-category.php");
+                $redirect = isset($_POST['redirect']) ? $_POST['redirect'] : 'item-category.php';
+                header("Location: ../../" . basename($redirect));
                 exit();
 
             } else {

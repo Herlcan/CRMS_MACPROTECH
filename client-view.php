@@ -25,6 +25,15 @@
 		exit;
 	}
 
+	$unitTypes = [];
+	$unitTypeQuery = "SELECT id, unit_type FROM unit_type ORDER BY unit_type";
+	$unitTypeResult = mysqli_query($conn, $unitTypeQuery);
+	if ($unitTypeResult) {
+		while ($unitTypeRow = mysqli_fetch_assoc($unitTypeResult)) {
+			$unitTypes[] = $unitTypeRow;
+		}
+	}
+
 ?>
 	<!-- Hidden checkbox for add transaction modal toggle -->
 	<input type="checkbox" id="addWorkOrderToggle" class="add-client-toggle" onchange="if (!this.checked) resetFormToAdd();">
@@ -53,9 +62,13 @@
 								<input type="hidden" name="status" value="Pending">
 								<div class="form-group">
 									<label class="form-label">Unit Type</label>
-									<input type="text" class="form-control" placeholder="Input Unit Type" name="unit_type" required autocomplete="off">
+									<select class="form-control" name="unit_type" required autocomplete="off">
+										<option value="">-- Select Unit Type --</option>
+										<?php foreach ($unitTypes as $type): ?>
+											<option value="<?= htmlspecialchars($type['unit_type']) ?>"><?= htmlspecialchars($type['unit_type']) ?></option>
+										<?php endforeach; ?>
+									</select>
 								</div>
-
 								<div class="form-group">
 									<label class="form-label">Brand</label>
 									<input type="text" class="form-control" placeholder="Input Brand Name" name="brand" required autocomplete="off">
@@ -176,7 +189,7 @@
 								<select class="form-control" name="technician_id" autocomplete="off">
 									<option value="">-- Select Technician --</option>
 									<?php
-										$tech_query = "SELECT id, first_name, last_name FROM users WHERE role = 'Technician' || role = 'Administrator' ORDER BY last_name, first_name";
+										$tech_query = "SELECT id, first_name, last_name FROM users WHERE role IN ('Technician','Administrator') ORDER BY last_name, first_name";
 										$tech_result = mysqli_query($conn, $tech_query);
 										while ($tech = mysqli_fetch_assoc($tech_result)) {
 											echo '<option value="' . htmlspecialchars($tech['id']) . '">' . htmlspecialchars($tech['last_name'] . ', ' . $tech['first_name']) . '</option>';
@@ -464,6 +477,128 @@
 			openDeleteModal();
 		}
 
+		// View drawer functions (top-level so onclick handlers can call them)
+
+		function openViewDrawer() {
+			document.getElementById('viewWorkOrderDrawer').style.display = 'block';
+			document.body.classList.add('modal-open');
+		}
+
+		function closeViewDrawer() {
+			document.getElementById('viewWorkOrderDrawer').style.display = 'none';
+			document.body.classList.remove('modal-open');
+		}
+
+		function viewWorkOrder(id) {
+			// Fetch work order data and render into drawer
+			fetch('/MACPROTECH/src/handlers/get_work_order.php?id=' + encodeURIComponent(id))
+			.then(response => response.json())
+			.then(data => {
+				if (!data.success) {
+					alert('Failed to load work order: ' + (data.message||'Unknown'));
+					return;
+				}
+
+				const wo = data.workOrder;
+				const purchased = data.purchasedParts || [];
+				const clientParts = data.clientParts || [];
+
+				// Title / Info
+				document.getElementById('vw_title').textContent = wo.code || 'Work Order';
+				const info = document.getElementById('vw_info');
+				info.innerHTML = `
+					<strong>Request Date:</strong> ${wo.request_date || '—'} &nbsp; • &nbsp; <strong>Status:</strong> ${wo.status || '—'}<br>
+					<strong>Client ID:</strong> ${wo.client_id || '—'} &nbsp; • &nbsp; <strong>Technician:</strong> ${wo.technician_name || '—'}
+				`;
+
+				// Stepper (styled horizontal)
+				const steps = ['Pending','In Progress','Completed','Cancelled'];
+				const stepper = document.getElementById('vw_stepper');
+				stepper.innerHTML = '<div class="view-stepper">' + steps.map(s => {
+					const activeClass = (wo.status && wo.status.toLowerCase() === s.toLowerCase()) ? 'view-stepper-item active' : 'view-stepper-item';
+					return `<div class="${activeClass}">${s}</div>`;
+				}).join('') + '</div>';
+
+				// Device info
+				document.getElementById('vw_device').innerHTML = `
+					<h4 style="margin-top:0;">Device Details</h4>
+					<p><strong>Unit:</strong> ${wo.unit_type || '—'}</p>
+					<p><strong>Brand/Model:</strong> ${wo.brand || '—'} ${wo.model || ''}</p>
+					<p><strong>Specs/Accessories:</strong> ${wo.specs_acce || '—'}</p>
+				`;
+
+				// Timeline / logs (simple entries)
+				const timeline = document.getElementById('vw_timeline');
+				let timelineHtml = '<h4 style="margin-top:0;">Repair Timeline</h4>';
+				if (wo.request_date) timelineHtml += `<div><strong>Requested:</strong> ${wo.request_date}</div>`;
+				if (wo.completion_date) timelineHtml += `<div><strong>Completed:</strong> ${wo.completion_date}</div>`;
+				// Append status change log placeholder if available
+				if (wo.status) timelineHtml += `<div><strong>Current Status:</strong> ${wo.status}</div>`;
+				// Allow custom logs if returned by API (not implemented server-side)
+				timeline.innerHTML = timelineHtml;
+
+				// Diagnoses
+				document.getElementById('vw_diagnoses').innerHTML = `<h4 style="margin-top:0;">Diagnoses</h4><div>${wo.prob_find || '—'}</div>`;
+
+				// Parts
+				const partsEl = document.getElementById('vw_parts');
+				let partsHtml = '<h4 style="margin-top:0;">Parts Used</h4>';
+				if (purchased.length === 0 && clientParts.length === 0) {
+					partsHtml += '<div>No parts recorded</div>';
+				} else {
+					if (purchased.length) {
+						partsHtml += '<div style="margin-bottom:8px;"><strong>Purchased Parts:</strong><ul>' + purchased.map(p=>`<li>${p.product_name||'Item'} — Qty: ${p.quantity||1}</li>`).join('') + '</ul></div>';
+					}
+					if (clientParts.length) {
+						partsHtml += '<div><strong>Client Provided:</strong><ul>' + clientParts.map(p=>`<li>${p.product_name||p.product_name} — Qty: ${p.quantity||1}</li>`).join('') + '</ul></div>';
+					}
+				}
+				partsEl.innerHTML = partsHtml;
+
+				// Notes
+				document.getElementById('vw_notes').innerHTML = `<h4 style="margin-top:0;">Technician Notes</h4><div>${wo.notes || '—'}</div>`;
+
+				// Payment summary
+				const diagnosticFee = parseFloat(wo.diagnostic_fee) || 0;
+				const workOrderCost = parseFloat(wo.work_order_cost) || 0;
+				const purchasedPartTotal = purchased.reduce((sum, part) => {
+					const quantity = parseFloat(part.quantity) || 0;
+					const price = parseFloat(part.product_price) || 0;
+					return sum + (quantity * price);
+				}, 0);
+
+				let paymentHtml = `
+					<h4 style="margin-top:0;">Payment Summary</h4>
+					<div><strong>Diagnostic Fee:</strong> Php ${diagnosticFee.toFixed(2)}</div>
+					<div><strong>Work Order Cost:</strong> Php ${workOrderCost.toFixed(2)}</div>
+				`;
+
+				if (purchased.length > 0 && purchasedPartTotal > 0) {
+					paymentHtml += '<div style="margin-top:12px;"><strong>Purchased Parts (Shop)</strong></div>';
+					paymentHtml += '<ul style="margin:8px 0 0 16px; padding:0; list-style: disc;">';
+					purchased.forEach(part => {
+						const quantity = parseFloat(part.quantity) || 0;
+						const price = parseFloat(part.product_price) || 0;
+						const lineTotal = (quantity * price).toFixed(2);
+						paymentHtml += `<li style="margin-bottom:4px;">${part.product_name || 'Item'} x ${quantity} @ Php ${price.toFixed(2)} = Php ${lineTotal}</li>`;
+					});
+					paymentHtml += `</ul><div><strong>Purchased Parts Total:</strong> Php ${purchasedPartTotal.toFixed(2)}</div>`;
+				}
+
+				const grandTotal = diagnosticFee + workOrderCost + purchasedPartTotal;
+				paymentHtml += `<div style="margin-top:8px;"><strong>Total:</strong> Php ${grandTotal.toFixed(2)}</div>`;
+
+				document.getElementById('vw_payment').innerHTML = paymentHtml;
+
+				openViewDrawer();
+			})
+			.catch(err => {
+				console.error(err);
+				alert('Error loading work order');
+			});
+
+		}
+
 		function confirmDeleteWorkOrder() {
 			if (!workOrderIdToDelete) {
 				alert('No work order selected for deletion');
@@ -553,7 +688,7 @@
 			document.getElementById('modalTitle').textContent = 'Edit Work Order';
 
 			// Populate Step 1 fields
-			document.querySelector('input[name="unit_type"]').value = workOrder.unit_type || '';
+			document.querySelector('select[name="unit_type"]').value = workOrder.unit_type || '';
 			document.querySelector('input[name="brand"]').value = workOrder.brand || '';
 			document.querySelector('input[name="model"]').value = workOrder.model || '';
 			document.querySelector('textarea[name="specs_acce"]').value = workOrder.specs_acce || '';
@@ -1091,6 +1226,35 @@
 					<button type="button" class="btn btn-secondary" onclick="closeDeleteModal()" style="padding:10px 16px;">Cancel</button>
 					<button type="button" id="confirmDeleteBtn" class="btn btn-danger" onclick="confirmDeleteWorkOrder()" style="padding:10px 16px;">Yes, Delete</button>
 				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- View Work Order Drawer/Modal -->
+	<div id="viewWorkOrderDrawer" style="display:none;">
+		<div class="drawer-backdrop" onclick="closeViewDrawer()"></div>
+		<div id="viewDrawerContent">
+			<header>
+				<h2 id="vw_title">Work Order</h2>
+				<button class="btn btn-secondary drawer-close-btn" onclick="closeViewDrawer()">Close</button>
+			</header>
+			<div id="vw_body" class="drawer-body">
+				<div id="vw_info" class="drawer-section"></div>
+
+				<div id="vw_stepper"></div>
+
+				<div class="drawer-row" style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
+					<div id="vw_device" class="drawer-section" style="flex:1;"></div>
+					<div id="vw_timeline" class="drawer-section" style="flex:0 0 320px; max-height:220px; overflow:auto;"></div>
+				</div>
+
+				<div id="vw_diagnoses" class="drawer-section"></div>
+
+				<div id="vw_parts" class="drawer-section"></div>
+
+				<div id="vw_notes" class="drawer-section"></div>
+
+				<div id="vw_payment" class="drawer-section"></div>
 			</div>
 		</div>
 	</div>

@@ -109,6 +109,84 @@
 		</div>
 	</div>
 
+	<!-- CATEGORY MANAGEMENT MODAL -->
+	<input type="checkbox" id="categoryModalToggle" class="add-client-toggle">
+	<label for="categoryModalToggle" class="css-modal-overlay add-client-overlay"></label>
+	<div class="add-client-modal-container">
+		<div class="css-modal-content" style="max-width: 900px;">
+			<div class="css-modal-header">
+				<h5 class="css-modal-title">Manage Categories</h5>
+				<label for="categoryModalToggle" class="css-modal-close">&times;</label>
+			</div>
+			<div class="css-modal-body">
+				<div class="row">
+					<div class="col-md-4 col-sm-12">
+						<form method="POST" action="src/handlers/add_category.php">
+							<input type="hidden" name="redirect" value="items.php">
+							<div class="form-group">
+								<label class="form-label">New Category</label>
+								<input class="form-control" type="text" placeholder="Input category name" name="category_name" autocomplete="off" required>
+							</div>
+							<div class="css-modal-footer" style="padding: 0;">
+								<button type="submit" name="add_category" class="btn btn-primary">Add Category</button>
+								<label for="categoryModalToggle" class="btn btn-secondary" style="margin-left: 10px;">Close</label>
+							</div>
+						</form>
+					</div>
+					<div class="col-md-8 col-sm-12">
+						<h6 class="mb-20">Category List</h6>
+						<?php $category_result = mysqli_query($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
+						<table class="data-table table responsive">
+							<thead>
+								<tr>
+									<th>Category Name</th>
+									<th class="datatable-nosort" style="width: 120px; text-align: center;">Action</th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php while ($category_row = mysqli_fetch_assoc($category_result)) : ?>
+								<tr>
+									<td><?= htmlspecialchars($category_row['category_name']) ?></td>
+									<td style="text-align: center;">
+										<button type="button" class="btn btn-sm btn-outline-primary" onclick="editCategory('<?= addslashes(htmlspecialchars($category_row['category_name'])) ?>', '<?= $category_row['id'] ?>')">Edit</button>
+									</td>
+								</tr>
+								<?php endwhile; ?>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- EDIT CATEGORY MODAL (Pure CSS) -->
+	<input type="checkbox" id="editCategoryToggle" class="edit-client-toggle">
+	<label for="editCategoryToggle" class="css-modal-overlay edit-client-overlay"></label>
+
+	<div class="edit-client-modal-container">
+		<div class="css-modal-content">
+			<div class="css-modal-header">
+				<h5 class="css-modal-title">Edit Category</h5>
+				<label for="editCategoryToggle" class="css-modal-close">&times;</label>
+			</div>
+			<div class="css-modal-body">
+				<form method="POST" action="src/handlers/edit_category.php">
+					<input type="hidden" name="redirect" value="items.php">
+					<input type="hidden" name="id" id="categoryIdField" value="">
+					<div class="form-group">
+						<label class="form-label">Category Name</label>
+						<input type="text" class="form-control" id="editCategoryName" name="category" required autocomplete="off">
+					</div>
+					<div class="css-modal-footer">
+						<label for="editCategoryToggle" class="btn btn-secondary">Cancel</label>
+						<button type="submit" name="edit_category" class="btn btn-primary">Save Changes</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
 	<div class="mobile-menu-overlay"></div>
 
 	<div class="main-container">
@@ -122,10 +200,11 @@
 							</div>
 						</div>
 						<div class="col-md-6 col-sm-12 text-right" style="margin-left: auto;">
-							<div class="dropdown">
-								<label for="addItemToggle" class="btn btn-primary">Add New</label>
-							</div>
-						</div>
+					<label for="categoryModalToggle" class="btn btn-secondary" style="margin-right: 10px;">Category</label>
+					<div class="dropdown d-inline-block">
+						<label for="addItemToggle" class="btn btn-primary">Add New</label>
+					</div>
+				</div>
 					</div>
 				</div>
 				<!-- Simple Datatable start -->
@@ -376,6 +455,12 @@
 		markupInput.addEventListener("input", calculatePrice);
 
 	});
+
+	function editCategory(category_name, category_id) {
+		document.getElementById('editCategoryName').value = category_name;
+		document.getElementById('categoryIdField').value = category_id;
+		document.getElementById('editCategoryToggle').checked = true;
+	}
 	</script>
 
 <?php include 'footer.php'; ?>

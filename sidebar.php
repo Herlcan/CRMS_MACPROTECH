@@ -40,14 +40,7 @@
 				</li>
 				<?php endif; ?>
 				<?php if ($_SESSION['role'] == 'Administrator'): ?>
-				<li>
-					<a href="item-category.php" class="dropdown-toggle no-arrow">
-						<span class="micon dw dw-file">
-							<img src="src/images/ballot.png" width="20px" height="20px">
-						</span>
-						<span class="mtext">Item Category</span>
-					</a>
-				</li>
+				
 				<?php endif; ?>
 				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk' || $_SESSION['role'] == 'Technician'): ?>
 				<li>

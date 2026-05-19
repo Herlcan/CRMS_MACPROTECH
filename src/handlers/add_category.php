@@ -48,11 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
 
                 mysqli_stmt_close($add_query);
                 mysqli_stmt_close($check_query);
-                header("Location: ../../item-category.php");
-                exit();
-
-            } else {
-
+                    $redirect = isset($_POST['redirect']) ? $_POST['redirect'] : 'item-category.php';
+                    header("Location: ../../" . basename($redirect));
                 $add_category_error = 'Failed to add category. Please try again.';
                 mysqli_stmt_close($add_query);
                 mysqli_stmt_close($check_query);

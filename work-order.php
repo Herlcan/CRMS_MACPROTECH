@@ -129,7 +129,7 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT * FROM work_order WHERE $where ORDER BY code ASC LIMIT $limit OFFSET $offset");
+								$result = mysqli_query($conn, "SELECT * FROM work_order WHERE $where ORDER BY code DESC LIMIT $limit OFFSET $offset");
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
