@@ -22,6 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
     $diagnostic_fee = trim($_POST['diagnostic_fee']);
     $work_order_cost = trim($_POST['work_order_cost']);
     $status = trim($_POST['status']);
+    $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
+    $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
 
     if ($work_order_id <= 0) {
         $update_work_order_error = 'Invalid work order ID';
@@ -35,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                 "UPDATE work_order SET
                 unit_type = ?, brand = ?, model = ?, specs_acce = ?, 
                 request_date = ?, prob_find = ?, diagnostic_fee = ?, 
-                work_order_cost = ?, status = ?
+                work_order_cost = ?, status = ?, technician_id = ?, notes = ?
                 WHERE id = ?"
             );
 
@@ -45,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
 
             mysqli_stmt_bind_param(
                 $update_query,
-                "sssssssssi",
+                "ssssssssisi",
                 $unit_type,
                 $brand,
                 $model,
@@ -55,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                 $diagnostic_fee,
                 $work_order_cost,
                 $status,
+                $technician_id,
+                $notes,
                 $work_order_id
             );
 

@@ -99,10 +99,7 @@
 <!-- STEP 2: PARTS -->
 				<div id="step2Form" class="form-step" style="display: none;">
 					<div class="row">
-						<div style="width: 100%;">
-							<h5 style="margin-bottom: 20px;">Parts</h5>
-							
-							<!-- PURCHASED PARTS SECTION -->
+						<div style="width: 65%;">
 							<div style="margin-bottom: 30px;">
 								<h6 style="margin-bottom: 15px; font-weight: 600; border-bottom: 2px solid #007bff; padding-bottom: 10px;">Purchase Parts</h6>
 								<div id="purchasedPartsContainer">
@@ -170,9 +167,31 @@
 								</div>
 								<button type="button" class="btn btn-secondary" onclick="addClientProvidedPartEntry()" style="margin-top: 10px;">+ Add Client Provided Part</button>
 							</div>
+						</div>
+						<div style="width: 35%; padding-left: 5%;">
+							<h5 style="margin-bottom: 20px;">Additional Information</h5>
+							
+							<div class="form-group">
+								<label class="form-label">Assign Technician</label>
+								<select class="form-control" name="technician_id" autocomplete="off">
+									<option value="">-- Select Technician --</option>
+									<?php
+										$tech_query = "SELECT id, first_name, last_name FROM users WHERE role = 'Technician' || role = 'Administrator' ORDER BY last_name, first_name";
+										$tech_result = mysqli_query($conn, $tech_query);
+										while ($tech = mysqli_fetch_assoc($tech_result)) {
+											echo '<option value="' . htmlspecialchars($tech['id']) . '">' . htmlspecialchars($tech['last_name'] . ', ' . $tech['first_name']) . '</option>';
+										}
+									?>
+								</select>
+							</div>
+
+							<div class="form-group">
+								<label class="form-label">Notes</label>
+								<textarea class="form-control" placeholder="Add any additional notes..." name="notes" autocomplete="off" style="height: 150px;"></textarea>
 							</div>
 						</div>
 					</div>
+				</div>
 					
 					<!-- Modal Footer -->
 					<div class="css-modal-footer">
@@ -543,6 +562,8 @@
 			document.querySelector('input[name="diagnostic_fee"]').value = workOrder.diagnostic_fee || '';
 			document.querySelector('input[name="work_order_cost"]').value = workOrder.work_order_cost || '';
 			document.querySelector('input[name="status"]').value = workOrder.status || 'Pending';
+			document.querySelector('select[name="technician_id"]').value = workOrder.technician_id || '';
+			document.querySelector('textarea[name="notes"]').value = workOrder.notes || '';
 
 			// Clear and populate purchased parts
 			const purchasedContainer = document.getElementById('purchasedPartsContainer');
@@ -786,8 +807,6 @@
 			`;
 		}
 	</script>
-	
-<body>
 	<div class="main-container">
 			<div class="min-height-200px">
 				<div class="page-header">
