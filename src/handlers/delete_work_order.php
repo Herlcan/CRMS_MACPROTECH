@@ -46,6 +46,32 @@ try {
         throw new Exception('Failed to start transaction');
     }
 
+    // Revert stock for purchased items before deletion
+    $revert_stock = mysqli_prepare($conn, "
+        SELECT p.product_id, p.quantity
+        FROM purchased_item p
+        WHERE p.work_order_id = ?
+    ");
+    if (!$revert_stock) {
+        throw new Exception('Database error: ' . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($revert_stock, "i", $work_order_id);
+    if (!mysqli_stmt_execute($revert_stock)) {
+        throw new Exception('Failed to fetch purchased items: ' . mysqli_stmt_error($revert_stock));
+    }
+    $stock_result = mysqli_stmt_get_result($revert_stock);
+    $row = mysqli_fetch_assoc($stock_result);
+
+    $revert_stock_query = mysqli_prepare (
+        $conn, "UPDATE items SET quantity = quantity + ? WHERE id = ?"
+    );
+
+    mysqli_stmt_bind_param($revert_stock_query, "ii", $row['quantity'], $row['product_id']);
+
+    if(!mysqli_stmt_execute($revert_stock_query)) {
+        throw new Exception('Failed to revert stock for purchased items: ' . mysqli_stmt_error($revert_stock_query));
+    }
+
     // Delete purchased items (may have 0 rows if no items exist)
     $delete_purchased = mysqli_prepare($conn, "DELETE FROM purchased_item WHERE work_order_id = ?");
     if (!$delete_purchased) {

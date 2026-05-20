@@ -102,6 +102,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
                     mysqli_stmt_bind_param($purchased_query, "iiis", $id, $product_id, $quantity, $current_date);
                     if (!mysqli_stmt_execute($purchased_query)) {
                         throw new Exception('Failed to add purchased item');
+                    } else {
+                        $deduct_query = mysqli_prepare (
+                            $conn, "UPDATE items SET quantity = quantity - ? WHERE id = ?"
+                        );
+
+                        mysqli_stmt_bind_param($deduct_query, "ii", $quantity, $product_id);
+
+                        if(!mysqli_stmt_execute($deduct_query)) {
+                            throw new Exception('Failed to add purchased item');
+                        }
                     }
                     mysqli_stmt_close($purchased_query);
                 }
