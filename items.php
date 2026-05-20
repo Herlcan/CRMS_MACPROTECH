@@ -13,13 +13,13 @@
 ?>
 
 	<!-- Hidden checkbox for add item modal toggle (reuse add-client modal CSS) -->
-	<input type="checkbox" id="addItemToggle" class="add-client-toggle">
+<input type="checkbox" id="addItemToggle" class="add-item-toggle" />
 
 	<!-- Add Item Modal Overlay (reuse add-client overlay) -->
 	<label for="addItemToggle" class="css-modal-overlay add-client-overlay"></label>
 
 	<!-- ADD ITEM MODAL -->
-	<div class="add-client-modal-container">
+<div class="category-modal-container">
 		<div class="css-modal-content" style="max-width: 800px;">
 			<!-- Modal Header -->
 			<div class="css-modal-header">
@@ -110,9 +110,9 @@
 	</div>
 
 	<!-- CATEGORY MANAGEMENT MODAL -->
-	<input type="checkbox" id="categoryModalToggle" class="add-client-toggle">
-	<label for="categoryModalToggle" class="css-modal-overlay add-client-overlay"></label>
-	<div class="add-client-modal-container">
+<input type="checkbox" id="categoryModalToggle" class="category-toggle" />
+<label for="categoryModalToggle" class="css-modal-overlay category-overlay"></label>
+	<div class="category-management-modal-container">
 		<div class="css-modal-content" style="max-width: 900px;">
 			<div class="css-modal-header">
 				<h5 class="css-modal-title">Manage Categories</h5>
@@ -161,10 +161,10 @@
 	</div>
 
 	<!-- EDIT CATEGORY MODAL (Pure CSS) -->
-	<input type="checkbox" id="editCategoryToggle" class="edit-client-toggle">
-	<label for="editCategoryToggle" class="css-modal-overlay edit-client-overlay"></label>
+	<input type="checkbox" id="editCategoryToggle" class="edit-category-toggle">
+	<label for="editCategoryToggle" class="css-modal-overlay edit-category-overlay"></label>
 
-	<div class="edit-client-modal-container">
+	<div class="edit-category-modal-container">
 		<div class="css-modal-content">
 			<div class="css-modal-header">
 				<h5 class="css-modal-title">Edit Category</h5>
@@ -181,6 +181,94 @@
 					<div class="css-modal-footer">
 						<label for="editCategoryToggle" class="btn btn-secondary">Cancel</label>
 						<button type="submit" name="edit_category" class="btn btn-primary">Save Changes</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<!-- EDIT ITEM MODAL (Pure CSS) -->
+	<input type="checkbox" id="editItemToggle" class="edit-item-toggle">
+	<label for="editItemToggle" class="css-modal-overlay edit-item-overlay"></label>
+
+	<div class="edit-item-modal-container">
+		<div class="css-modal-content" style="max-width: 800px;">
+			<div class="css-modal-header">
+				<h5 class="css-modal-title">Edit Product Item</h5>
+				<label for="editItemToggle" class="css-modal-close">&times;</label>
+			</div>
+			<div class="css-modal-body">
+				<form method="POST" enctype="multipart/form-data" action="src/handlers/edit_item.php">
+					<input type="hidden" name="id" id="editItemId" value="">
+					<div class="row">
+						<div style="width: 45%;">
+							<div class="form-group">
+								<label class="form-label">Image</label>
+								<input type="file" class="form-control" placeholder="Upload Image (Optional)" name="image" autocomplete="off">
+							</div>
+
+							<div class="form-group">
+								<label class="form-label">Brand Name</label>
+								<input type="text" class="form-control" placeholder="Input Brand Name" id="editItemBrand" name="brand_name" required autocomplete="off">
+							</div>
+
+							<div class="form-group">
+								<label class="form-label">Model</label>
+								<input type="text" class="form-control" placeholder="Input Model" id="editItemModel" name="model" required autocomplete="off">
+							</div>
+							
+							<div class="form-group">
+								<label class="form-label">Description</label>
+								<textarea class="form-control" style="height: 220px;" placeholder="Input Description" id="editItemDescription" name="description" required autocomplete="off"></textarea>
+							</div>				
+						</div>
+						
+						<div style="width: 55%; padding-left: 5%;">
+
+							<?php $result_edit = mysqli_query($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
+							
+							<div class="form-group">
+							<label class="form-label">Category</label>
+							<select class="form-control" id="editItemCategory" name="category" required autocomplete="off">
+								<option value="">Select Category</option>
+								<?php while ($row_cat = mysqli_fetch_assoc($result_edit)) { ?>
+									<option value="<?= htmlspecialchars($row_cat['id']) ?>">
+										<?= htmlspecialchars($row_cat['category_name']) ?>
+									</option>
+								<?php } ?>
+							</select>
+							</div>
+
+							<div class="form-group">
+								<label class="form-label">Date</label>
+								<input type="date" class="form-control" id="editItemDate" name="date" required autocomplete="off">
+							</div>
+
+							<div class="form-group">
+								<label class="form-label">Capital</label>
+								<input type="number" class="form-control" placeholder="Input Capital" id="editItemCapital" name="capital" step="0.01" required autocomplete="off">
+							</div>
+							
+							<div class="form-group">
+								<label class="form-label">Quantity</label>
+								<input type="number" class="form-control" placeholder="Input Quantity" id="editItemQuantity" name="quantity" required autocomplete="off">
+							</div>
+							
+							<div class="form-group">
+								<label class="form-label">Markup Percentage (%)</label>
+								<input type="number" class="form-control" placeholder="Input Markup Percentage" id="editItemMarkup" name="markup_percentage" step="0.01" required autocomplete="off">
+							</div>
+							
+							<div class="form-group">
+								<label class="form-label">Price</label>
+								<input type="number" class="form-control" placeholder="Input Price" id="editItemPrice" name="price" step="0.01" required autocomplete="off">
+							</div>
+						</div>
+					</div>
+					
+					<div class="css-modal-footer">
+						<label for="editItemToggle" class="btn btn-secondary">Cancel</label>
+						<button type="submit" name="edit_item" class="btn btn-primary">Save Changes</button>
 					</div>
 				</form>
 			</div>
@@ -348,8 +436,8 @@
 												<img src="src/images/menu-dots.png" width="25px" style="border: none">
 											</a>
 											<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-												<a class="dropdown-item" href="#"><i class="dw dw-edit2"></i> Edit</a>
-												<a class="dropdown-item" href="#"><i class="dw dw-delete-3"></i> Delete</a>
+												<a class="dropdown-item" href="#" onclick="editItem('<?= $row['id'] ?>', '<?= htmlspecialchars($row['brand_name']) ?>', '<?= htmlspecialchars($row['model']) ?>', '<?= htmlspecialchars($row['description']) ?>', '<?= $row['category_id'] ?>', '<?= $row['date'] ?>', '<?= $row['capital'] ?>', '<?= $row['quantity'] ?>', '<?= $row['markup_percentage'] ?>', '<?= $row['price'] ?>'); return false;"><i class="dw dw-edit2"></i> Edit</a>
+												<a class="dropdown-item" href="src/handlers/delete_item.php?id=<?= $row['id'] ?>" onclick="return confirm('Are you sure you want to delete this item?');"><i class="dw dw-delete-3"></i> Delete</a>
 											</div>
 										</div>
 									</td>
@@ -433,33 +521,66 @@
 		const markupInput = document.getElementById("markup_percentage");
 		const priceInput = document.getElementById("price");
 
-		function calculatePrice() {
+		const editCapitalInput = document.getElementById("editItemCapital");
+		const editQuantityInput = document.getElementById("editItemQuantity");
+		const editMarkupInput = document.getElementById("editItemMarkup");
+		const editPriceInput = document.getElementById("editItemPrice");
 
+		function calculatePrice() {
 			const capital = parseFloat(capitalInput.value);
 			const quantity = parseFloat(quantityInput.value);
 			const markup = parseFloat(markupInput.value);
 
 			if (!isNaN(capital) && !isNaN(quantity) && quantity > 0 && !isNaN(markup)) {
-
 				const capitalPerUnit = capital / quantity;
 				const finalPrice = capitalPerUnit * (1 + markup / 100);
-
 				priceInput.value = finalPrice.toFixed(2);
 			} else {
 				priceInput.value = "";
 			}
 		}
 
-		capitalInput.addEventListener("input", calculatePrice);
-		quantityInput.addEventListener("input", calculatePrice);
-		markupInput.addEventListener("input", calculatePrice);
+		function calculateEditPrice() {
+			const capital = parseFloat(editCapitalInput.value);
+			const quantity = parseFloat(editQuantityInput.value);
+			const markup = parseFloat(editMarkupInput.value);
 
+			if (!isNaN(capital) && !isNaN(quantity) && quantity > 0 && !isNaN(markup)) {
+				const capitalPerUnit = capital / quantity;
+				const finalPrice = capitalPerUnit * (1 + markup / 100);
+				editPriceInput.value = finalPrice.toFixed(2);
+			} else {
+				editPriceInput.value = "";
+			}
+		}
+
+		if (capitalInput) capitalInput.addEventListener("input", calculatePrice);
+		if (quantityInput) quantityInput.addEventListener("input", calculatePrice);
+		if (markupInput) markupInput.addEventListener("input", calculatePrice);
+
+		if (editCapitalInput) editCapitalInput.addEventListener("input", calculateEditPrice);
+		if (editQuantityInput) editQuantityInput.addEventListener("input", calculateEditPrice);
+		if (editMarkupInput) editMarkupInput.addEventListener("input", calculateEditPrice);
 	});
 
 	function editCategory(category_name, category_id) {
 		document.getElementById('editCategoryName').value = category_name;
 		document.getElementById('categoryIdField').value = category_id;
 		document.getElementById('editCategoryToggle').checked = true;
+	}
+
+	function editItem(itemId, brand, model, description, categoryId, itemDate, capital, quantity, markup, price) {
+		document.getElementById('editItemId').value = itemId;
+		document.getElementById('editItemBrand').value = brand;
+		document.getElementById('editItemModel').value = model;
+		document.getElementById('editItemDescription').value = description;
+		document.getElementById('editItemCategory').value = categoryId;
+		document.getElementById('editItemDate').value = itemDate;
+		document.getElementById('editItemCapital').value = capital;
+		document.getElementById('editItemQuantity').value = quantity;
+		document.getElementById('editItemMarkup').value = markup;
+		document.getElementById('editItemPrice').value = price;
+		document.getElementById('editItemToggle').checked = true;
 	}
 	</script>
 

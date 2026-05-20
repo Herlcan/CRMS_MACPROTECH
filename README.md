@@ -1,152 +1,222 @@
 # MACPROTECH
 
-A comprehensive management system for technical services, built with PHP and MySQL.
+MACPROTECH is a PHP + MySQL web application for managing technical service operations: **clients**, **work orders**, **inventory items**, **purchased/client-provided parts**, **work-order status workflow**, and **payments**.
 
-## Overview
-
-MACPROTECH is a web-based platform designed to manage technical services operations including client management, work orders, inventory, technician assignments, and payment processing.
-
-## Features
-
-- **Client Management** - Add, edit, and manage customer information
-- **Work Orders** - Create and track service requests with status management
-- **Technician Management** - Manage technician profiles and assignments
-- **Inventory Management** - Track items and categorize inventory
-- **Payment Processing** - Record and manage customer payments
-- **Services Management** - Define and manage service offerings
-- **User & Group Management** - Configure user accounts and permission groups
-- **Analytics** - View business insights with charts and reporting
-
-## Project Structure
-
-```
-├── auth_check.php              # Authentication verification
-├── login.php                   # User login page
-├── logout.php                  # User logout handler
-├── index.php                   # Dashboard/Home page
-├── header.php                  # Page header component
-├── footer.php                  # Page footer component
-├── sidebar.php                 # Navigation sidebar
-│
-├── clients.php                 # Client management interface
-├── customer.php                # Customer details
-├── customer-work-order.php     # Customer-specific work orders
-│
-├── work-order.php              # Work order management
-├── work-order-status.php       # Work order status tracking
-│
-├── technician.php              # Technician management
-├── services.php                # Services management
-├── items.php                   # Inventory items
-├── item-category.php           # Item categorization
-├── payment.php                 # Payment processing
-├── user.php                    # User account management
-├── user-group.php              # User group configuration
-├── settings.php                # Application settings
-│
-├── src/
-│   ├── db/
-│   │   └── connection.php      # Database connection handler
-│   ├── handlers/
-│   │   ├── add_user.php
-│   │   ├── edit_user.php
-│   │   ├── delete_user.php
-│   │   ├── add_client.php
-│   │   ├── edit_client.php
-│   │   ├── delete_client.php
-│   │   ├── add_category.php
-│   │   ├── update_profile.php
-│   │   └── ...
-│   ├── images/                 # Image assets
-│   └── styles/
-│       ├── style.css           # Main stylesheet
-│       └── style-improved.css  # Enhanced styles
-│
-└── README.md                   # This file
-```
-
-## Requirements
-
-- PHP 7.0 or higher
-- MySQL 5.7 or higher
-- Apache/XAMPP server (recommended)
-- Modern web browser
-
-## Installation
-
-1. **Clone or extract the project** into your web server's document root:
-   ```bash
-   /opt/lampp/htdocs/MACPROTECH/
-   ```
-
-2. **Configure the database connection** in `src/db/connection.php`:
-   - Update the database credentials (host, username, password, database name)
-
-3. **Create the database** with necessary tables:
-   - Import your database schema (if provided)
-   - Or manually create required tables for users, clients, work orders, etc.
-
-4. **Access the application**:
-   - Open your browser and navigate to `http://localhost/MACPROTECH/`
-
-## Usage
-
-### Logging In
-1. Go to the login page
-2. Enter your credentials
-3. Upon successful authentication, you'll be redirected to the dashboard
-
-### Managing Clients
-- Navigate to **Clients** to view all customers
-- Click **Add Client** to register new customers
-- Edit or delete client information as needed
-
-### Creating Work Orders
-- Go to **Work Orders**
-- Create new work orders and assign to technicians
-- Track status and updates throughout the service lifecycle
-
-### Managing Inventory
-- Access **Items** for inventory management
-- Organize items using **Item Categories**
-- Track stock levels and product information
-
-### Processing Payments
-- Navigate to **Payment** section
-- Record customer payments and view transaction history
-
-## File Descriptions
-
-| File | Purpose |
-|------|---------|
-| `auth_check.php` | Validates user sessions and permissions |
-| `login.php` | User authentication interface |
-| `index.php` | Main dashboard page |
-| `clients.php` | Client listing and management |
-| `work-order.php` | Work order creation and tracking |
-| `technician.php` | Technician profile management |
-| `payment.php` | Payment recording and tracking |
-| `settings.php` | Application configuration |
-
-## Database Connection
-
-The application connects to MySQL through `src/db/connection.php`. Ensure your database credentials are properly configured before running the application.
-
-## Security Features
-
-- **Authentication Check** - All pages verify user login status
-- **Session Management** - Secure session handling
-- **Input Validation** - Data validation in form handlers
-
-## Support
-
-For issues or questions, please review the code comments or refer to the individual PHP files.
-
-## License
-
-This project is proprietary software for MACPROTECH.
+This README reflects how the system currently works based on the code in this repo.
 
 ---
 
-**Version:** 1.0  
-**Last Updated:** February 2026
+## How the system works (end-to-end)
+
+### 1) Authentication (login + session protection)
+- **`login.php`** authenticates a user from the `users` table and stores:
+  - `$_SESSION['user_id']`
+  - `$_SESSION['username']`
+  - `$_SESSION['role']`
+- After login, users are redirected to **`index.php`**.
+- **`auth_check.php`** is included by handlers/pages to protect access:
+  - Verifies `$_SESSION['user_id']` exists in `users`.
+  - If the user was deleted, it clears session cookies and redirects to `login.php`.
+
+> Roles used in code: `Administrator`, `Technician`.
+
+---
+
+### 2) Dashboard overview + charts
+- **`index.php`** loads aggregated counts directly from the database:
+  - total clients (`client`)
+  - total work orders (`work_order`)
+  - pending/completed work orders (filtered by `work_order.status`)
+  - total technicians (`users` where `role='Technician'`)
+  - low stock items (`items.quantity < 10`)
+  - work order status distribution (`SELECT status, COUNT(*) ... GROUP BY status`)
+  - recent work orders (last 5)
+  - last-6-month trends for work orders and clients
+- **`src/scripts/dashboard-charts.js`** + **`src/scripts/chart.js`** render charts using values embedded by `index.php`.
+
+---
+
+### 3) Work orders list + viewing details
+- **`work-order.php`** displays work orders in a paginated, searchable table.
+  - Search uses `GET search`, filter uses `GET filter`.
+  - Technicians are restricted server-side:
+    - If `$_SESSION['role'] == 'Technician'`, the query includes `technician_id = $_SESSION['user_id']`.
+
+- Each row renders the HTML template **`src/partials/workorder_row_template.php`**:
+  - Shows status badge.
+  - If the user is allowed to edit status, a `<select>` is shown.
+  - A “View” button opens a modal/drawer.
+
+#### Fetching the “View” modal content
+- Clicking “View” calls the JS function which fetches:
+  - **`src/handlers/get_work_order.php?id=WORK_ORDER_ID`**
+
+**`src/handlers/get_work_order.php`** returns JSON:
+- The selected work order (`work_order`), including technician name (join to `users`).
+- Purchased parts from `purchased_item` joined to `items`.
+- Client-provided parts from `customer_provided_component`.
+- Payments from `payments` (only if the table exists in the DB).
+
+The modal computes a cost summary on the client side using:
+- `wo.diagnostic_fee`
+- `wo.work_order_cost`
+- purchased parts (`quantity * product_price`)
+
+---
+
+### 4) Updating work order status (workflow + audit + email)
+- Status updates are performed via AJAX to:
+  - **`src/handlers/update_status.php`**
+
+#### Role-based permissions (what each role can do)
+Roles in the codebase: `Administrator` and `Technician` (from `users.role`).
+
+**Administrator** (full operational access in the UI + handlers)
+- Can update **work order status** via `src/handlers/update_status.php`.
+- Can view and edit work order details (where the UI shows editable controls).
+- Can update **payment statuses** via `src/handlers/update_payment_status.php` (handler validates via `auth_check.php`; the form is shown in the payment UI).
+
+**Technician** (restricted access to their assigned work)
+- Can update **work order status** via `src/handlers/update_status.php`.
+- Can only see/update work orders where:
+  - `work-order.php` adds `AND technician_id = $_SESSION['user_id']`.
+- In `src/partials/workorder_row_template.php`, status edit controls are rendered only when `$canEdit` is true (role-based).
+
+> If a user is not in `Administrator`/`Technician`, status updates are rejected by `update_status.php`.
+
+**`src/handlers/update_status.php`**:
+- Requires POST + `update_status=1`
+- Checks authorization via role (`Administrator`, `Technician`).
+- Validates requested status against:
+  - `Pending`, `In Progress`, `Repaired`, `Completed`, `Cancelled`
+- Updates `work_order.status` and sets/clears `completion_date`:
+  - If `Completed`: sets `completion_date = NOW()`
+  - Otherwise: sets `completion_date = NULL`
+- Writes an audit record into `activity_logs`:
+  - `action = "Changed status from {previous} to {status}"`
+- Sends an email when status changes to `Completed` using PHPMailer:
+  - `sendCompletionEmail($clientEmail, $clientName, $workCode)`
+
+---
+
+### 5) Creating work orders (work order + parts + payment)
+- Work order creation happens in **`src/handlers/add_work_order.php`**.
+
+**`add_work_order.php`** implements a transaction that:
+1. Inserts a new row into `work_order`.
+2. Generates the work order code:
+   - `code = "WO-" + 4-digit id padding`
+   - then updates the inserted row.
+3. Handles parts:
+   - **Purchased parts**:
+     - Inserts into `purchased_item (work_order_id, product_id, quantity, date)`
+     - Deducts inventory quantity from `items.quantity`.
+   - **Client provided parts**:
+     - Inserts into `customer_provided_component (work_order_id, product_name, description, quantity)`
+4. Creates a payment record in `payments`:
+   - `payment_code = "PMT-" + sequence based on last payment id`
+   - `total_amount = diagnostic_fee + work_order_cost + purchased_parts_total`
+   - `status = 'Pending'`
+   - `date = current date`
+
+Finally it redirects back to:
+- `client-view.php?client_id=...`
+
+---
+
+### 6) Editing a work order (details + replacing parts)
+- Work order edit updates and replaces associated parts through:
+  - **`src/handlers/update_work_order.php`**
+
+Key behavior:
+- Updates the main `work_order` fields (unit type, brand/model, specs, fees, status, technician, notes, etc.).
+- Deletes existing parts for that work order:
+  - `DELETE FROM purchased_item WHERE work_order_id = ?`
+  - `DELETE FROM customer_provided_component WHERE work_order_id = ?`
+- Inserts the newly provided parts (purchased + client-provided).
+
+---
+
+### 7) Payments management
+- Payments list is rendered by **`payment.php`**.
+- Updating payment status is handled by:
+  - **`src/handlers/update_payment_status.php`**
+
+**`update_payment_status.php`**:
+- POST required + `update_payment_status` flag.
+- Valid statuses: `Pending`, `Paid`, `Overdue`.
+- Updates `payments.status` and `payments.date`.
+- Uses session flash messages:
+  - `$_SESSION['payment_success']` / `$_SESSION['payment_error']`
+- Redirects back to `payment.php`.
+
+---
+
+### 8) Inventory items
+- Items are created/edited via handlers:
+  - **`src/handlers/add_item.php`**
+  - **`src/handlers/edit_item.php`**
+
+Item creation behavior (`add_item.php`):
+- Inserts into `items` including image upload (stored in `src/uploads/`).
+- Generates `items.product_code` after insert based on:
+  - item category name prefix
+  - brand name prefix
+  - `PI-0000` based on inserted item id.
+
+---
+
+## Database schema reference
+The repository includes a schema dump:
+- **`crms_macprotech.sql`**
+
+Tables used directly by the code paths above:
+- `users`
+- `client`
+- `work_order`
+- `items`
+- `item_category`
+- `purchased_item`
+- `customer_provided_component`
+- `payments`
+- `activity_logs`
+
+---
+
+## Requirements
+- PHP 7.0+
+- MySQL/MariaDB 5.7+
+- Apache/XAMPP (or compatible PHP server)
+- A writable `src/uploads/` directory (for item images)
+
+---
+
+## Installation (typical)
+1. Deploy the project to your document root (example):
+   ```bash
+   /opt/lampp/htdocs/MACPROTECH/
+   ```
+2. Update DB credentials in:
+   - **`src/db/connection.php`**
+3. Import schema:
+   - **`crms_macprotech.sql`**
+4. Open:
+   - `http://localhost/MACPROTECH/`
+
+---
+
+## Security notes (as implemented)
+- Central session guard in **`auth_check.php`**.
+- Work order status updates are role-protected and validated in **`src/handlers/update_status.php`**.
+- Inputs are partially sanitized via prepared statements; some UI-driven filtering/search uses manual SQL string building—treat those endpoints carefully if you extend the system.
+
+---
+
+## License
+Proprietary software for MACPROTECH.
+
+---
+
+**Version:** 1.1
+**Last Updated:** 2026-05-20
+

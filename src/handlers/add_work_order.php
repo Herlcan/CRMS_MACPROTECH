@@ -79,6 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         mysqli_stmt_close($add_query);
         mysqli_stmt_close($update_query);
 
+        // Calculate total payment amount (diagnostic fee + work order cost + purchased parts cost)
+        $purchased_parts_total = 0;
+        $total_payment_amount = floatval($diagnostic_fee) + floatval($work_order_cost);
+
         // Handle Purchased Parts (may be empty)
         if (isset($_POST['purchased_part_item_id']) && is_array($_POST['purchased_part_item_id'])) {
             $item_ids = $_POST['purchased_part_item_id'];
@@ -90,6 +94,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
                 $quantity = isset($quantities[$i]) ? intval($quantities[$i]) : 1;
 
                 if (!empty($product_id) && $quantity > 0) {
+                    // Get the item price for total calculation
+                    $price_query = mysqli_prepare($conn, "SELECT price FROM items WHERE id = ?");
+                    mysqli_stmt_bind_param($price_query, "i", $product_id);
+                    mysqli_stmt_execute($price_query);
+                    $price_result = mysqli_stmt_get_result($price_query);
+                    $price_row = mysqli_fetch_assoc($price_result);
+                    $item_price = $price_row ? floatval($price_row['price']) : 0;
+                    mysqli_stmt_close($price_query);
+
+                    // Add to purchased parts total
+                    $purchased_parts_total += ($item_price * $quantity);
+
                     $purchased_query = mysqli_prepare(
                         $conn,
                         "INSERT INTO purchased_item (work_order_id, product_id, quantity, date) VALUES (?, ?, ?, ?)"
@@ -147,6 +163,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
                 }
             }
         }
+
+        // Create Payment Record
+        $total_payment_amount += $purchased_parts_total;
+        $payment_status = 'Pending';
+        $payment_date = date('Y-m-d');
+
+        // Get the last payment ID to generate payment code
+        $last_payment_query = mysqli_query($conn, "SELECT id FROM payments ORDER BY id DESC LIMIT 1");
+        $last_payment_row = mysqli_fetch_assoc($last_payment_query);
+        $last_payment_id = $last_payment_row ? $last_payment_row['id'] : 0;
+        $payment_code = "PMT-" . sprintf("%04d", $last_payment_id + 1);
+
+        // Insert payment record
+        $payment_query = mysqli_prepare($conn,
+            "INSERT INTO payments (payment_code, work_order_id, total_amount, status, date) VALUES (?, ?, ?, ?, ?)"
+        );
+
+        if (!$payment_query) {
+            throw new Exception('Database error: ' . mysqli_error($conn));
+        }
+
+        mysqli_stmt_bind_param($payment_query, "sidss", $payment_code, $id, $total_payment_amount, $payment_status, $payment_date);
+        if (!mysqli_stmt_execute($payment_query)) {
+            throw new Exception('Failed to create payment record: ' . mysqli_stmt_error($payment_query));
+        }
+        mysqli_stmt_close($payment_query);
 
         // Commit transaction
         mysqli_commit($conn);

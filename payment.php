@@ -2,7 +2,59 @@
 <?php 
 	include 'header.php';
 	include 'sidebar.php';
+	include 'src/db/connection.php';
 ?>
+
+	<!-- Hidden checkbox for edit payment modal toggle -->
+	<input type="checkbox" id="editPaymentToggle" class="edit-payment-toggle">
+
+	<!-- Edit Payment Modal Overlay -->
+	<label for="editPaymentToggle" class="css-modal-overlay edit-payment-overlay"></label>
+
+	<!-- EDIT PAYMENT MODAL (Pure CSS) -->
+	<div class="edit-payment-modal-container">
+		<div class="css-modal-content">
+			<!-- Modal Header -->
+			<div class="css-modal-header">
+				<h5 class="css-modal-title">Update Payment Status</h5>
+				<label for="editPaymentToggle" class="css-modal-close">&times;</label>
+			</div>
+
+			<!-- Modal Body -->
+			<div class="css-modal-body">
+				<!-- Form -->
+				<form method="POST" action="src/handlers/update_payment_status.php">
+					<input type="hidden" name="payment_id" id="paymentIdField" value="">
+					
+					<div class="form-group">
+						<label class="form-label">Payment Code</label>
+						<input type="text" class="form-control" id="paymentCodeField" readonly>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label">Status</label>
+						<select class="form-control" id="paymentStatusField" name="status" required>
+							<option value="">Select Status</option>
+							<option value="Pending">Pending</option>
+							<option value="Paid">Paid</option>
+							<option value="Overdue">Overdue</option>
+						</select>
+					</div>
+
+					<div class="form-group">
+						<label class="form-label">Paid Date</label>
+						<input type="date" class="form-control" id="paymentDateField" name="date">
+					</div>
+
+					<!-- Modal Footer -->
+					<div class="css-modal-footer">
+						<label for="editPaymentToggle" class="btn btn-secondary">Cancel</label>
+						<button type="submit" name="update_payment_status" class="btn btn-primary">Save Changes</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
 
 	<div class="mobile-menu-overlay"></div>
 
@@ -53,7 +105,7 @@
 							<thead>
 								<tr>
 									<th style="text-align: center;">Payment Code</th>
-									<th style="text-align: center;">Work Order</th>
+									<th style="text-align: center;">Work Order Code</th>
 									<th style="text-align: center;">Total Amount</th>
 									<th style="text-align: center;">Status</th>
 									<th style="text-align: center;">Date</th>
@@ -110,7 +162,7 @@
 								<tr>
 									<td style="text-align: center;"><?= htmlspecialchars($row['payment_code']) ?></td>
 									<td style="text-align: center;"><?= htmlspecialchars($row['work_order']) ?></td>
-									<td style="text-align: center;"><?= htmlspecialchars($row['total_amount']) ?></td>
+									<td style="text-align: center;">Php <?= htmlspecialchars($row['total_amount']) ?></td>
 									<td>
 										<?php
 											$status = strtolower($row['status']);
@@ -131,7 +183,7 @@
 									<td>
 										<<a>
 											<label class="dropdown-item" onclick="editUser('<?= htmlspecialchars($row['username']) ?>', '<?= htmlspecialchars($row['first_name']) ?>', '<?= htmlspecialchars($row['last_name']) ?>', '<?= htmlspecialchars($row['contact_num']) ?>', '<?= htmlspecialchars($row['email']) ?>', '<?= htmlspecialchars($row['role']) ?>', '<?= $row['id'] ?>');">
-												<i class="dw dw-edit2"></i> Edit
+												<i class="dw dw-edit2"></i> View
 											</label>
 										</a>
 									</td>

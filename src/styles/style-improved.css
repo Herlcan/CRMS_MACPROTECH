@@ -2526,12 +2526,125 @@ textarea.form-control {
     color: var(--text-muted);
 }
 
+/* ================= PURE CSS MODALS - ADD ITEM (Checkbox Trick) ================= */
+.add-item-toggle,
+.category-toggle {
+    display: none !important;
+}
+
+/* Base styling for category overlays */
+.category-overlay {
+    display: none !important;
+}
+
+/* Base styling for add-item overlay */
+.add-client-overlay {
+    display: none !important;
+}
+
+/* Category modal visibility when checkbox is checked */
+.category-toggle:checked ~ .category-overlay {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+
+.category-toggle:checked ~ .category-management-modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    z-index: 1051;
+    padding: var(--spacing-4);
+    animation: slideUp 0.3s ease !important;
+}
+
+/* When add-item is opened, keep category modal hidden */
+.add-item-toggle:checked ~ .category-modal-container {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Use the same overlay style as profile modal for add item */
+.add-item-toggle:checked ~ .category-overlay .add-client-overlay {
+
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+
+/* Show add-item modal when checkbox is checked */
+.add-item-toggle:checked ~ .category-modal-container {
+
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    z-index: 1051;
+    padding: var(--spacing-4);
+    animation: slideUp 0.3s ease !important;
+}
+
+/* Base styling for category-modal-container (add item) */
+.category-modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1051;
+    padding: var(--spacing-4);
+}
+
+/* Base styling for category-management-modal-container (category management) */
+.category-management-modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1051;
+    padding: var(--spacing-4);
+}
+
 /* ================= PURE CSS MODALS - ADD CLIENT (Checkbox Trick) ================= */
 .add-client-toggle {
     display: none !important;
 }
 
-/* Use the same overlay style as profile modal for add client */
+/* Show overlay when add client checkbox is checked */
 .add-client-toggle:checked ~ .add-client-overlay {
     display: block !important;
     visibility: visible !important;
@@ -2539,7 +2652,7 @@ textarea.form-control {
     opacity: 1 !important;
 }
 
-/* Show modal when checkbox is checked - Use css-modal (same as profile) */
+/* Show modal when add client checkbox is checked */
 .add-client-toggle:checked ~ .add-client-modal-container {
     position: fixed;
     top: 0;
@@ -2580,6 +2693,11 @@ textarea.form-control {
     display: none !important;
 }
 
+/* Base styling for edit-client-overlay */
+.edit-client-overlay {
+    display: none !important;
+}
+
 /* Show overlay when edit checkbox is checked */
 .edit-client-toggle:checked ~ .edit-client-overlay {
     display: block !important;
@@ -2608,6 +2726,114 @@ textarea.form-control {
 
 /* Base styling for edit-client-modal-container */
 .edit-client-modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1051;
+    padding: var(--spacing-4);
+}
+
+/* ================= PURE CSS MODALS - EDIT CATEGORY (Checkbox Trick) ================= */
+.edit-category-toggle {
+    display: none !important;
+}
+
+/* Base styling for edit-category-overlay */
+.edit-category-overlay {
+    display: none !important;
+}
+
+/* Show overlay when edit category checkbox is checked */
+.edit-category-toggle:checked ~ .edit-category-overlay {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+
+/* Show modal when edit category checkbox is checked */
+.edit-category-toggle:checked ~ .edit-category-modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    z-index: 1051;
+    padding: var(--spacing-4);
+    animation: slideUp 0.3s ease !important;
+}
+
+/* Base styling for edit-category-modal-container */
+.edit-category-modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1051;
+    padding: var(--spacing-4);
+}
+
+/* ================= PURE CSS MODALS - EDIT ITEM (Checkbox Trick) ================= */
+.edit-item-toggle {
+    display: none !important;
+}
+
+/* Base styling for edit-item-overlay */
+.edit-item-overlay {
+    display: none !important;
+}
+
+/* Show overlay when edit item checkbox is checked */
+.edit-item-toggle:checked ~ .edit-item-overlay {
+    display: block !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+}
+
+/* Show modal when edit item checkbox is checked */
+.edit-item-toggle:checked ~ .edit-item-modal-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    z-index: 1051;
+    padding: var(--spacing-4);
+    animation: slideUp 0.3s ease !important;
+}
+
+/* Base styling for edit-item-modal-container */
+.edit-item-modal-container {
     position: fixed;
     top: 0;
     left: 0;
