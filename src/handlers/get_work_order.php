@@ -45,6 +45,25 @@ try {
         throw new Exception('Work order not found');
     }
 
+    $payments = [];
+    // Fetch payments if table exists
+    $checkPayments = mysqli_query($conn, "SHOW TABLES LIKE 'payments'");
+    if ($checkPayments && mysqli_num_rows($checkPayments) > 0) {
+        $paymentsQuery = mysqli_prepare($conn, "
+            SELECT * FROM payments
+            WHERE work_order_id = ?
+            ORDER BY date ASC
+        ");
+        if ($paymentsQuery) {
+            mysqli_stmt_bind_param($paymentsQuery, "i", $work_order_id);
+            if (mysqli_stmt_execute($paymentsQuery)) {
+                $paymentsResult = mysqli_stmt_get_result($paymentsQuery);
+                $payments = mysqli_fetch_all($paymentsResult, MYSQLI_ASSOC);
+            }
+            mysqli_stmt_close($paymentsQuery);
+        }
+    }
+
     // Fetch purchased parts (returns empty array if no parts exist)
     $purchased_parts = [];
     $purchased_query = mysqli_prepare($conn, "
@@ -84,7 +103,8 @@ try {
         'success' => true,
         'workOrder' => $work_order,
         'purchasedParts' => $purchased_parts,
-        'clientParts' => $client_parts
+        'clientParts' => $client_parts,
+        'payments' => $payments
     ];
 
 } catch (Exception $e) {

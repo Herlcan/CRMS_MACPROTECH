@@ -49,14 +49,8 @@
 	</td>
 			
 	<td style="text-align: center;">
-		<div class="dropdown">
-			<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
-				<img src="src/images/menu-dots.png" width="25px" style="border: none">
-			</a>
-			<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-				<a class="dropdown-item" href="#"><i class="dw dw-eye"></i> View</a>
-				<a class="dropdown-item" href="#" data-toggle="modal" data-target="#delete"><i class="dw dw-delete-3"></i> Delete</a>
-			</div>
-		</div>
+		<button class="btn btn-sm btn-primary view-workorder-btn" data-id="<?= $wo['id'] ?>" style="margin-right: 5px;">
+			<i class="dw dw-eye"></i> View
+		</button>
 	</td>
 </tr>

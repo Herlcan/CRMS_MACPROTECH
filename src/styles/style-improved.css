@@ -312,34 +312,66 @@ h6, .h6 {
     margin: var(--spacing-3) 0 var(--spacing-5) 0;
 }
 
-.view-stepper {
+.wo-stepper {
     display: flex;
     gap: var(--spacing-3);
     flex-wrap: wrap;
 }
 
-.view-stepper-item {
-    flex: 1 1 120px;
-    min-width: 120px;
+.wo-stepper .wo-stepper-item {
+    flex: 1 1 140px;
+    min-width: 140px;
     padding: var(--spacing-3) var(--spacing-4);
-    border-radius: 14px;
+    border-radius: 16px;
     background: var(--bg-secondary);
     color: var(--text-secondary);
     text-align: center;
-    font-weight: 600;
+    font-weight: 700;
     border: 1px solid var(--border-light);
+    position: relative;
+    overflow: hidden;
 }
 
-.view-stepper-item.active {
-    background: var(--primary);
+.wo-stepper .wo-stepper-item .wo-step-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.wo-stepper .wo-stepper-item .wo-step-title {
+    margin-top: var(--spacing-2);
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.wo-stepper .wo-stepper-item.active {
+    background: linear-gradient(135deg, rgba(58,87,232,1) 0%, rgba(118,75,162,1) 100%);
     color: #fff;
-    border-color: var(--primary-dark);
-    box-shadow: 0 12px 24px rgba(58, 87, 232, 0.12);
+    border-color: rgba(58, 87, 232, 0.9);
+    box-shadow: 0 12px 24px rgba(58, 87, 232, 0.18);
 }
 
-.view-stepper-item.completed {
-    background: var(--primary-light);
+.wo-stepper .wo-stepper-item.active .wo-step-label {
+    color: rgba(255,255,255,0.85);
+}
+
+.wo-stepper .wo-stepper-item.completed {
+    background: rgba(232, 238, 249, 1);
     color: var(--primary-dark);
+    border-color: rgba(58, 87, 232, 0.2);
+}
+
+.wo-stepper .wo-stepper-item.completed::before {
+    content: "";
+    position: absolute;
+    top: -30px;
+    right: -30px;
+    width: 90px;
+    height: 90px;
+    background: rgba(58, 87, 232, 0.12);
+    border-radius: 50%;
 }
 
 .view-payment-list {
@@ -2702,4 +2734,83 @@ textarea.form-control {
     transition: opacity 0.3s ease, visibility 0.3s ease;
     z-index: 1051;
     padding: var(--spacing-4);
+}
+
+/* ================= PROGRESS STEPPER ================= */
+.progress-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    gap: 10px;
+}
+
+.stepper-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+}
+
+.stepper-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background-color: #e0e0e0;
+    z-index: 0;
+}
+
+.stepper-item.active:not(:last-child)::after {
+    background-color: #667eea;
+}
+
+.stepper-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #f0f0f0;
+    border: 2px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #999;
+    font-size: 0.9rem;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.stepper-item.active .stepper-circle {
+    background-color: #667eea;
+    border-color: #667eea;
+    color: white;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.stepper-item.completed .stepper-circle {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+}
+
+.stepper-label {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #666;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.stepper-item.active .stepper-label {
+    color: #667eea;
+}
+
+.stepper-item.completed .stepper-label {
+    color: #28a745;
 }
