@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
 
             mysqli_stmt_bind_param(
                 $update_query,
-                "ssssssssisi",
+                "sssssssssisi",
                 $unit_type,
                 $brand,
                 $model,
