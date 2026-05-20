@@ -117,6 +117,15 @@
 									}
 								}
 
+								// Technician restriction
+								if ($_SESSION["role"] == "Technician") {
+
+								    $technician_id = intval($_SESSION['user_id']);
+
+								    // Add technician filter to WHERE
+								    $where .= " AND technician_id = $technician_id";
+								}
+
 								// Get total count for pagination info
 								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM work_order WHERE $where");
 								$count_row = mysqli_fetch_assoc($count_result);
@@ -228,7 +237,7 @@
 		</div>
 	</div>
 
-	<<!-- View Work Order Modal -->
+	<!-- View Work Order Modal -->
 	<div class="modal fade" id="viewWorkOrderDrawer" tabindex="-1" role="dialog" aria-labelledby="viewWorkOrderLabel" aria-hidden="true">
 		<div class="modal-dialog modal-xl modal-dialog-centered" role="document">
 			<div class="modal-content" style="border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.2);">
