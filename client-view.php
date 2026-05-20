@@ -604,7 +604,7 @@ function viewWorkOrder(id) {
 
 				let paymentHtml = `
 					<div class="row">
-						<div class="col-md-4">
+						<div class="col-md-4" style="display: grid; gap: 12px; width: 100%;">
 							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #667eea;">
 								<small style="color: #667eea; font-weight: 600;">Diagnostic Fee</small>
 								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${diagnosticFee.toFixed(2)}</p>
@@ -618,9 +618,9 @@ function viewWorkOrder(id) {
 								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${purchasedPartTotal.toFixed(2)}</p>
 							</div>
 						</div>
-						<div class="col-md-8">
-							<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 8px; text-align: center; height: 100%;">
-								<small style="opacity: 0.9; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px; font-size: 0.9rem;">Total Amount Due</small>
+						<div class="col-md-8" style="margin-left: auto;">
+							<div style="background: #333341; color: white; padding: 25px; border-radius: 8px; display: grid; place-items: center; height: 95%;">
+								<small style="opacity: 0.9; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px; font-size: 0.9rem;">Total Amount</small>
 								<p style="font-size: 2.5rem; font-weight: 700; margin: 0;">Php ${grandTotal.toFixed(2)}</p>
 								<small style="opacity: 0.85; display: block; margin-top: 8px; font-size: 0.85rem;">(Diagnostic + Work Order + Parts)</small>
 							</div>
@@ -1334,7 +1334,7 @@ function viewWorkOrder(id) {
 									<p id="vw_technician" style="color: #555; margin: 5px 0 0 0;">—</p>
 								</div>
 							</div>
-							<div class="col-md-6">
+							<div class="col-md-6" style="margin-left:20%;">
 								<div style="margin-bottom: 15px;">
 									<small style="color: #6c757d; font-weight: 600; text-transform: uppercase;">Status</small>
 									<p id="vw_status" style="color: #555; margin: 5px 0 0 0;">
@@ -1363,7 +1363,7 @@ function viewWorkOrder(id) {
 									<p id="vw_brand_model" style="color: #555; margin: 5px 0 0 0;">—</p>
 								</div>
 							</div>
-							<div class="col-md-6">
+							<div class="col-md-6" style="padding-left: 17%;">
 								<div style="margin-bottom: 12px;">
 									<small style="color: #6c757d; font-weight: 600;">Specs/Accessories</small>
 									<p id="vw_specs" style="color: #555; margin: 5px 0 0 0;">—</p>

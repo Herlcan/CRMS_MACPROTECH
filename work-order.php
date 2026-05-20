@@ -277,7 +277,7 @@
 									<p id="vw_technician" style="color: #555; margin: 5px 0 0 0;">—</p>
 								</div>
 							</div>
-							<div class="col-md-6">
+							<div class="col-md-6" style="padding-left:20%;">
 								<div style="margin-bottom: 15px;">
 									<small style="color: #6c757d; font-weight: 600; text-transform: uppercase;">Status</small>
 									<p id="vw_status" style="color: #555; margin: 5px 0 0 0;">
@@ -306,7 +306,7 @@
 									<p id="vw_brand_model" style="color: #555; margin: 5px 0 0 0;">—</p>
 								</div>
 							</div>
-							<div class="col-md-6">
+							<div class="col-md-6" style="padding-left: 17%;">
 								<div style="margin-bottom: 12px;">
 									<small style="color: #6c757d; font-weight: 600;">Specs/Accessories</small>
 									<p id="vw_specs" style="color: #555; margin: 5px 0 0 0;">—</p>
