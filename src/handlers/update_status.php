@@ -177,7 +177,7 @@ try {
     /**
      * Send email if changed to Completed
      */
-    if ($status === 'Completed' && $previousStatus !== 'Completed') {
+    if ($status === 'Repaired' && $previousStatus !== 'Repaired') {
         sendCompletionEmail($clientEmail, $clientName, $workCode);
     }
 

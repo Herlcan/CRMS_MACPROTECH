@@ -1,2 +1,3 @@
 /src/handlers/config.php
-/src/uplaods
+/src/uplaods/
+/test/sms_test.php
