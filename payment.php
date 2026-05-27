@@ -69,6 +69,7 @@
 							</thead>
 							<?php
 								$where = "1";
+								$from_clause = "payments p LEFT JOIN work_order wo ON p.work_order_id = wo.id";
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -85,18 +86,38 @@
 
 								// Secure search
 								if (!empty($_GET['search'])) {
-								    $s = mysqli_real_escape_string($conn, $_GET['search']);
-								    $where .= " AND (LOWER(payment_code) LIKE '%$s%' OR LOWER(work_order) LIKE '%$s%' OR LOWER(total_amount) LIKE '%$s%')";
+								    $s = strtolower(mysqli_real_escape_string($conn, trim($_GET['search'])));
+								    $amount_search = preg_replace('/[^0-9.]/', '', $s);
+								    $amount_condition = "";
+
+								    if ($amount_search !== '' && $amount_search !== $s) {
+										$amount_search = mysqli_real_escape_string($conn, $amount_search);
+										$amount_condition = " OR CAST(p.total_amount AS CHAR) LIKE '%$amount_search%'";
+								    }
+
+								    $where .= " AND (
+										LOWER(p.payment_code) LIKE '%$s%' OR
+										LOWER(wo.code) LIKE '%$s%' OR
+										CAST(p.total_amount AS CHAR) LIKE '%$s%' OR
+										EXISTS (
+											SELECT 1
+											FROM purchased_item pi
+											INNER JOIN items i ON pi.product_id = i.id
+											WHERE pi.work_order_id = p.work_order_id
+											AND LOWER(i.product_code) LIKE '%$s%'
+										)
+										$amount_condition
+									)";
 								}
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
 								    $f = mysqli_real_escape_string($conn, $_GET['filter']);
-								    $where .= " AND status='$f'";
+								    $where .= " AND p.status='$f'";
 								}
 
 								// Get total count for pagination info
-								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM payments WHERE $where");
+								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM $from_clause WHERE $where");
 								$count_row = mysqli_fetch_assoc($count_result);
 								$total_records = $count_row['total'];
 
@@ -106,20 +127,17 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT * FROM payments WHERE $where ORDER BY payment_code ASC LIMIT $limit OFFSET $offset");
+								$result = mysqli_query($conn, "SELECT p.*, wo.code AS work_order_code FROM $from_clause WHERE $where ORDER BY p.date DESC LIMIT $limit OFFSET $offset");
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
 							?>
 							<tbody>
-								<?php while ($row = mysqli_fetch_assoc($result)) { 
-									$work_order_code = 	mysqli_query($conn, "SELECT code FROM work_order WHERE id = " . intval($row['work_order_id']));
-									$work_order_row = mysqli_fetch_assoc($work_order_code);
-								?>
+								<?php while ($row = mysqli_fetch_assoc($result)) { ?>
 
 								<tr>
 									<td style="text-align: center;"><?= htmlspecialchars($row['payment_code']) ?></td>
-									<td style="text-align: center;"><?= htmlspecialchars($work_order_row['code']) ?>
+									<td style="text-align: center;"><?= htmlspecialchars($row['work_order_code'] ?? '—') ?></td>
 									<td style="text-align: center;">Php <?= htmlspecialchars($row['total_amount']) ?></td>
 									<td>
 										<?php
@@ -139,11 +157,9 @@
 									<td style="text-align: center;"><?= htmlspecialchars($row['date']) ?></td>
 									
 									<td>
-										<a>
-											<label class="dropdown-item" onclick="editUser('<?= htmlspecialchars($row['username']) ?>', '<?= htmlspecialchars($row['first_name']) ?>', '<?= htmlspecialchars($row['last_name']) ?>', '<?= htmlspecialchars($row['contact_num']) ?>', '<?= htmlspecialchars($row['email']) ?>', '<?= htmlspecialchars($row['role']) ?>', '<?= $row['id'] ?>');">
-												<i class="dw dw-edit2"></i> View
-											</label>
-										</a>
+										<button class="btn btn-sm btn-primary" style="margin-right: 5px;">
+											<i class="dw dw-eye"></i> View
+										</button>
 									</td>
 								</tr>
 								<?php } ?>
