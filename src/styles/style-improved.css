@@ -65,6 +65,7 @@
 
     /* Layout */
     --sidebar-width: 260px;
+    --sidebar-collapsed-width: 76px;
     --header-height: 70px;
 }
 
@@ -1031,6 +1032,28 @@ h6, .h6 {
     z-index: 901;
 }
 
+.sidebar-collapse-toggle {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-collapse-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-collapse-toggle img {
+    display: block;
+}
+
 .brand-logo a {
     display: flex;
     align-items: center;
@@ -1044,6 +1067,7 @@ h6, .h6 {
     font-size: 20px;
     padding: var(--spacing-4) 0;
     margin: 0;
+    line-height: 1;
 }
 
 /* Menu Block */
@@ -1136,6 +1160,46 @@ h6, .h6 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+body.sidebar-collapsed .left-side-bar,
+body.sidebar-collapsed .brand-logo {
+    width: var(--sidebar-collapsed-width);
+}
+
+body.sidebar-collapsed .brand-logo {
+    justify-content: center;
+    padding: 0;
+}
+
+body.sidebar-collapsed .brand-name,
+body.sidebar-collapsed .mtext,
+body.sidebar-collapsed .sidebar-footer {
+    display: none;
+}
+
+body.sidebar-collapsed .sidebar-collapse-toggle {
+    transform: rotate(180deg);
+}
+
+body.sidebar-collapsed .sidebar-menu li a {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 0;
+}
+
+body.sidebar-collapsed .sidebar-menu .micon {
+    width: 44px;
+    height: 44px;
+}
+
+body.sidebar-collapsed .header {
+    left: var(--sidebar-collapsed-width);
+}
+
+body.sidebar-collapsed .main-container {
+    margin-left: var(--sidebar-collapsed-width);
 }
 
 /* ================= MAIN CONTAINER ================= */
@@ -1973,6 +2037,45 @@ table tbody tr:hover {
     .left-side-bar {
         left: -100%;
         transition: left 0.25s ease;
+    }
+
+    body.sidebar-collapsed .left-side-bar,
+    body.sidebar-collapsed .brand-logo {
+        width: var(--sidebar-width);
+    }
+
+    body.sidebar-collapsed .brand-logo {
+        justify-content: space-between;
+        padding: 0 var(--spacing-4);
+    }
+
+    body.sidebar-collapsed .brand-name {
+        display: flex;
+    }
+
+    body.sidebar-collapsed .mtext {
+        display: inline;
+    }
+
+    body.sidebar-collapsed .sidebar-footer {
+        display: block;
+    }
+
+    body.sidebar-collapsed .sidebar-menu li a {
+        justify-content: flex-start;
+        padding: var(--spacing-4) var(--spacing-6);
+        gap: var(--spacing-3);
+    }
+
+    body.sidebar-collapsed .sidebar-menu .micon {
+        width: 20px;
+        height: 20px;
+    }
+
+    body.sidebar-collapsed .header,
+    body.sidebar-collapsed .main-container {
+        left: 0;
+        margin-left: 0;
     }
 
     .left-side-bar.open {

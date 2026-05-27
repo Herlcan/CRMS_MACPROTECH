@@ -1,8 +1,10 @@
 <div class="left-side-bar">
 	<div class="brand-logo">
-		<a href="index.php">
-			<img src="src/images/logo2.png" width="50">
-			<h4 style="color: #f3f3f4;font-size: 20px;padding: 15px"> MACPROTECH</h4>
+		<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true">
+			<img src="src/images/sidebar-white.png" width="20" height="20" alt="">
+		</button>
+		<a href="index.php" class="brand-name">
+			<h4>MACPROTECH</h4>
 		</a>
 		<div class="close-sidebar" data-toggle="left-sidebar-close">
 			<i class="ion-close-round"></i>
@@ -94,3 +96,27 @@
 		</div>
 	</div>
 </div>
+
+<script>
+	document.addEventListener('DOMContentLoaded', function () {
+		const collapseToggle = document.getElementById('sidebarCollapseToggle');
+		const storageKey = 'macprotechSidebarCollapsed';
+
+		function setSidebarCollapsed(isCollapsed) {
+			document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+			if (collapseToggle) {
+				collapseToggle.setAttribute('aria-expanded', String(!isCollapsed));
+			}
+		}
+
+		setSidebarCollapsed(localStorage.getItem(storageKey) === 'true');
+
+		if (collapseToggle) {
+			collapseToggle.addEventListener('click', function () {
+				const isCollapsed = !document.body.classList.contains('sidebar-collapsed');
+				setSidebarCollapsed(isCollapsed);
+				localStorage.setItem(storageKey, String(isCollapsed));
+			});
+		}
+	});
+</script>
