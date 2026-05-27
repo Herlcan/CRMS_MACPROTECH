@@ -62,12 +62,14 @@
 								<input type="hidden" name="status" value="Pending">
 								<div class="form-group">
 									<label class="form-label">Unit Type</label>
-									<select class="form-control" name="unit_type" required autocomplete="off">
+									<select class="form-control" name="unit_type" id="unitTypeSelect" required autocomplete="off" onchange="toggleOtherUnitType()">
 										<option value="">-- Select Unit Type --</option>
 										<?php foreach ($unitTypes as $type): ?>
 											<option value="<?= htmlspecialchars($type['unit_type']) ?>"><?= htmlspecialchars($type['unit_type']) ?></option>
 										<?php endforeach; ?>
+										<option value="__other__">Other</option>
 									</select>
+									<input type="text" class="form-control" id="otherUnitTypeInput" name="other_unit_type" placeholder="Enter unit type" autocomplete="off" style="display: none; margin-top: 10px;" disabled>
 								</div>
 								<div class="form-group">
 									<label class="form-label">Brand</label>
@@ -283,6 +285,37 @@
 			});
 		});
 		
+		function toggleOtherUnitType() {
+			const unitTypeSelect = document.getElementById('unitTypeSelect');
+			const otherUnitTypeInput = document.getElementById('otherUnitTypeInput');
+			const isOther = unitTypeSelect.value === '__other__';
+
+			otherUnitTypeInput.style.display = isOther ? 'block' : 'none';
+			otherUnitTypeInput.disabled = !isOther;
+			otherUnitTypeInput.required = isOther;
+
+			if (!isOther) {
+				otherUnitTypeInput.value = '';
+				otherUnitTypeInput.style.borderColor = '';
+			}
+		}
+
+		function setUnitTypeValue(unitType) {
+			const unitTypeSelect = document.getElementById('unitTypeSelect');
+			const otherUnitTypeInput = document.getElementById('otherUnitTypeInput');
+			const hasOption = Array.from(unitTypeSelect.options).some(option => option.value === unitType);
+
+			if (unitType && !hasOption) {
+				unitTypeSelect.value = '__other__';
+				toggleOtherUnitType();
+				otherUnitTypeInput.value = unitType;
+				return;
+			}
+
+			unitTypeSelect.value = unitType || '';
+			toggleOtherUnitType();
+		}
+
 		function goToStep(step) {
 			console.log('goToStep called with step:', step);
 			const step1 = document.getElementById('step1Form');
@@ -305,7 +338,7 @@
 			} else if (step === 2) {
 				// Validate step 1 before moving to step 2
 				const form = document.getElementById('workOrderForm');
-				const inputs = step1.querySelectorAll('input[required], textarea[required]');
+				const inputs = step1.querySelectorAll('input[required]:not(:disabled), select[required]:not(:disabled), textarea[required]:not(:disabled)');
 				let isValid = true;
 				let emptyFields = [];
 
@@ -504,6 +537,18 @@
 			if (backdrop) {
 				backdrop.remove();
 			}
+		}
+
+		function escapeHtml(text) {
+			if (!text) return '';
+			const map = {
+				'&': '&amp;',
+				'<': '&lt;',
+				'>': '&gt;',
+				'"': '&quot;',
+				"'": '&#039;'
+			};
+			return String(text).replace(/[&<>"']/g, m => map[m]);
 		}
 
 function viewWorkOrder(id) {
@@ -743,7 +788,7 @@ function viewWorkOrder(id) {
 			document.getElementById('modalTitle').textContent = 'Edit Work Order';
 
 			// Populate Step 1 fields
-			document.querySelector('select[name="unit_type"]').value = workOrder.unit_type || '';
+			setUnitTypeValue(workOrder.unit_type || '');
 			document.querySelector('input[name="brand"]').value = workOrder.brand || '';
 			document.querySelector('input[name="model"]').value = workOrder.model || '';
 			document.querySelector('textarea[name="specs_acce"]').value = workOrder.specs_acce || '';
@@ -921,6 +966,7 @@ function viewWorkOrder(id) {
 			const form = document.getElementById('workOrderForm');
 			form.action = 'src/handlers/add_work_order.php';
 			form.reset();
+			toggleOtherUnitType();
 
 			// Remove work order ID input
 			let workOrderIdInput = document.querySelector('input[name="work_order_id"]');

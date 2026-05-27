@@ -62,14 +62,16 @@
 							
 							<div class="form-group">
 							<label class="form-label">Category</label>
-							<select class="form-control" name="category" required autocomplete="off">
+							<select class="form-control" id="itemCategorySelect" name="category" required autocomplete="off" onchange="toggleOtherCategory('itemCategorySelect', 'otherCategoryInput')">
 								<option value="">Select Category</option>
 								<?php while ($row = mysqli_fetch_assoc($result)) { ?>
 									<option value="<?= htmlspecialchars($row['id']) ?>">
 										<?= htmlspecialchars($row['category_name']) ?>
 									</option>
 								<?php } ?>
+								<option value="__other__">Other</option>
 							</select>
+							<input type="text" class="form-control" id="otherCategoryInput" name="other_category" placeholder="Enter category" autocomplete="off" style="display: none; margin-top: 10px;" disabled>
 							</div>
 
 							<div class="form-group">
@@ -229,14 +231,16 @@
 							
 							<div class="form-group">
 							<label class="form-label">Category</label>
-							<select class="form-control" id="editItemCategory" name="category" required autocomplete="off">
+							<select class="form-control" id="editItemCategory" name="category" required autocomplete="off" onchange="toggleOtherCategory('editItemCategory', 'editOtherCategoryInput')">
 								<option value="">Select Category</option>
 								<?php while ($row_cat = mysqli_fetch_assoc($result_edit)) { ?>
 									<option value="<?= htmlspecialchars($row_cat['id']) ?>">
 										<?= htmlspecialchars($row_cat['category_name']) ?>
 									</option>
 								<?php } ?>
+								<option value="__other__">Other</option>
 							</select>
+							<input type="text" class="form-control" id="editOtherCategoryInput" name="other_category" placeholder="Enter category" autocomplete="off" style="display: none; margin-top: 10px;" disabled>
 							</div>
 
 							<div class="form-group">
@@ -569,12 +573,28 @@
 		document.getElementById('editCategoryToggle').checked = true;
 	}
 
+	function toggleOtherCategory(selectId, inputId) {
+		const categorySelect = document.getElementById(selectId);
+		const otherCategoryInput = document.getElementById(inputId);
+		const isOther = categorySelect.value === '__other__';
+
+		otherCategoryInput.style.display = isOther ? 'block' : 'none';
+		otherCategoryInput.disabled = !isOther;
+		otherCategoryInput.required = isOther;
+
+		if (!isOther) {
+			otherCategoryInput.value = '';
+			otherCategoryInput.style.borderColor = '';
+		}
+	}
+
 	function editItem(itemId, brand, model, description, categoryId, itemDate, capital, quantity, markup, price) {
 		document.getElementById('editItemId').value = itemId;
 		document.getElementById('editItemBrand').value = brand;
 		document.getElementById('editItemModel').value = model;
 		document.getElementById('editItemDescription').value = description;
 		document.getElementById('editItemCategory').value = categoryId;
+		toggleOtherCategory('editItemCategory', 'editOtherCategoryInput');
 		document.getElementById('editItemDate').value = itemDate;
 		document.getElementById('editItemCapital').value = capital;
 		document.getElementById('editItemQuantity').value = quantity;

@@ -9,11 +9,57 @@ include '../../auth_check.php';
 $update_work_order_message = '';
 $update_work_order_error = '';
 
+function resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type) {
+    if ($unit_type !== '__other__') {
+        return $unit_type;
+    }
+
+    $unit_type = trim($other_unit_type);
+
+    if ($unit_type === '') {
+        throw new Exception('Please enter a unit type.');
+    }
+
+    if (strlen($unit_type) > 50) {
+        throw new Exception('Unit type must be 50 characters or fewer.');
+    }
+
+    $check_query = mysqli_prepare($conn, "SELECT id FROM unit_type WHERE LOWER(unit_type) = LOWER(?) LIMIT 1");
+    if (!$check_query) {
+        throw new Exception('Database error: ' . mysqli_error($conn));
+    }
+
+    mysqli_stmt_bind_param($check_query, "s", $unit_type);
+    if (!mysqli_stmt_execute($check_query)) {
+        throw new Exception('Failed to check unit type: ' . mysqli_stmt_error($check_query));
+    }
+
+    $check_result = mysqli_stmt_get_result($check_query);
+    $existing_unit_type = mysqli_fetch_assoc($check_result);
+    mysqli_stmt_close($check_query);
+
+    if (!$existing_unit_type) {
+        $insert_query = mysqli_prepare($conn, "INSERT INTO unit_type (unit_type) VALUES (?)");
+        if (!$insert_query) {
+            throw new Exception('Database error: ' . mysqli_error($conn));
+        }
+
+        mysqli_stmt_bind_param($insert_query, "s", $unit_type);
+        if (!mysqli_stmt_execute($insert_query)) {
+            throw new Exception('Failed to add unit type: ' . mysqli_stmt_error($insert_query));
+        }
+        mysqli_stmt_close($insert_query);
+    }
+
+    return $unit_type;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order'])) {
 
     $work_order_id = intval($_POST['work_order_id']);
     $client_id = trim($_POST['client_id']);
     $unit_type = trim($_POST['unit_type']);
+    $other_unit_type = isset($_POST['other_unit_type']) ? trim($_POST['other_unit_type']) : '';
     $brand = trim($_POST['brand']);
     $model = trim($_POST['model']);
     $specs_acce = trim($_POST['specs_acce']);
@@ -32,6 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
         mysqli_begin_transaction($conn);
 
         try {
+            $unit_type = resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type);
+
             // Update work order
             $update_query = mysqli_prepare($conn,
                 "UPDATE work_order SET

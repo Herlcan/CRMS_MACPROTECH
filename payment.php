@@ -112,11 +112,14 @@
 								$record_end = min($offset + $records_shown, $total_records);
 							?>
 							<tbody>
-								<?php while ($row = mysqli_fetch_assoc($result)) { ?>
+								<?php while ($row = mysqli_fetch_assoc($result)) { 
+									$work_order_code = 	mysqli_query($conn, "SELECT code FROM work_order WHERE id = " . intval($row['work_order_id']));
+									$work_order_row = mysqli_fetch_assoc($work_order_code);
+								?>
 
 								<tr>
 									<td style="text-align: center;"><?= htmlspecialchars($row['payment_code']) ?></td>
-									<td style="text-align: center;"><?= htmlspecialchars($row['work_order']) ?></td>
+									<td style="text-align: center;"><?= htmlspecialchars($work_order_row['code']) ?>
 									<td style="text-align: center;">Php <?= htmlspecialchars($row['total_amount']) ?></td>
 									<td>
 										<?php

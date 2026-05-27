@@ -7,19 +7,71 @@ include '../../auth_check.php';
 
 $edit_item_error = '';
 
+function resolveItemCategoryId($conn, $category, $other_category, &$error) {
+    if ($category !== '__other__') {
+        return (int) $category;
+    }
+
+    $category_name = trim($other_category);
+
+    if ($category_name === '') {
+        $error = "Please enter a category.";
+        return 0;
+    }
+
+    if (strlen($category_name) > 20) {
+        $error = "Category must be 20 characters or fewer.";
+        return 0;
+    }
+
+    $check_query = mysqli_prepare($conn, "SELECT id FROM item_category WHERE LOWER(category_name) = LOWER(?) LIMIT 1");
+    if (!$check_query) {
+        $error = "Database error. Please try again.";
+        return 0;
+    }
+
+    mysqli_stmt_bind_param($check_query, "s", $category_name);
+    mysqli_stmt_execute($check_query);
+    $check_result = mysqli_stmt_get_result($check_query);
+    $existing_category = mysqli_fetch_assoc($check_result);
+    mysqli_stmt_close($check_query);
+
+    if ($existing_category) {
+        return (int) $existing_category['id'];
+    }
+
+    $insert_query = mysqli_prepare($conn, "INSERT INTO item_category (category_name) VALUES (?)");
+    if (!$insert_query) {
+        $error = "Database error. Please try again.";
+        return 0;
+    }
+
+    mysqli_stmt_bind_param($insert_query, "s", $category_name);
+    if (!mysqli_stmt_execute($insert_query)) {
+        $error = "Failed to add category. Please try again.";
+        mysqli_stmt_close($insert_query);
+        return 0;
+    }
+
+    $category_id = mysqli_insert_id($conn);
+    mysqli_stmt_close($insert_query);
+
+    return (int) $category_id;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
 
     $item_id      = (int) $_POST['id'];
     $brand_name   = trim($_POST['brand_name']);
     $model        = trim($_POST['model']);
     $description  = trim($_POST['description']);
-    $category     = (int) $_POST['category'];
+    $category     = resolveItemCategoryId($conn, $_POST['category'] ?? '', $_POST['other_category'] ?? '', $edit_item_error);
     $date         = $_POST['date'] ?? date('Y-m-d');
     $capital      = (float) $_POST['capital'];
     $quantity     = (int) $_POST['quantity'];
     $price        = (float) $_POST['price'];
 
-    if (empty($brand_name) || empty($model) || $category <= 0) {
+    if (empty($edit_item_error) && (empty($brand_name) || empty($model) || $category <= 0)) {
         $edit_item_error = "Please fill all required fields.";
     }
 
@@ -68,14 +120,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
             $update_query = mysqli_prepare($conn,
                 "UPDATE items SET brand_name = ?, model = ?, description = ?, category_id = ?, date = ?, capital = ?, quantity = ?, price = ?, image = ? WHERE id = ?"
             );
-            mysqli_stmt_bind_param($update_query, "sssisddi", 
+            mysqli_stmt_bind_param($update_query, "sssisdidsi",
                 $brand_name, $model, $description, $category, $date, $capital, $quantity, $price, $image_name_to_save, $item_id
             );
         } else {
             $update_query = mysqli_prepare($conn,
                 "UPDATE items SET brand_name = ?, model = ?, description = ?, category_id = ?, date = ?, capital = ?, quantity = ?, price = ? WHERE id = ?"
             );
-            mysqli_stmt_bind_param($update_query, "sssisddii", 
+            mysqli_stmt_bind_param($update_query, "sssisdidi",
                 $brand_name, $model, $description, $category, $date, $capital, $quantity, $price, $item_id
             );
         }
