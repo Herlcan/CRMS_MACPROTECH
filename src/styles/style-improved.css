@@ -1162,26 +1162,34 @@ h6, .h6 {
     text-overflow: ellipsis;
 }
 
+html.sidebar-collapsed .left-side-bar,
+html.sidebar-collapsed .brand-logo,
 body.sidebar-collapsed .left-side-bar,
 body.sidebar-collapsed .brand-logo {
     width: var(--sidebar-collapsed-width);
 }
 
+html.sidebar-collapsed .brand-logo,
 body.sidebar-collapsed .brand-logo {
     justify-content: center;
     padding: 0;
 }
 
+html.sidebar-collapsed .brand-name,
+html.sidebar-collapsed .mtext,
+html.sidebar-collapsed .sidebar-footer,
 body.sidebar-collapsed .brand-name,
 body.sidebar-collapsed .mtext,
 body.sidebar-collapsed .sidebar-footer {
     display: none;
 }
 
+html.sidebar-collapsed .sidebar-collapse-toggle,
 body.sidebar-collapsed .sidebar-collapse-toggle {
     transform: rotate(180deg);
 }
 
+html.sidebar-collapsed .sidebar-menu li a,
 body.sidebar-collapsed .sidebar-menu li a {
     justify-content: center;
     padding-left: 0;
@@ -1189,15 +1197,18 @@ body.sidebar-collapsed .sidebar-menu li a {
     gap: 0;
 }
 
+html.sidebar-collapsed .sidebar-menu .micon,
 body.sidebar-collapsed .sidebar-menu .micon {
     width: 44px;
     height: 44px;
 }
 
+html.sidebar-collapsed .header,
 body.sidebar-collapsed .header {
     left: var(--sidebar-collapsed-width);
 }
 
+html.sidebar-collapsed .main-container,
 body.sidebar-collapsed .main-container {
     margin-left: var(--sidebar-collapsed-width);
 }
@@ -2039,39 +2050,49 @@ table tbody tr:hover {
         transition: left 0.25s ease;
     }
 
+    html.sidebar-collapsed .left-side-bar,
+    html.sidebar-collapsed .brand-logo,
     body.sidebar-collapsed .left-side-bar,
     body.sidebar-collapsed .brand-logo {
         width: var(--sidebar-width);
     }
 
+    html.sidebar-collapsed .brand-logo,
     body.sidebar-collapsed .brand-logo {
         justify-content: space-between;
         padding: 0 var(--spacing-4);
     }
 
+    html.sidebar-collapsed .brand-name,
     body.sidebar-collapsed .brand-name {
         display: flex;
     }
 
+    html.sidebar-collapsed .mtext,
     body.sidebar-collapsed .mtext {
         display: inline;
     }
 
+    html.sidebar-collapsed .sidebar-footer,
     body.sidebar-collapsed .sidebar-footer {
         display: block;
     }
 
+    html.sidebar-collapsed .sidebar-menu li a,
     body.sidebar-collapsed .sidebar-menu li a {
         justify-content: flex-start;
         padding: var(--spacing-4) var(--spacing-6);
         gap: var(--spacing-3);
     }
 
+    html.sidebar-collapsed .sidebar-menu .micon,
     body.sidebar-collapsed .sidebar-menu .micon {
         width: 20px;
         height: 20px;
     }
 
+    html.sidebar-collapsed .header,
+    html.sidebar-collapsed .main-container,
     body.sidebar-collapsed .header,
     body.sidebar-collapsed .main-container {
         left: 0;

@@ -98,25 +98,40 @@
 </div>
 
 <script>
-	document.addEventListener('DOMContentLoaded', function () {
+	(function () {
 		const collapseToggle = document.getElementById('sidebarCollapseToggle');
 		const storageKey = 'macprotechSidebarCollapsed';
 
+		function getStoredCollapsed() {
+			try {
+				return localStorage.getItem(storageKey) === 'true';
+			} catch (error) {
+				return document.documentElement.classList.contains('sidebar-collapsed');
+			}
+		}
+
+		function storeSidebarCollapsed(isCollapsed) {
+			try {
+				localStorage.setItem(storageKey, String(isCollapsed));
+			} catch (error) {}
+		}
+
 		function setSidebarCollapsed(isCollapsed) {
+			document.documentElement.classList.toggle('sidebar-collapsed', isCollapsed);
 			document.body.classList.toggle('sidebar-collapsed', isCollapsed);
 			if (collapseToggle) {
 				collapseToggle.setAttribute('aria-expanded', String(!isCollapsed));
 			}
 		}
 
-		setSidebarCollapsed(localStorage.getItem(storageKey) === 'true');
+		setSidebarCollapsed(getStoredCollapsed());
 
 		if (collapseToggle) {
 			collapseToggle.addEventListener('click', function () {
 				const isCollapsed = !document.body.classList.contains('sidebar-collapsed');
 				setSidebarCollapsed(isCollapsed);
-				localStorage.setItem(storageKey, String(isCollapsed));
+				storeSidebarCollapsed(isCollapsed);
 			});
 		}
-	});
+	})();
 </script>
