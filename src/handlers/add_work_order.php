@@ -9,6 +9,18 @@ include '../../auth_check.php';
 $add_work_order_message = '';
 $add_work_order_error = '';
 
+if (!function_exists('redirectWorkOrderWithDialog')) {
+    function redirectWorkOrderWithDialog($client_id, $type, $title, $message) {
+        $_SESSION['dialog_flash'] = [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message
+        ];
+        header("Location: ../../client-view.php?client_id=" . urlencode((string) $client_id));
+        exit();
+    }
+}
+
 function resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type) {
     if ($unit_type !== '__other__') {
         return $unit_type;
@@ -241,13 +253,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         // Commit transaction
         mysqli_commit($conn);
 
-        header("Location: ../../client-view.php?client_id=$client_id");
-        exit();
+        redirectWorkOrderWithDialog($client_id, 'success', 'Work Order Created', 'New work order created successfully.');
 
     } catch (Exception $e) {
         // Rollback transaction
         mysqli_rollback($conn);
         $add_work_order_error = $e->getMessage();
+        redirectWorkOrderWithDialog($client_id, 'error', 'Work Order Not Created', $add_work_order_error);
     }
 }
 ?>

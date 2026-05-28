@@ -7,6 +7,18 @@ include '../../auth_check.php';
 
 $add_item_error = '';
 
+if (!function_exists('redirectItemWithDialog')) {
+    function redirectItemWithDialog($type, $title, $message) {
+        $_SESSION['dialog_flash'] = [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message
+        ];
+        header("Location: ../../items.php");
+        exit();
+    }
+}
+
 function resolveItemCategoryId($conn, $category, $other_category, &$error) {
     if ($category !== '__other__') {
         return (int) $category;
@@ -79,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     if (!empty($_FILES['image']['name'])) {
 
         if ($_FILES['image']['error'] !== 0) {
-            die("Image upload error.");
+            redirectItemWithDialog('error', 'Product Item Not Created', 'Image upload error.');
         }
 
         $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -95,12 +107,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
 
         // Validate type
         if (!in_array($file_type, $allowed_types)) {
-            die("Invalid image type. Only JPG, PNG, GIF, WEBP allowed.");
+            redirectItemWithDialog('error', 'Product Item Not Created', 'Invalid image type. Only JPG, PNG, GIF, WEBP allowed.');
         }
 
         // Validate size
         if ($file_size > $max_size) {
-            die("Image is too large. Maximum size is 10MB.");
+            redirectItemWithDialog('error', 'Product Item Not Created', 'Image is too large. Maximum size is 10MB.');
         }
 
         // Generate safe unique filename
@@ -116,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
         }
 
         if (!move_uploaded_file($file_tmp, $upload_path)) {
-            die("Failed to upload image.");
+            redirectItemWithDialog('error', 'Product Item Not Created', 'Failed to upload image.');
         }
 
         $image_name_to_save = $new_name;
@@ -173,12 +185,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
             mysqli_stmt_close($add_query);
             mysqli_stmt_close($update_query);
 
-            header("Location: ../../items.php");
-            exit();
+            redirectItemWithDialog('success', 'Product Item Created', 'New product item created successfully.');
 
         } else {
             $add_item_error = "Database error. Please try again.";
         }
+    }
+
+    if (!empty($add_item_error)) {
+        redirectItemWithDialog('error', 'Product Item Not Created', $add_item_error);
     }
 }
 ?>

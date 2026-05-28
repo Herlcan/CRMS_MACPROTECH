@@ -6,6 +6,18 @@ include '../../auth_check.php';
 $add_client_message = '';
 $add_client_error = '';
 
+if (!function_exists('redirectClientWithDialog')) {
+    function redirectClientWithDialog($type, $title, $message) {
+        $_SESSION['dialog_flash'] = [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message
+        ];
+        header("Location: ../../clients.php");
+        exit();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_client'])) {
 
     $first_name = trim($_POST['first_name']);
@@ -48,13 +60,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_client'])) {
         if (mysqli_stmt_execute($add_query)) {
 
             mysqli_stmt_close($add_query);
-            header("Location: ../../clients.php");
-            exit();
+            redirectClientWithDialog('success', 'Customer Created', 'New customer created successfully.');
 
         } else {
 
             $add_client_error = 'Failed to add client. Please try again.';
         }
+    }
+
+    if (!empty($add_client_error)) {
+        redirectClientWithDialog('error', 'Customer Not Created', $add_client_error);
     }
 }
 ?>

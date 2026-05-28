@@ -356,7 +356,6 @@
 								</div>
 							</div>
 					</div>
-					<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 					<script>
 						// View drawer functions (top-level so onclick handlers can call them)
 
@@ -441,7 +440,10 @@ function viewWorkOrder(id) {
 			.then(response => response.json())
 			.then(data => {
 				if (!data.success) {
-					alert('Failed to load work order: ' + (data.message||'Unknown'));
+					MacproDialog.error({
+						title: 'Work Order Not Loaded',
+						message: data.message || 'Failed to load work order.'
+					});
 					return;
 				}
 
@@ -576,7 +578,10 @@ function viewWorkOrder(id) {
 			})
 			.catch(err => {
 				console.error(err);
-				alert('Error loading work order');
+				MacproDialog.error({
+					title: 'Work Order Not Loaded',
+					message: 'Error loading work order.'
+				});
 			});
 
 		}
@@ -651,18 +656,27 @@ function viewWorkOrder(id) {
 												handleWorkOrderData__disabled(data);
 									} catch (e) {
 										console.error('JSON parse error:', e);
-										alert('Error parsing response: ' + e.message);
+										MacproDialog.error({
+											title: 'Response Error',
+											message: 'Error parsing response: ' + e.message
+										});
 									}
 								})
 								.catch(err => {
 									console.error('Fetch error:', err);
-									alert('Failed to load work order details: ' + err.message);
+									MacproDialog.error({
+										title: 'Work Order Not Loaded',
+										message: 'Failed to load work order details: ' + err.message
+									});
 								});
 						}
 
 							function handleWorkOrderData__disabled(data) {
 							if (data.error) {
-								alert('Error: ' + data.error);
+								MacproDialog.error({
+									title: 'Work Order Not Loaded',
+									message: data.error
+								});
 								return;
 							}
 
@@ -672,7 +686,10 @@ function viewWorkOrder(id) {
 							const payments = data.payments || [];
 
 							if (!wo) {
-								alert('No work order data received');
+								MacproDialog.error({
+									title: 'Work Order Not Loaded',
+									message: 'No work order data received.'
+								});
 								return;
 							}
 
@@ -834,17 +851,14 @@ function viewWorkOrder(id) {
 
 							if (newStatus === oldStatus) return;
 
-							Swal.fire({
+							MacproDialog.confirm({
+								type: 'warning',
 								title: 'Update Status?',
-								text: "Change status to " + newStatus + "?",
-								icon: 'question',
-								showCancelButton: true,
-								confirmButtonColor: '#28a745',
-								cancelButtonColor: '#d33',
-								confirmButtonText: 'Yes, update it!'
-							}).then((result) => {
+								message: 'Change status to ' + newStatus + '?',
+								confirmLabel: 'Update Status'
+							}).then((confirmed) => {
 
-								if (!result.isConfirmed) {
+								if (!confirmed) {
 									element.value = oldStatus;
 									return;
 								}
@@ -877,21 +891,18 @@ function viewWorkOrder(id) {
 										// Refresh only this row
 										refreshRow(workOrderId);
 
-										Swal.fire({
-											icon: 'success',
-											title: 'Updated!',
-											text: 'Status updated successfully.',
-											timer: 1500,
-											showConfirmButton: false
+										MacproDialog.success({
+											title: 'Status Updated',
+											message: 'Work order status updated successfully.',
+											autoClose: 1500
 										});
 
 									} else {
 										element.value = oldStatus;
 
-										Swal.fire({
-											icon: 'error',
-											title: 'Error!',
-											text: data.message || 'Something went wrong.'
+										MacproDialog.error({
+											title: 'Status Not Updated',
+											message: data.message || 'Something went wrong.'
 										});
 									}
 								})
@@ -902,10 +913,9 @@ function viewWorkOrder(id) {
 
 									element.value = oldStatus;
 
-									Swal.fire({
-										icon: 'error',
-										title: 'Error!',
-										text: 'Request failed.'
+									MacproDialog.error({
+										title: 'Status Not Updated',
+										message: 'Request failed.'
 									});
 								});
 

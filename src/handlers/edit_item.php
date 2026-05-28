@@ -7,6 +7,18 @@ include '../../auth_check.php';
 
 $edit_item_error = '';
 
+if (!function_exists('redirectItemWithDialog')) {
+    function redirectItemWithDialog($type, $title, $message) {
+        $_SESSION['dialog_flash'] = [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message
+        ];
+        header("Location: ../../items.php");
+        exit();
+    }
+}
+
 function resolveItemCategoryId($conn, $category, $other_category, &$error) {
     if ($category !== '__other__') {
         return (int) $category;
@@ -83,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
         if (!empty($_FILES['image']['name'])) {
 
             if ($_FILES['image']['error'] !== 0) {
-                die("Image upload error.");
+                redirectItemWithDialog('error', 'Product Item Not Updated', 'Image upload error.');
             }
 
             $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -98,12 +110,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
             finfo_close($finfo);
 
             if (!in_array($file_type, $allowed_types)) {
-                die("Invalid image type. Only JPG, PNG, GIF, WEBP allowed.");
+                redirectItemWithDialog('error', 'Product Item Not Updated', 'Invalid image type. Only JPG, PNG, GIF, WEBP allowed.');
             }
 
             // Validate size
             if ($file_size > $max_size) {
-                die("Image file too large. Maximum size is 10MB.");
+                redirectItemWithDialog('error', 'Product Item Not Updated', 'Image file too large. Maximum size is 10MB.');
             }
 
             // Generate unique filename
@@ -111,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
             $upload_path = __DIR__ . "/../../src/uploads/" . $image_name_to_save;
 
             if (!move_uploaded_file($file_tmp, $upload_path)) {
-                die("Failed to upload image.");
+                redirectItemWithDialog('error', 'Product Item Not Updated', 'Failed to upload image.');
             }
         }
 
@@ -134,8 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
 
         if (mysqli_stmt_execute($update_query)) {
             mysqli_stmt_close($update_query);
-            header("Location: ../../items.php");
-            exit();
+            redirectItemWithDialog('success', 'Product Item Updated', 'Product item updated successfully.');
         } else {
             $edit_item_error = "Failed to update item. Please try again.";
         }
@@ -143,8 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
 
     if (!empty($edit_item_error)) {
         $_SESSION['edit_item_error'] = $edit_item_error;
-        header("Location: ../../items.php");
-        exit();
+        redirectItemWithDialog('error', 'Product Item Not Updated', $edit_item_error);
     }
 } else {
     header("Location: ../../items.php");

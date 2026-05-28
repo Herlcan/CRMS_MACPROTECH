@@ -57,6 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 			if (mysqli_stmt_execute($update_query)) {
 				$update_message = 'Profile updated successfully!';
 				$_SESSION['username'] = $username;
+				$_SESSION['dialog_flash'] = [
+					'type' => 'success',
+					'title' => 'Profile Updated',
+					'message' => 'Profile updated successfully.'
+				];
 				$user['username'] = $username;
 				$user['first_name'] = $first_name;
 				$user['last_name'] = $last_name;

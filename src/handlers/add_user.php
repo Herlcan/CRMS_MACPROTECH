@@ -9,6 +9,18 @@ include '../../auth_check.php';
 $add_user_message = '';
 $add_user_error = '';
 
+if (!function_exists('redirectUserWithDialog')) {
+    function redirectUserWithDialog($type, $title, $message) {
+        $_SESSION['dialog_flash'] = [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message
+        ];
+        header("Location: ../../user.php");
+        exit;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
     $username   = trim($_POST['username']);
@@ -25,8 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         $add_user_error = 'All fields are required.';
 
         $_SESSION['add_user_error'] = $add_user_error;
-        header("Location: ../../user.php");
-        exit;
+        redirectUserWithDialog('error', 'User Not Created', $add_user_error);
 
     } elseif (strlen($username) < 3) {
 
@@ -85,8 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
                 mysqli_stmt_close($add_query);
 
-                header("Location: ../../user.php");
-                exit;
+                redirectUserWithDialog('success', 'New User Created', 'New user created successfully.');
 
             } else {
 
@@ -95,6 +105,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                 $add_user_error = 'Failed to add user. Please try again.';
             }
         }
+    }
+
+    if (!empty($add_user_error)) {
+        $_SESSION['add_user_error'] = $add_user_error;
+        redirectUserWithDialog('error', 'User Not Created', $add_user_error);
     }
 }
 ?>

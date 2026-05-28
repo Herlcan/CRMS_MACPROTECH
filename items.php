@@ -441,7 +441,13 @@
 											</a>
 											<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 												<a class="dropdown-item" href="#" onclick="editItem('<?= $row['id'] ?>', '<?= htmlspecialchars($row['brand_name']) ?>', '<?= htmlspecialchars($row['model']) ?>', '<?= htmlspecialchars($row['description']) ?>', '<?= $row['category_id'] ?>', '<?= $row['date'] ?>', '<?= $row['capital'] ?>', '<?= $row['quantity'] ?>', '<?= $row['markup_percentage'] ?>', '<?= $row['price'] ?>'); return false;"><i class="dw dw-edit2"></i> Edit</a>
-												<a class="dropdown-item" href="src/handlers/delete_item.php?id=<?= $row['id'] ?>" onclick="return confirm('Are you sure you want to delete this item?');"><i class="dw dw-delete-3"></i> Delete</a>
+												<a class="dropdown-item text-danger"
+												   href="src/handlers/delete_item.php?id=<?= $row['id'] ?>"
+												   data-macpro-confirm
+												   data-macpro-confirm-title="Delete Product Item?"
+												   data-macpro-confirm-message="This product item will be permanently deleted."
+												   data-macpro-confirm-label="Delete Item"
+												   data-macpro-confirm-variant="danger"><i class="dw dw-delete-3"></i> Delete</a>
 											</div>
 										</div>
 									</td>

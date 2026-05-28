@@ -262,10 +262,14 @@
 													</label>
 												</a>
 
-												<a href="src/handlers/delete_client.php?id=<?= $row['id'] ?>" onclick="return confirm('Are you sure you want to delete this client?');">
-								                	<label for="deleteClientToggle_<?= $row['id'] ?>" class="dropdown-item text-danger" style="cursor: pointer;">
-								                	    <i class="dw dw-delete-3"></i> Delete
-								                	</label>
+												<a class="dropdown-item text-danger"
+												   href="src/handlers/delete_client.php?id=<?= $row['id'] ?>"
+												   data-macpro-confirm
+												   data-macpro-confirm-title="Delete Customer?"
+												   data-macpro-confirm-message="This customer record will be permanently deleted."
+												   data-macpro-confirm-label="Delete Customer"
+												   data-macpro-confirm-variant="danger">
+								                	<i class="dw dw-delete-3"></i> Delete
 												</a>
 								            </div>
 								        </div>

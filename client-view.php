@@ -357,7 +357,10 @@
 				console.log('Validation result:', isValid, 'empty fields:', emptyFields);
 
 				if (!isValid) {
-					alert('Please fill in all required fields before proceeding. Empty fields: ' + emptyFields.join(', '));
+					MacproDialog.error({
+						title: 'Missing Required Fields',
+						message: 'Please fill in all required fields before proceeding. Empty fields: ' + emptyFields.join(', ')
+					});
 					return;
 				}
 
@@ -433,7 +436,10 @@
 			if (purchasedPartsContainer.children.length > 1) {
 				button.closest('.purchased-part-entry').remove();
 			} else {
-				alert('You must have at least one purchased part entry.');
+				MacproDialog.info({
+					title: 'Purchased Part Required',
+					message: 'You must have at least one purchased part entry.'
+				});
 			}
 		}
 
@@ -484,7 +490,10 @@
 			if (clientProvidedPartsContainer.children.length > 1) {
 				button.closest('.client-part-entry').remove();
 			} else {
-				alert('You must have at least one client provided part entry.');
+				MacproDialog.info({
+					title: 'Client Part Required',
+					message: 'You must have at least one client provided part entry.'
+				});
 			}
 		}
 
@@ -506,8 +515,16 @@
 				event.preventDefault();
 			}
 			workOrderIdToDelete = id;
-			document.getElementById('workOrderCodeDelete').textContent = code;
-			openDeleteModal();
+			MacproDialog.confirm({
+				type: 'danger',
+				title: 'Delete Work Order?',
+				message: 'Delete ' + code + '? Stock from purchased items will be restored.',
+				confirmLabel: 'Delete Work Order'
+			}).then(function (confirmed) {
+				if (confirmed) {
+					confirmDeleteWorkOrder();
+				}
+			});
 		}
 
 		// View drawer functions (top-level so onclick handlers can call them)
@@ -605,7 +622,10 @@ function viewWorkOrder(id) {
 			.then(response => response.json())
 			.then(data => {
 				if (!data.success) {
-					alert('Failed to load work order: ' + (data.message||'Unknown'));
+					MacproDialog.error({
+						title: 'Work Order Not Loaded',
+						message: data.message || 'Failed to load work order.'
+					});
 					return;
 				}
 
@@ -740,20 +760,28 @@ function viewWorkOrder(id) {
 			})
 			.catch(err => {
 				console.error(err);
-				alert('Error loading work order');
+				MacproDialog.error({
+					title: 'Work Order Not Loaded',
+					message: 'Error loading work order.'
+				});
 			});
 
 		}
 
 		function confirmDeleteWorkOrder() {
 			if (!workOrderIdToDelete) {
-				alert('No work order selected for deletion');
+				MacproDialog.error({
+					title: 'No Work Order Selected',
+					message: 'No work order selected for deletion.'
+				});
 				return;
 			}
 
 			const yesBtn = document.getElementById('confirmDeleteBtn');
-			yesBtn.disabled = true;
-			yesBtn.textContent = 'Deleting...';
+			if (yesBtn) {
+				yesBtn.disabled = true;
+				yesBtn.textContent = 'Deleting...';
+			}
 
 			fetch('/MACPROTECH/src/handlers/delete_work_order.php', {
 				method: 'POST',
@@ -771,19 +799,33 @@ function viewWorkOrder(id) {
 			.then(data => {
 				console.log('Delete response:', data);
 				if (data.success) {
-					alert('Work Order deleted successfully!');
-					location.reload();
+					MacproDialog.success({
+						title: 'Work Order Deleted',
+						message: 'Work order deleted successfully.'
+					}).then(function () {
+						location.reload();
+					});
 				} else {
-					alert('Error: ' + (data.message || 'Unknown error'));
-					yesBtn.disabled = false;
-					yesBtn.textContent = 'Yes';
+					MacproDialog.error({
+						title: 'Work Order Not Deleted',
+						message: data.message || 'Unknown error'
+					});
+					if (yesBtn) {
+						yesBtn.disabled = false;
+						yesBtn.textContent = 'Yes';
+					}
 				}
 			})
 			.catch(error => {
 				console.error('Delete error:', error);
-				alert('Failed to delete work order: ' + error.message);
-				yesBtn.disabled = false;
-				yesBtn.textContent = 'Yes';
+				MacproDialog.error({
+					title: 'Work Order Not Deleted',
+					message: 'Failed to delete work order: ' + error.message
+				});
+				if (yesBtn) {
+					yesBtn.disabled = false;
+					yesBtn.textContent = 'Yes';
+				}
 			});
 
 			closeDeleteModal();
@@ -801,12 +843,18 @@ function viewWorkOrder(id) {
 					goToStep(1);
 					document.getElementById('addWorkOrderToggle').checked = true;
 				} else {
-					alert('Error: ' + data.message);
+					MacproDialog.error({
+						title: 'Work Order Not Loaded',
+						message: data.message || 'Failed to load work order details.'
+					});
 				}
 			})
 			.catch(error => {
 				console.error('Error:', error);
-				alert('Failed to load work order');
+				MacproDialog.error({
+					title: 'Work Order Not Loaded',
+					message: 'Failed to load work order.'
+				});
 			});
 		}
 

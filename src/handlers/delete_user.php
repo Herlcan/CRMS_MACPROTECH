@@ -2,11 +2,20 @@
 session_start();
 include '../db/connection.php';
 
+function redirectUserWithDialog($type, $title, $message) {
+    $_SESSION['dialog_flash'] = [
+        'type' => $type,
+        'title' => $title,
+        'message' => $message
+    ];
+    header("Location: ../../user.php");
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
 
     if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
-        header("Location: ../../user.php?error=Unauthorized");
-        exit();
+        redirectUserWithDialog('error', 'Unauthorized', 'You are not allowed to delete users.');
     }
 
     $user_id = intval($_GET['id']);
@@ -21,8 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     mysqli_stmt_close($role_query);
 
     if (!$user) {
-        header("Location: ../../user.php?error=User not found");
-        exit();
+        redirectUserWithDialog('error', 'User Not Found', 'The selected user could not be found.');
     }
 
     $is_current_user = ($logged_in_user_id == $user_id);
@@ -40,8 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         $admin_count = mysqli_fetch_assoc($count_query)['total'];
 
         if ($admin_count <= 1) {
-            header("Location: ../../user.php?error=Cannot delete the last administrator");
-            exit();
+            redirectUserWithDialog('error', 'User Not Deleted', 'Cannot delete the last administrator.');
         }
     }
 
@@ -84,11 +91,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
             exit();
         }
 
-        header("Location: ../../user.php?message=User deleted");
-        exit();
+        redirectUserWithDialog('success', 'User Deleted', 'User deleted successfully.');
 
     } else {
-        echo "Failed to delete user.";
+        redirectUserWithDialog('error', 'User Not Deleted', 'Failed to delete user. Please try again.');
     }
 
 } else {

@@ -3186,3 +3186,159 @@ textarea.form-control {
 .stepper-item.cancelled .stepper-label {
     color: #dc3545;
 }
+
+/* Unified application dialogs */
+body.macpro-dialog-open {
+    overflow: hidden;
+}
+
+.macpro-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(17, 24, 39, 0.56);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 160ms ease, visibility 160ms ease;
+}
+
+.macpro-dialog-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.macpro-dialog {
+    width: min(440px, 100%);
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    padding: 24px;
+    transform: translateY(10px) scale(0.98);
+    transition: transform 160ms ease;
+}
+
+.macpro-dialog-overlay.show .macpro-dialog {
+    transform: translateY(0) scale(1);
+}
+
+.macpro-dialog-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 16px;
+}
+
+.macpro-dialog-success .macpro-dialog-icon {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.macpro-dialog-error .macpro-dialog-icon,
+.macpro-dialog-danger .macpro-dialog-icon {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.macpro-dialog-warning .macpro-dialog-icon {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.macpro-dialog-info .macpro-dialog-icon {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.macpro-dialog-content h3 {
+    margin: 0;
+    color: #111827;
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 700;
+}
+
+.macpro-dialog-content p {
+    margin: 10px 0 0;
+    color: #4b5563;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.macpro-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+}
+
+.macpro-dialog-btn {
+    min-width: 92px;
+    border: 0;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.macpro-dialog-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+
+.macpro-dialog-btn:active {
+    transform: translateY(1px);
+}
+
+.macpro-dialog-btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.macpro-dialog-danger .macpro-dialog-btn-primary,
+.macpro-dialog-error .macpro-dialog-btn-primary {
+    background: #dc2626;
+}
+
+.macpro-dialog-warning .macpro-dialog-btn-primary {
+    background: #d97706;
+}
+
+.macpro-dialog-success .macpro-dialog-btn-primary {
+    background: #16a34a;
+}
+
+.macpro-dialog-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+@media (max-width: 480px) {
+    .macpro-dialog-overlay {
+        align-items: flex-end;
+        padding: 16px;
+    }
+
+    .macpro-dialog {
+        padding: 20px;
+    }
+
+    .macpro-dialog-actions {
+        flex-direction: column-reverse;
+    }
+
+    .macpro-dialog-btn {
+        width: 100%;
+    }
+}

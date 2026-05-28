@@ -6,6 +6,18 @@
     $edit_client_message = '';
     $edit_client_error = '';
 
+    if (!function_exists('redirectClientWithDialog')) {
+        function redirectClientWithDialog($type, $title, $message) {
+            $_SESSION['dialog_flash'] = [
+                'type' => $type,
+                'title' => $title,
+                'message' => $message
+            ];
+            header("Location: ../../clients.php");
+            exit();
+        }
+    }
+
     if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_client'])) {
 
         $client_id  = $_POST['id'];
@@ -46,13 +58,16 @@
             if (mysqli_stmt_execute($update_query)) {
 
                 mysqli_stmt_close($update_query);
-                header("Location: ../../clients.php");
-                exit();
+                redirectClientWithDialog('success', 'Customer Updated', 'Customer updated successfully.');
 
             } else {
 
                 $edit_client_error = 'Failed to update client. Please try again.';
             }
+        }
+
+        if (!empty($edit_client_error)) {
+            redirectClientWithDialog('error', 'Customer Not Updated', $edit_client_error);
         }
     }
 

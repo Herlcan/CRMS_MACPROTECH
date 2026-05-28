@@ -37,9 +37,35 @@
 		})();
 	</script>
 	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css">
+	<script defer src="src/scripts/dialogs.js"></script>
 </head>
 
 <body>
+	<?php
+	$dialog_flash = $_SESSION['dialog_flash'] ?? null;
+	unset($_SESSION['dialog_flash']);
+
+	if (!$dialog_flash && isset($_GET['message'])) {
+		$dialog_flash = [
+			'type' => 'success',
+			'title' => 'Success',
+			'message' => (string) $_GET['message']
+		];
+	}
+
+	if (!$dialog_flash && isset($_GET['error'])) {
+		$dialog_flash = [
+			'type' => 'error',
+			'title' => 'Action Failed',
+			'message' => (string) $_GET['error']
+		];
+	}
+	?>
+	<?php if ($dialog_flash): ?>
+		<script>
+			window.MACPRO_DIALOG_FLASH = <?= json_encode($dialog_flash, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+		</script>
+	<?php endif; ?>
 
 	<div class="header">
 		<div class="header-left">

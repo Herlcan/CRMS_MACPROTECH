@@ -3,9 +3,22 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 include '../db/connection.php';
+include '../../auth_check.php';
 
 $update_message = '';
 $update_error = '';
+
+if (!function_exists('redirectUserWithDialog')) {
+    function redirectUserWithDialog($type, $title, $message) {
+        $_SESSION['dialog_flash'] = [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message
+        ];
+        header("Location: ../../user.php");
+        exit();
+    }
+}
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_user'])) {
@@ -57,12 +70,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_user'])) {
 			if (mysqli_stmt_execute($update_query)) {
 				$update_message = 'User updated successfully!';
 
-                header("Location: ../../user.php");
-                exit();
+                redirectUserWithDialog('success', 'User Updated', 'User updated successfully.');
 			} else {
 				$update_error = 'Failed to update profile. Please try again.';
 			}
 		}
 	}
+
+    if (!empty($update_error)) {
+        redirectUserWithDialog('error', 'User Not Updated', $update_error);
+    }
 }
 ?>
