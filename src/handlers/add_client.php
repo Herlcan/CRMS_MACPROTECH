@@ -2,6 +2,7 @@
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 $add_client_message = '';
 $add_client_error = '';
@@ -60,6 +61,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_client'])) {
         if (mysqli_stmt_execute($add_query)) {
 
             mysqli_stmt_close($add_query);
+            $clientName = trim($first_name . ' ' . $last_name);
+            notify_users_by_roles(
+                $conn,
+                ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
+                'New Customer',
+                "{$clientName} registered as a new customer.",
+                'info',
+                'clients.php?search=' . urlencode($clientName)
+            );
             redirectClientWithDialog('success', 'Customer Created', 'New customer created successfully.');
 
         } else {

@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 require_once '../db/connection.php';
 require_once '../../auth_check.php';
 require_once 'config.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/Exception.php';
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/PHPMailer.php';
@@ -116,6 +117,8 @@ if (!in_array($status, $allowedStatuses, true)) {
     exit;
 }
 
+ensure_notifications_table($conn);
+
 $conn->begin_transaction();
 
 try {
@@ -124,7 +127,7 @@ try {
      * Get previous status + client info
      */
     $stmt = $conn->prepare("
-        SELECT w.status, w.code, c.first_name, c.email
+        SELECT w.status, w.code, w.technician_id, c.first_name, c.email
         FROM work_order w
         INNER JOIN client c ON w.client_id = c.id
         WHERE w.id = ?
@@ -133,7 +136,7 @@ try {
 
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $stmt->bind_result($previousStatus, $workCode, $clientName, $clientEmail);
+    $stmt->bind_result($previousStatus, $workCode, $technicianId, $clientName, $clientEmail);
 
     if (!$stmt->fetch()) {
         throw new Exception("Work order not found.");
@@ -212,6 +215,10 @@ try {
      */
     if ($status === 'Repaired' && $previousStatus !== 'Repaired') {
         sendCompletionEmail($clientEmail, $clientName, $workCode);
+    }
+
+    if ($technicianId) {
+        notify_work_order_updated($conn, (int) $technicianId, $workCode, "Status changed to {$status}.");
     }
 
     $conn->commit();

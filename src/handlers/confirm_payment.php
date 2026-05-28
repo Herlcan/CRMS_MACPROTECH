@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 
 include '../db/connection.php';
 include 'payment_schema.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 $transactionStarted = false;
@@ -18,6 +19,7 @@ try {
     }
 
     ensure_payment_detail_columns($conn);
+    ensure_notifications_table($conn);
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
@@ -57,9 +59,10 @@ try {
     }
 
     $paymentQuery = mysqli_prepare($conn, "
-        SELECT id, work_order_id
-        FROM payments
-        WHERE id = ?
+        SELECT p.id, p.work_order_id, wo.code
+        FROM payments p
+        INNER JOIN work_order wo ON wo.id = p.work_order_id
+        WHERE p.id = ?
         LIMIT 1
     ");
 
@@ -160,6 +163,15 @@ try {
 
     mysqli_commit($conn);
     $transactionStarted = false;
+
+    notify_users_by_roles(
+        $conn,
+        ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
+        'Payment Received',
+        "{$payment['code']} payment status is {$paymentStatus}.",
+        $paymentStatus === 'Paid' ? 'success' : 'info',
+        'payment.php?search=' . urlencode((string) $payment['code'])
+    );
 
     $response = [
         'success' => true,

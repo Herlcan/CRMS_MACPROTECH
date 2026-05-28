@@ -38,6 +38,7 @@
 	</script>
 	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css">
 	<script defer src="src/scripts/dialogs.js"></script>
+	<script defer src="src/scripts/notifications.js"></script>
 </head>
 
 <body>
@@ -72,6 +73,22 @@
 			<div class="menu-icon dw dw-menu"></div>
 		</div>
 		<div class="header-right">
+			<div class="notification-dropdown">
+				<button type="button" class="notification-bell" id="notificationBellToggle" aria-label="Notifications">
+					<img src="src/images/bell.png" width="22" height="22" alt="">
+					<span class="notification-badge" id="notificationUnreadBadge" hidden>0</span>
+				</button>
+				<div class="notification-menu" id="notificationDropdownMenu">
+					<div class="notification-menu-header">
+						<strong>Notifications</strong>
+						<button type="button" id="notificationMarkAll">Mark all read</button>
+					</div>
+					<div class="notification-preview-list" id="notificationPreviewList">
+						<div class="notification-empty">Loading notifications...</div>
+					</div>
+					<a class="notification-view-all" href="notifications.php">View All Notifications</a>
+				</div>
+			</div>
 			<div class="user-info-dropdown">
 				<div class="dropdown">
 					<a class="dropdown-toggle">

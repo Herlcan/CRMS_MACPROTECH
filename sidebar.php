@@ -64,6 +64,14 @@
 					</a>
 				</li>
 				<?php endif; ?>
+				<li>
+					<a href="notifications.php" class="dropdown-toggle no-arrow">
+						<span class="micon dw dw-bell">
+							<img src="src/images/bell-white.png" width="20px" height="20px">
+						</span>
+						<span class="mtext">Notifications</span>
+					</a>
+				</li>
 				<!--<li>
 					<a href="settings.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-settings2">

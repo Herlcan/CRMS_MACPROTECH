@@ -5,6 +5,7 @@ ini_set('display_startup_errors', '1');
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 $update_work_order_message = '';
 $update_work_order_error = '';
@@ -86,10 +87,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
     if ($work_order_id <= 0) {
         $update_work_order_error = 'Invalid work order ID';
     } else {
+        ensure_notifications_table($conn);
+
         // Start transaction
         mysqli_begin_transaction($conn);
 
         try {
+            $existingTechnicianId = null;
+            $workOrderCode = '';
+            $existingQuery = mysqli_prepare($conn, "SELECT technician_id, code FROM work_order WHERE id = ? LIMIT 1");
+            if (!$existingQuery) {
+                throw new Exception('Database error: ' . mysqli_error($conn));
+            }
+            mysqli_stmt_bind_param($existingQuery, "i", $work_order_id);
+            mysqli_stmt_execute($existingQuery);
+            $existingResult = mysqli_stmt_get_result($existingQuery);
+            $existingRow = mysqli_fetch_assoc($existingResult);
+            mysqli_stmt_close($existingQuery);
+
+            if (!$existingRow) {
+                throw new Exception('Work order not found.');
+            }
+
+            $existingTechnicianId = !empty($existingRow['technician_id']) ? (int) $existingRow['technician_id'] : null;
+            $workOrderCode = $existingRow['code'] ?: ('WO-' . sprintf('%04d', $work_order_id));
+
             $unit_type = resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type);
 
             // Update work order
@@ -206,6 +228,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                         mysqli_stmt_close($client_part_query);
                     }
                 }
+            }
+
+            if ($technician_id && $technician_id !== $existingTechnicianId) {
+                notify_work_order_assigned($conn, $technician_id, $workOrderCode, $work_order_id);
+            } elseif ($technician_id) {
+                notify_work_order_updated($conn, $technician_id, $workOrderCode, 'Work order details were updated.');
             }
 
             // Commit transaction

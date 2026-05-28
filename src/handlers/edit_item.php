@@ -4,6 +4,7 @@ ini_set('display_errors', 1);
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 $edit_item_error = '';
 
@@ -146,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
 
         if (mysqli_stmt_execute($update_query)) {
             mysqli_stmt_close($update_query);
+            notify_low_stock_for_item($conn, $item_id);
             redirectItemWithDialog('success', 'Product Item Updated', 'Product item updated successfully.');
         } else {
             $edit_item_error = "Failed to update item. Please try again.";

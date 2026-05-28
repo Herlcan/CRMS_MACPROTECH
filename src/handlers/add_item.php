@@ -4,6 +4,7 @@ ini_set('display_errors', 1);
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 $add_item_error = '';
 
@@ -185,6 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
             mysqli_stmt_close($add_query);
             mysqli_stmt_close($update_query);
 
+            notify_low_stock_for_item($conn, (int) $id);
             redirectItemWithDialog('success', 'Product Item Created', 'New product item created successfully.');
 
         } else {

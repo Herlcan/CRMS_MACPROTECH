@@ -5,6 +5,7 @@
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/notification_helpers.php';
 
 $add_work_order_message = '';
 $add_work_order_error = '';
@@ -81,6 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
     $status = trim($_POST['status']);
     $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
     $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
+
+    ensure_notifications_table($conn);
 
     // Start transaction
     mysqli_begin_transaction($conn);
@@ -188,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
                         if(!mysqli_stmt_execute($deduct_query)) {
                             throw new Exception('Failed to add purchased item');
                         }
+                        notify_low_stock_for_item($conn, (int) $product_id);
                     }
                     mysqli_stmt_close($purchased_query);
                 }
@@ -249,6 +253,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
             throw new Exception('Failed to create payment record: ' . mysqli_stmt_error($payment_query));
         }
         mysqli_stmt_close($payment_query);
+
+        notify_work_order_assigned($conn, $technician_id, $code, $id);
 
         // Commit transaction
         mysqli_commit($conn);
