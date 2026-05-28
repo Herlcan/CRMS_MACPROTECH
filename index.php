@@ -22,7 +22,7 @@
 	)['total'];
  
 	$completed_workorders = mysqli_fetch_assoc(
-		mysqli_query($conn,"SELECT COUNT(*) as total FROM work_order WHERE status='Completed'")
+		mysqli_query($conn,"SELECT COUNT(*) as total FROM work_order WHERE status='Released'")
 	)['total'];
  
 	// Technicians / Users
@@ -251,11 +251,15 @@
 							<?php
 								$status = $row['status'];
 								$badge_class = match($status) {
-									'Completed'   => 'bg-completed',
-									'Pending'     => 'bg-pending',
+									'Pending' => 'bg-pending',
+									'Diagnosing' => 'bg-diagnosing',
+									'Waiting for Parts' => 'bg-waiting',
 									'In Progress' => 'bg-inprogress',
-									'Cancelled'   => 'bg-cancelled',
-									'Repaired'       => 'bg-repaired'
+									'Repaired' => 'bg-repaired',
+									'Ready for Release' => 'bg-ready-release',
+									'Released' => 'bg-released',
+									'Cancelled' => 'bg-cancelled',
+									default => 'bg-pending'
 								};
 							?>
 							<span class="status-pill <?= $badge_class ?>" style="color: #fff"><?= htmlspecialchars($status) ?></span>
@@ -275,4 +279,3 @@
 <script src="src/scripts/dashboard-charts.js"></script>
 
 <?php include 'footer.php'; ?>
-

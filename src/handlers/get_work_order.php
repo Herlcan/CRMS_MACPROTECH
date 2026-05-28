@@ -45,6 +45,31 @@ try {
         throw new Exception('Work order not found');
     }
 
+    $cancelled_from_status = null;
+    if (($work_order['status'] ?? '') === 'Cancelled') {
+        $cancelLogQuery = mysqli_prepare($conn, "
+            SELECT action
+            FROM activity_logs
+            WHERE work_order_id = ?
+            AND action LIKE '% to Cancelled'
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+
+        if ($cancelLogQuery) {
+            mysqli_stmt_bind_param($cancelLogQuery, "i", $work_order_id);
+            if (mysqli_stmt_execute($cancelLogQuery)) {
+                $cancelLogResult = mysqli_stmt_get_result($cancelLogQuery);
+                $cancelLog = mysqli_fetch_assoc($cancelLogResult);
+
+                if ($cancelLog && preg_match('/Changed status from (.+) to Cancelled$/', $cancelLog['action'], $matches)) {
+                    $cancelled_from_status = $matches[1];
+                }
+            }
+            mysqli_stmt_close($cancelLogQuery);
+        }
+    }
+
     $payments = [];
     // Fetch payments if table exists
     $checkPayments = mysqli_query($conn, "SHOW TABLES LIKE 'payments'");
@@ -104,7 +129,8 @@ try {
         'workOrder' => $work_order,
         'purchasedParts' => $purchased_parts,
         'clientParts' => $client_parts,
-        'payments' => $payments
+        'payments' => $payments,
+        'cancelledFromStatus' => $cancelled_from_status
     ];
 
 } catch (Exception $e) {

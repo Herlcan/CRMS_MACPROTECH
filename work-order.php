@@ -47,9 +47,12 @@
 								<select name="filter" class="form-control form-control-sm" onchange="this.form.submit()" style=" max-height: 40px;">
 									<option value="">All Status</option>
 									<option value="Pending" <?= (isset($_GET['filter']) && $_GET['filter']=='Pending')?'selected':'' ?>>Pending</option>
+									<option value="Diagnosing" <?= (isset($_GET['filter']) && $_GET['filter']=='Diagnosing')?'selected':'' ?>>Diagnosing</option>
+									<option value="Waiting for Parts" <?= (isset($_GET['filter']) && $_GET['filter']=='Waiting for Parts')?'selected':'' ?>>Waiting for Parts</option>
 									<option value="In Progress" <?= (isset($_GET['filter']) && $_GET['filter']=='In Progress')?'selected':'' ?>>In Progress</option>
 									<option value="Repaired" <?= (isset($_GET['filter']) && $_GET['filter']=='Repaired')?'selected':'' ?>>Repaired</option>
-									<option value="Completed" <?= (isset($_GET['filter']) && $_GET['filter']=='Completed')?'selected':'' ?>>Completed</option>
+									<option value="Ready for Release" <?= (isset($_GET['filter']) && $_GET['filter']=='Ready for Release')?'selected':'' ?>>Ready for Release</option>
+									<option value="Released" <?= (isset($_GET['filter']) && $_GET['filter']=='Released')?'selected':'' ?>>Released</option>
 									<option value="Cancelled" <?= (isset($_GET['filter']) && $_GET['filter']=='Cancelled')?'selected':'' ?>>Cancelled</option>
 								</select>
 
@@ -109,7 +112,7 @@
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
-									$allowed_status = ['Pending','In Progress','Repaired','Completed','Cancelled'];
+									$allowed_status = ['Pending','Diagnosing','Waiting for Parts','In Progress','Repaired','Ready for Release','Released','Cancelled'];
 
 									if (in_array($_GET['filter'], $allowed_status)) {
 										$f = mysqli_real_escape_string($conn, $_GET['filter']);
@@ -252,24 +255,7 @@
 				<!-- Modal Body -->
 				<div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 30px;">
 					<!-- Progress Stepper -->
-				<div class="progress-stepper" style="margin-bottom: 40px;">
-					<div class="stepper-item completed">
-						<div class="stepper-circle">1</div>
-						<div class="stepper-label">Pending</div>
-					</div>
-					<div class="stepper-item" id="stepper-inprogress">
-						<div class="stepper-circle">2</div>
-						<div class="stepper-label">In Progress</div>
-					</div>
-					<div class="stepper-item" id="stepper-repaired">
-						<div class="stepper-circle">3</div>
-						<div class="stepper-label">Repaired</div>
-					</div>
-					<div class="stepper-item" id="stepper-completed">
-						<div class="stepper-circle">4</div>
-					<div class="stepper-label">Completed</div>
-				</div>
-			</div>
+				<div class="progress-stepper" id="workOrderStepper" style="margin-bottom: 40px;"></div>
 					<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
 						<div class="row">
 							<div class="col-md-6">
@@ -401,6 +387,52 @@
 			}
 		}
 
+		function renderWorkOrderStepper(currentStatus, cancelledFromStatus) {
+			const stepper = document.getElementById('workOrderStepper');
+			if (!stepper) return;
+
+			const lifecycle = [
+				'Pending',
+				'Diagnosing',
+				'Waiting for Parts',
+				'In Progress',
+				'Repaired',
+				'Ready for Release',
+				'Released'
+			];
+			const normalizeStatus = value => value === 'Completed' ? 'Released' : (value || 'Pending');
+			const status = normalizeStatus(currentStatus);
+			const isCancelled = status === 'Cancelled';
+			const activeStatus = normalizeStatus(isCancelled ? (cancelledFromStatus || 'Pending') : status);
+			const activeIndex = Math.max(0, lifecycle.indexOf(activeStatus));
+			let steps = lifecycle;
+
+			if (isCancelled) {
+				steps = lifecycle.slice(0, activeIndex + 1).concat('Cancelled');
+			}
+
+			stepper.innerHTML = steps.map((step, index) => {
+				let state = '';
+
+				if (step === 'Cancelled') {
+					state = ' active cancelled';
+				} else if (isCancelled) {
+					state = index <= activeIndex ? ' completed' : '';
+				} else if (index < activeIndex) {
+					state = ' completed';
+				} else if (index === activeIndex) {
+					state = ' active' + (step === 'Released' ? ' completed' : '');
+				}
+
+				return `
+					<div class="stepper-item${state}">
+						<div class="stepper-circle">${index + 1}</div>
+						<div class="stepper-label">${escapeHtml(step)}</div>
+					</div>
+				`;
+			}).join('');
+		}
+
 function viewWorkOrder(id) {
 			// Open drawer first, then fetch and render into modal
 			openViewDrawer();
@@ -431,14 +463,14 @@ function viewWorkOrder(id) {
 				statusBadge.className = 'badge';
 				const status = wo.status ? wo.status.toLowerCase() : '';
 				if (status === 'pending') statusBadge.style.background = '#ffc107';
+				else if (status === 'diagnosing') statusBadge.style.background = '#7c3aed';
+				else if (status === 'waiting for parts') statusBadge.style.background = '#f59e0b';
 				else if (status === 'in progress') statusBadge.style.background = '#0d6efd';
-				else if (status === 'completed') statusBadge.style.background = '#198754';
+				else if (status === 'repaired' || status === 'ready for release' || status === 'released') statusBadge.style.background = '#198754';
 				else if (status === 'cancelled') statusBadge.style.background = '#dc3545';
 				else statusBadge.style.background = '#0dcaf0';
 
-				// Update stepper based on status
-				document.getElementById('stepper-inprogress').className = 'stepper-item' + (status === 'in progress' ? ' active' : (status === 'completed' ? ' completed' : ''));
-				document.getElementById('stepper-completed').className = 'stepper-item' + (status === 'completed' ? ' active completed' : '');
+				renderWorkOrderStepper(wo.status || 'Pending', data.cancelledFromStatus || null);
 
 				// Device Details
 				document.getElementById('vw_brand_model').textContent = (wo.brand || '') + ' ' + (wo.model || '') || '—';
@@ -644,17 +676,7 @@ function viewWorkOrder(id) {
 								return;
 							}
 
-							// Determine status for stepper
-							const status = wo.status ? wo.status.toLowerCase() : '';
-							
-						// Update stepper states (4-step)
-						const inProgressStepper = document.getElementById('stepper-inprogress');
-						const repairedStepper = document.getElementById('stepper-repaired');
-						const completedStepper = document.getElementById('stepper-completed');
-						
-						// Set states based on status
-						inProgressStepper.className = 'stepper-item' + (status === 'in progress' ? ' active' : (status === 'repaired' || status === 'completed' ? ' completed' : ''));
-						repairedStepper.className = 'stepper-item' + (status === 'repaired' ? ' active' : (status === 'completed' ? ' completed' : ''));
+							renderWorkOrderStepper(wo.status || 'Pending', data.cancelledFromStatus || null);
 										document.getElementById('vw_code').textContent = wo.code || '—';
 								document.getElementById('vw_request_date').textContent = wo.request_date || '—';
 										document.getElementById('vw_status').innerHTML = `<span class="badge badge-info" style="font-size: 0.9rem; padding: 4px 8px; background: #0dcaf0;">${escapeHtml(wo.status || '—')}</span>`;

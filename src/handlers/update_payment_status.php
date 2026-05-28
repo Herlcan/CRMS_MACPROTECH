@@ -12,7 +12,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_payment_status'
     $payment_date = $_POST['date'] ?? null;
 
     // Validate status
-    $valid_statuses = ['Pending', 'Paid', 'Overdue'];
+    $valid_statuses = ['Unpaid', 'Partial', 'Paid', 'Partially Refunded', 'Refunded'];
     if (!in_array($new_status, $valid_statuses)) {
         $_SESSION['payment_error'] = 'Invalid payment status';
         header("Location: ../../payment.php");
@@ -20,7 +20,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_payment_status'
     }
 
     $update_query = mysqli_prepare($conn,
-        "UPDATE payments SET status = ?, date = ? WHERE id = ?"
+        "UPDATE payments SET status = ?, payment_status = ?, date = ? WHERE id = ?"
     );
 
     if (!$update_query) {
@@ -29,7 +29,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_payment_status'
         exit();
     }
 
-    mysqli_stmt_bind_param($update_query, "ssi", $new_status, $payment_date, $payment_id);
+    mysqli_stmt_bind_param($update_query, "sssi", $new_status, $new_status, $payment_date, $payment_id);
 
     if (mysqli_stmt_execute($update_query)) {
         mysqli_stmt_close($update_query);

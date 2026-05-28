@@ -214,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
         // Create Payment Record
         $total_payment_amount += $purchased_parts_total;
-        $payment_status = 'Pending';
+        $payment_status = 'Unpaid';
         $payment_date = date('Y-m-d');
 
         // Get the last payment ID to generate payment code

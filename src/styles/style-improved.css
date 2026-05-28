@@ -1658,8 +1658,12 @@ table tbody tr:hover {
 .bg-info { background-color: var(--info); }
 
 .bg-pending{ background-color: #4D7CFF;}
+.bg-diagnosing { background-color: #7C3AED;}
+.bg-waiting { background-color: #F59E0B;}
 .bg-inprogress { background-color: #00ECCF;}
 .bg-repaired { background-color: #14D98F;}
+.bg-ready-release { background-color: #00BFA6;}
+.bg-released { background-color: #15803D;}
 .bg-completed { background-color: #00BFA6;}
 .bg-cancelled { background-color: #FF5C75;}
 
@@ -3089,10 +3093,12 @@ textarea.form-control {
 /* ================= PROGRESS STEPPER ================= */
 .progress-stepper {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     margin-bottom: 30px;
     gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
 }
 
 .stepper-item {
@@ -3100,6 +3106,7 @@ textarea.form-control {
     flex-direction: column;
     align-items: center;
     flex: 1;
+    min-width: 112px;
     position: relative;
 }
 
@@ -3116,6 +3123,10 @@ textarea.form-control {
 
 .stepper-item.active:not(:last-child)::after {
     background-color: #667eea;
+}
+
+.stepper-item.completed:not(:last-child)::after {
+    background-color: #28a745;
 }
 
 .stepper-circle {
@@ -3148,6 +3159,13 @@ textarea.form-control {
     color: white;
 }
 
+.stepper-item.cancelled .stepper-circle {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
 .stepper-label {
     margin-top: 12px;
     font-size: 0.85rem;
@@ -3163,4 +3181,8 @@ textarea.form-control {
 
 .stepper-item.completed .stepper-label {
     color: #28a745;
+}
+
+.stepper-item.cancelled .stepper-label {
+    color: #dc3545;
 }

@@ -100,7 +100,16 @@ if (!isset($_POST['id'], $_POST['status'])) {
 $id = (int) $_POST['id'];
 $status = trim($_POST['status']);
 
-$allowedStatuses = ['Pending', 'In Progress', 'Repaired', 'Completed', 'Cancelled'];
+$allowedStatuses = [
+    'Pending',
+    'Diagnosing',
+    'Waiting for Parts',
+    'In Progress',
+    'Repaired',
+    'Ready for Release',
+    'Released',
+    'Cancelled'
+];
 
 if (!in_array($status, $allowedStatuses, true)) {
     echo json_encode(['success' => false, 'message' => 'Invalid status value.']);
@@ -132,13 +141,37 @@ try {
 
     $stmt->close();
 
+    if (in_array($status, ['Ready for Release', 'Released'], true)) {
+        $paymentStmt = $conn->prepare("
+            SELECT COALESCE(payment_status, status) AS payment_status
+            FROM payments
+            WHERE work_order_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+
+        if (!$paymentStmt) {
+            throw new Exception("Failed to validate payment status.");
+        }
+
+        $paymentStmt->bind_param("i", $id);
+        $paymentStmt->execute();
+        $paymentStmt->bind_result($paymentStatus);
+        $paymentStmt->fetch();
+        $paymentStmt->close();
+
+        if ($paymentStatus !== 'Paid') {
+            throw new Exception("Work order can only be {$status} when payment status is Paid.");
+        }
+    }
+
     /**
      * Update status
      */
-    if ($status === 'Completed') {
+    if (in_array($status, ['Repaired', 'Ready for Release', 'Released'], true)) {
         $stmt = $conn->prepare("
             UPDATE work_order
-            SET status = ?, completion_date = NOW()
+            SET status = ?, completion_date = COALESCE(completion_date, CURDATE())
             WHERE id = ?
         ");
     } else {
@@ -175,7 +208,7 @@ try {
 
 
     /**
-     * Send email if changed to Completed
+     * Send email if changed to Repaired
      */
     if ($status === 'Repaired' && $previousStatus !== 'Repaired') {
         sendCompletionEmail($clientEmail, $clientName, $workCode);
@@ -198,7 +231,7 @@ try {
 
     echo json_encode([
         'success' => false,
-        'message' => 'Something went wrong. Please try again.'
+        'message' => $e->getMessage() ?: 'Something went wrong. Please try again.'
     ]);
 }
 

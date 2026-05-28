@@ -106,9 +106,34 @@ CREATE TABLE `payments` (
   `id` int(11) NOT NULL,
   `payment_code` varchar(50) NOT NULL,
   `work_order_id` int(11) NOT NULL,
-  `total_amount` int(11) NOT NULL,
+  `total_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `discount_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
   `status` varchar(50) NOT NULL,
-  `date` date NOT NULL
+  `payment_method` varchar(50) DEFAULT NULL,
+  `reference_number` varchar(100) DEFAULT NULL,
+  `amount_paid` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `change_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `remaining_balance` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `payment_status` varchar(50) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `date` date NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `refunds`
+--
+
+CREATE TABLE `refunds` (
+  `id` int(11) NOT NULL,
+  `payment_id` int(11) NOT NULL,
+  `refund_amount` decimal(10,2) NOT NULL,
+  `refund_method` varchar(50) DEFAULT NULL,
+  `reason` text DEFAULT NULL,
+  `refunded_by` int(11) DEFAULT NULL,
+  `refunded_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -268,6 +293,14 @@ ALTER TABLE `payments`
   ADD KEY `date` (`date`);
 
 --
+-- Indexes for table `refunds`
+--
+ALTER TABLE `refunds`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `payment_id` (`payment_id`),
+  ADD KEY `refunded_by` (`refunded_by`);
+
+--
 -- Indexes for table `purchased_item`
 --
 ALTER TABLE `purchased_item`
@@ -337,6 +370,12 @@ ALTER TABLE `item_category`
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `refunds`
+--
+ALTER TABLE `refunds`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

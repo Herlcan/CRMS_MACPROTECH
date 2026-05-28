@@ -16,12 +16,18 @@
 		$status_class = '';
 		if ($status == 'pending') {
 			$status_class = 'bg-pending';
+		} elseif ($status == 'diagnosing') {
+			$status_class = 'bg-diagnosing';
+		} elseif ($status == 'waiting for parts') {
+			$status_class = 'bg-waiting';
 		} elseif ($status == 'in progress') {
 			$status_class = 'bg-inprogress';
-		} elseif ($status == 'completed') {
-			$status_class = 'bg-completed';
 		} elseif ($status == 'repaired') {
 			$status_class = 'bg-repaired';
+		} elseif ($status == 'ready for release') {
+			$status_class = 'bg-ready-release';
+		} elseif ($status == 'released') {
+			$status_class = 'bg-released';
 		}
 		 elseif ($status == 'cancelled') {
 			$status_class = 'bg-cancelled';
@@ -35,8 +41,12 @@
 				data-old="<?= $wo['status'] ?>"
 				style="width: 100%; border: 0;">
 				<option value="Pending" <?= ($wo['status'] == 'Pending') ? 'selected' : '' ?>>Pending</option>
+				<option value="Diagnosing" <?= ($wo['status'] == 'Diagnosing') ? 'selected' : '' ?>>Diagnosing</option>
+				<option value="Waiting for Parts" <?= ($wo['status'] == 'Waiting for Parts') ? 'selected' : '' ?>>Waiting for Parts</option>
 				<option value="In Progress" <?= ($wo['status'] == 'In Progress') ? 'selected' : '' ?>>In Progress</option>
 				<option value="Repaired" <?= ($wo['status'] == 'Repaired') ? 'selected' : '' ?>>Repaired</option>
+				<option value="Ready for Release" <?= ($wo['status'] == 'Ready for Release') ? 'selected' : '' ?>>Ready for Release</option>
+				<option value="Released" <?= ($wo['status'] == 'Released') ? 'selected' : '' ?>>Released</option>
 				<option value="Cancelled" <?= ($wo['status'] == 'Cancelled') ? 'selected' : '' ?>>Cancelled</option>
 			</select>
 			<div class="status-loading"></div>
