@@ -47,7 +47,7 @@
 	// Work Order Status Distribution
 	$status_query = mysqli_query(
 		$conn,
-		"SELECT status, COUNT(*) as total FROM work_order GROUP BY status"
+		"SELECT CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END AS status, COUNT(*) as total FROM work_order GROUP BY CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END"
 	);
  
 	$labels = [];
@@ -249,14 +249,13 @@
 						<td><?= htmlspecialchars($row['first_name']) ?></td>
 						<td>
 							<?php
-								$status = $row['status'];
+								$status = $row['status'] === 'Ready for Release' ? 'Repaired' : $row['status'];
 								$badge_class = match($status) {
 									'Pending' => 'bg-pending',
 									'Diagnosing' => 'bg-diagnosing',
 									'Waiting for Parts' => 'bg-waiting',
 									'In Progress' => 'bg-inprogress',
 									'Repaired' => 'bg-repaired',
-									'Ready for Release' => 'bg-ready-release',
 									'Released' => 'bg-released',
 									'Cancelled' => 'bg-cancelled',
 									default => 'bg-pending'

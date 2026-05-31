@@ -1955,7 +1955,6 @@ table tbody tr:hover {
 .bg-waiting { background-color: #F59E0B;}
 .bg-inprogress { background-color: #00ECCF;}
 .bg-repaired { background-color: #14D98F;}
-.bg-ready-release { background-color: #00BFA6;}
 .bg-released { background-color: #15803D;}
 .bg-completed { background-color: #00BFA6;}
 .bg-cancelled { background-color: #FF5C75;}

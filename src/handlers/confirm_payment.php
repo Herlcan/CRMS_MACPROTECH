@@ -89,7 +89,6 @@ try {
     $paymentStatus = $computed['payment_status'];
     $changeAmount = $computed['change_amount'];
     $remainingBalance = $computed['remaining_balance'];
-    $repairStatusUpdated = false;
     $currentAmountPaid = (float) ($payment['amount_paid'] ?? 0);
     $currentPaidDate = $payment['date'] ?? null;
     $paidDate = $currentPaidDate;
@@ -147,30 +146,6 @@ try {
 
     mysqli_stmt_close($updateQuery);
 
-    if ($paymentStatus === 'Paid') {
-        $repairStatusQuery = mysqli_prepare($conn, "
-            UPDATE work_order
-            SET status = 'Ready for Release',
-                completion_date = COALESCE(completion_date, CURDATE())
-            WHERE id = ?
-            AND status = 'Repaired'
-        ");
-
-        if (!$repairStatusQuery) {
-            throw new Exception('Database error: ' . mysqli_error($conn));
-        }
-
-        $workOrderId = (int) $payment['work_order_id'];
-        mysqli_stmt_bind_param($repairStatusQuery, "i", $workOrderId);
-
-        if (!mysqli_stmt_execute($repairStatusQuery)) {
-            throw new Exception('Failed to update repair status: ' . mysqli_stmt_error($repairStatusQuery));
-        }
-
-        $repairStatusUpdated = mysqli_stmt_affected_rows($repairStatusQuery) > 0;
-        mysqli_stmt_close($repairStatusQuery);
-    }
-
     mysqli_commit($conn);
     $transactionStarted = false;
 
@@ -199,7 +174,7 @@ try {
         'payment_method' => $paymentMethod,
         'reference_number' => $referenceNumber,
         'date' => $paidDate,
-        'repair_status' => $repairStatusUpdated ? 'Ready for Release' : null
+        'repair_status' => null
     ];
 } catch (Exception $e) {
     if ($transactionStarted && isset($conn)) {

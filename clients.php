@@ -4,6 +4,8 @@
 	include 'sidebar.php'; 
 	include 'src/db/connection.php';
 
+	$canDeleteClients = isset($_SESSION['role']) && $_SESSION['role'] === 'Administrator';
+
 ?>
 
 	<!-- Hidden checkbox for add client modal toggle -->
@@ -262,15 +264,17 @@
 													</label>
 												</a>
 
-												<a class="dropdown-item text-danger"
-												   href="src/handlers/delete_client.php?id=<?= $row['id'] ?>"
-												   data-macpro-confirm
-												   data-macpro-confirm-title="Delete Customer?"
-												   data-macpro-confirm-message="This customer record will be permanently deleted."
-												   data-macpro-confirm-label="Delete Customer"
-												   data-macpro-confirm-variant="danger">
-								                	<i class="dw dw-delete-3"></i> Delete
-												</a>
+												<?php if ($canDeleteClients): ?>
+													<a class="dropdown-item text-danger"
+													   href="src/handlers/delete_client.php?id=<?= $row['id'] ?>"
+													   data-macpro-confirm
+													   data-macpro-confirm-title="Delete Customer?"
+													   data-macpro-confirm-message="This customer and related active records will be deleted. Paid payment records will be kept for revenue reports, and repaired work orders with unpaid or partial payments will block deletion."
+													   data-macpro-confirm-label="Delete Customer"
+													   data-macpro-confirm-variant="danger">
+									                	<i class="dw dw-delete-3"></i> Delete
+													</a>
+												<?php endif; ?>
 								            </div>
 								        </div>
 								    </td>

@@ -12,7 +12,8 @@
 	
 	<td style="text-align: center;">
 	<?php
-		$status = strtolower($wo['status']);
+		$display_status = ($wo['status'] === 'Ready for Release') ? 'Repaired' : $wo['status'];
+		$status = strtolower($display_status);
 		$status_class = '';
 		if ($status == 'pending') {
 			$status_class = 'bg-pending';
@@ -24,8 +25,6 @@
 			$status_class = 'bg-inprogress';
 		} elseif ($status == 'repaired') {
 			$status_class = 'bg-repaired';
-		} elseif ($status == 'ready for release') {
-			$status_class = 'bg-ready-release';
 		} elseif ($status == 'released') {
 			$status_class = 'bg-released';
 		}
@@ -38,22 +37,21 @@
 			<select 
 				class="form-select badge text-white <?= $status_class ?> status-select"
 				data-id="<?= $wo['id'] ?>"
-				data-old="<?= $wo['status'] ?>"
+				data-old="<?= $display_status ?>"
 				style="width: 100%; border: 0;">
-				<option value="Pending" <?= ($wo['status'] == 'Pending') ? 'selected' : '' ?>>Pending</option>
-				<option value="Diagnosing" <?= ($wo['status'] == 'Diagnosing') ? 'selected' : '' ?>>Diagnosing</option>
-				<option value="Waiting for Parts" <?= ($wo['status'] == 'Waiting for Parts') ? 'selected' : '' ?>>Waiting for Parts</option>
-				<option value="In Progress" <?= ($wo['status'] == 'In Progress') ? 'selected' : '' ?>>In Progress</option>
-				<option value="Repaired" <?= ($wo['status'] == 'Repaired') ? 'selected' : '' ?>>Repaired</option>
-				<option value="Ready for Release" <?= ($wo['status'] == 'Ready for Release') ? 'selected' : '' ?>>Ready for Release</option>
-				<option value="Released" <?= ($wo['status'] == 'Released') ? 'selected' : '' ?>>Released</option>
-				<option value="Cancelled" <?= ($wo['status'] == 'Cancelled') ? 'selected' : '' ?>>Cancelled</option>
+				<option value="Pending" <?= ($display_status == 'Pending') ? 'selected' : '' ?>>Pending</option>
+				<option value="Diagnosing" <?= ($display_status == 'Diagnosing') ? 'selected' : '' ?>>Diagnosing</option>
+				<option value="Waiting for Parts" <?= ($display_status == 'Waiting for Parts') ? 'selected' : '' ?>>Waiting for Parts</option>
+				<option value="In Progress" <?= ($display_status == 'In Progress') ? 'selected' : '' ?>>In Progress</option>
+				<option value="Repaired" <?= ($display_status == 'Repaired') ? 'selected' : '' ?>>Repaired</option>
+				<option value="Released" <?= ($display_status == 'Released') ? 'selected' : '' ?>>Released</option>
+				<option value="Cancelled" <?= ($display_status == 'Cancelled') ? 'selected' : '' ?>>Cancelled</option>
 			</select>
 			<div class="status-loading"></div>
 		</div>
 	<?php else: ?>
 		<span class="badge <?= $status_class ?>" style="width: 100%;">
-			<?= htmlspecialchars($wo['status']) ?>
+			<?= htmlspecialchars($display_status) ?>
 		</span>
 	<?php endif; ?>
 	</td>

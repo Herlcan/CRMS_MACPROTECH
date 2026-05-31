@@ -101,13 +101,16 @@ if (!isset($_POST['id'], $_POST['status'])) {
 $id = (int) $_POST['id'];
 $status = trim($_POST['status']);
 
+if ($status === 'Ready for Release') {
+    $status = 'Repaired';
+}
+
 $allowedStatuses = [
     'Pending',
     'Diagnosing',
     'Waiting for Parts',
     'In Progress',
     'Repaired',
-    'Ready for Release',
     'Released',
     'Cancelled'
 ];
@@ -144,7 +147,7 @@ try {
 
     $stmt->close();
 
-    if (in_array($status, ['Ready for Release', 'Released'], true)) {
+    if ($status === 'Released') {
         $paymentStmt = $conn->prepare("
             SELECT COALESCE(payment_status, status) AS payment_status
             FROM payments
@@ -171,7 +174,7 @@ try {
     /**
      * Update status
      */
-    if (in_array($status, ['Repaired', 'Ready for Release', 'Released'], true)) {
+    if (in_array($status, ['Repaired', 'Released'], true)) {
         $stmt = $conn->prepare("
             UPDATE work_order
             SET status = ?, completion_date = COALESCE(completion_date, CURDATE())
@@ -198,13 +201,14 @@ try {
      * Activity Log (Audit Trail)
      */
     $userId = $_SESSION['user_id'];
+    $previousDisplayStatus = $previousStatus === 'Ready for Release' ? 'Repaired' : $previousStatus;
 
     $logStmt = $conn->prepare("
         INSERT INTO activity_logs (user_id, work_order_id, action)
         VALUES (?, ?, ?)
     ");
 
-    $action = "Changed status from {$previousStatus} to {$status}";
+    $action = "Changed status from {$previousDisplayStatus} to {$status}";
     $logStmt->bind_param("iis", $userId, $id, $action);
     $logStmt->execute();
     $logStmt->close();
@@ -213,7 +217,7 @@ try {
     /**
      * Send email if changed to Repaired
      */
-    if ($status === 'Repaired' && $previousStatus !== 'Repaired') {
+    if ($status === 'Repaired' && !in_array($previousStatus, ['Repaired', 'Ready for Release'], true)) {
         sendCompletionEmail($clientEmail, $clientName, $workCode);
     }
 

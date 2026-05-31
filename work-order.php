@@ -51,7 +51,6 @@
 									<option value="Waiting for Parts" <?= (isset($_GET['filter']) && $_GET['filter']=='Waiting for Parts')?'selected':'' ?>>Waiting for Parts</option>
 									<option value="In Progress" <?= (isset($_GET['filter']) && $_GET['filter']=='In Progress')?'selected':'' ?>>In Progress</option>
 									<option value="Repaired" <?= (isset($_GET['filter']) && $_GET['filter']=='Repaired')?'selected':'' ?>>Repaired</option>
-									<option value="Ready for Release" <?= (isset($_GET['filter']) && $_GET['filter']=='Ready for Release')?'selected':'' ?>>Ready for Release</option>
 									<option value="Released" <?= (isset($_GET['filter']) && $_GET['filter']=='Released')?'selected':'' ?>>Released</option>
 									<option value="Cancelled" <?= (isset($_GET['filter']) && $_GET['filter']=='Cancelled')?'selected':'' ?>>Cancelled</option>
 								</select>
@@ -112,11 +111,15 @@
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
-									$allowed_status = ['Pending','Diagnosing','Waiting for Parts','In Progress','Repaired','Ready for Release','Released','Cancelled'];
+									$allowed_status = ['Pending','Diagnosing','Waiting for Parts','In Progress','Repaired','Released','Cancelled'];
 
 									if (in_array($_GET['filter'], $allowed_status)) {
 										$f = mysqli_real_escape_string($conn, $_GET['filter']);
-										$where .= " AND status='$f'";
+										if ($f === 'Repaired') {
+											$where .= " AND status IN ('Repaired', 'Ready for Release')";
+										} else {
+											$where .= " AND status='$f'";
+										}
 									}
 								}
 
@@ -396,10 +399,13 @@
 				'Waiting for Parts',
 				'In Progress',
 				'Repaired',
-				'Ready for Release',
 				'Released'
 			];
-			const normalizeStatus = value => value === 'Completed' ? 'Released' : (value || 'Pending');
+			const normalizeStatus = value => {
+				if (value === 'Completed') return 'Released';
+				if (value === 'Ready for Release') return 'Repaired';
+				return value || 'Pending';
+			};
 			const status = normalizeStatus(currentStatus);
 			const isCancelled = status === 'Cancelled';
 			const activeStatus = normalizeStatus(isCancelled ? (cancelledFromStatus || 'Pending') : status);
@@ -461,14 +467,15 @@ function viewWorkOrder(id) {
 
 				// Update status badge
 				const statusBadge = document.querySelector('#vw_status .badge');
-				statusBadge.textContent = wo.status || 'Pending';
+				const displayStatus = wo.status === 'Ready for Release' ? 'Repaired' : (wo.status || 'Pending');
+				statusBadge.textContent = displayStatus;
 				statusBadge.className = 'badge';
-				const status = wo.status ? wo.status.toLowerCase() : '';
+				const status = displayStatus.toLowerCase();
 				if (status === 'pending') statusBadge.style.background = '#ffc107';
 				else if (status === 'diagnosing') statusBadge.style.background = '#7c3aed';
 				else if (status === 'waiting for parts') statusBadge.style.background = '#f59e0b';
 				else if (status === 'in progress') statusBadge.style.background = '#0d6efd';
-				else if (status === 'repaired' || status === 'ready for release' || status === 'released') statusBadge.style.background = '#198754';
+				else if (status === 'repaired' || status === 'released') statusBadge.style.background = '#198754';
 				else if (status === 'cancelled') statusBadge.style.background = '#dc3545';
 				else statusBadge.style.background = '#0dcaf0';
 
