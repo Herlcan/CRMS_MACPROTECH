@@ -59,7 +59,7 @@ try {
     }
 
     $paymentQuery = mysqli_prepare($conn, "
-        SELECT p.id, p.work_order_id, wo.code
+        SELECT p.id, p.work_order_id, p.amount_paid, p.date, wo.code
         FROM payments p
         INNER JOIN work_order wo ON wo.id = p.work_order_id
         WHERE p.id = ?
@@ -90,6 +90,15 @@ try {
     $changeAmount = $computed['change_amount'];
     $remainingBalance = $computed['remaining_balance'];
     $repairStatusUpdated = false;
+    $currentAmountPaid = (float) ($payment['amount_paid'] ?? 0);
+    $currentPaidDate = $payment['date'] ?? null;
+    $paidDate = $currentPaidDate;
+
+    if ($amountPaid <= 0) {
+        $paidDate = null;
+    } elseif (empty($currentPaidDate) || $currentPaidDate === '0000-00-00' || abs($currentAmountPaid - $amountPaid) > 0.009) {
+        $paidDate = date('Y-m-d');
+    }
 
     mysqli_begin_transaction($conn);
     $transactionStarted = true;
@@ -107,7 +116,7 @@ try {
             payment_status = ?,
             status = ?,
             notes = ?,
-            date = CURDATE()
+            date = ?
         WHERE id = ?
     ");
 
@@ -117,7 +126,7 @@ try {
 
     mysqli_stmt_bind_param(
         $updateQuery,
-        "ddssdddsssi",
+        "ddssdddssssi",
         $grossTotal,
         $discountAmount,
         $paymentMethod,
@@ -128,6 +137,7 @@ try {
         $paymentStatus,
         $paymentStatus,
         $notes,
+        $paidDate,
         $paymentId
     );
 
@@ -188,6 +198,7 @@ try {
         'remaining_balance' => $remainingBalance,
         'payment_method' => $paymentMethod,
         'reference_number' => $referenceNumber,
+        'date' => $paidDate,
         'repair_status' => $repairStatusUpdated ? 'Ready for Release' : null
     ];
 } catch (Exception $e) {

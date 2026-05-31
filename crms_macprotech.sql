@@ -116,7 +116,7 @@ CREATE TABLE `payments` (
   `remaining_balance` decimal(10,2) NOT NULL DEFAULT 0.00,
   `payment_status` varchar(50) DEFAULT NULL,
   `notes` text DEFAULT NULL,
-  `date` date NOT NULL,
+  `date` date DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 

@@ -7,6 +7,15 @@ function payment_column_exists(mysqli $conn, string $column): bool
     return $result && mysqli_num_rows($result) > 0;
 }
 
+function payment_column_allows_null(mysqli $conn, string $column): bool
+{
+    $column = mysqli_real_escape_string($conn, $column);
+    $result = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE '$column'");
+    $row = $result ? mysqli_fetch_assoc($result) : null;
+
+    return $row && strtoupper((string) $row['Null']) === 'YES';
+}
+
 function ensure_payment_detail_columns(mysqli $conn): void
 {
     $columns = [
@@ -25,6 +34,10 @@ function ensure_payment_detail_columns(mysqli $conn): void
         if (!payment_column_exists($conn, $column) && !mysqli_query($conn, $alterSql)) {
             throw new Exception('Failed to prepare payment details: ' . mysqli_error($conn));
         }
+    }
+
+    if (!payment_column_allows_null($conn, 'date') && !mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN date DATE NULL DEFAULT NULL")) {
+        throw new Exception('Failed to prepare paid date column: ' . mysqli_error($conn));
     }
 
     if (!mysqli_query($conn, "
@@ -48,6 +61,21 @@ function ensure_payment_detail_columns(mysqli $conn): void
         SET status = 'Unpaid', payment_status = 'Unpaid'
         WHERE (status = 'Pending' OR status = '')
         AND (payment_status IS NULL OR payment_status = '')
+    ");
+
+    mysqli_query($conn, "
+        UPDATE payments
+        SET date = NULL
+        WHERE COALESCE(amount_paid, 0) = 0
+        AND (
+            payment_status IS NULL
+            OR payment_status = ''
+            OR payment_status = 'Unpaid'
+            OR status IS NULL
+            OR status = ''
+            OR status = 'Pending'
+            OR status = 'Unpaid'
+        )
     ");
 }
 

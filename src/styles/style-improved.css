@@ -1012,7 +1012,7 @@ h6, .h6 {
     position: relative;
     width: 42px;
     height: 42px;
-    border: 1px solid var(--border-light);
+    border: none;
     border-radius: 8px;
     background: var(--bg-primary);
     display: flex;

@@ -3,6 +3,21 @@
 	include 'header.php';
 	include 'sidebar.php';
 	include 'src/db/connection.php';
+	require_once 'src/handlers/payment_schema.php';
+
+	ensure_payment_detail_columns($conn);
+
+	function payment_display_date($value, $format = 'M d, Y') {
+		if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
+			return '—';
+		}
+
+		try {
+			return (new DateTime($value))->format($format);
+		} catch (Exception $e) {
+			return $value;
+		}
+	}
 ?>
 
 	<style>
@@ -336,11 +351,12 @@
 				<div class="card-box mb-30">
 					<!-- Table Controls -->
 					<div class="row mb-20">
-						<div class="col-sm-12 col-md-6">
+						<div class="col-sm-12 col-md-3">
 							<div class="dataTables_length" id="DataTables_Table_0_length">
 								<label>Show 
 									<form method="GET" style="display: inline;">
 										<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
+										<input type="hidden" name="filter" value="<?= isset($_GET['filter']) ? htmlspecialchars($_GET['filter']) : '' ?>">
 										<select name="limit" aria-controls="DataTables_Table_0" class="custom-select custom-select-sm form-control form-control-sm" onchange="this.form.submit();">
 											<option value="10" <?= (isset($_GET['limit']) && $_GET['limit'] == '10') ? 'selected' : '' ?>>10</option>
 											<option value="25" <?= (isset($_GET['limit']) && $_GET['limit'] == '25') ? 'selected' : '' ?>>25</option>
@@ -351,10 +367,25 @@
 								</label>
 							</div>
 						</div>
+						<div class="col-sm-12 col-md-3" style="display: flex; align-items: center;">
+							<form method="GET" class="form-inline">
+								<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
+								<input type="hidden" name="limit" value="<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>">
+
+								<select name="filter" class="form-control form-control-sm" onchange="this.form.submit()" style="max-height: 40px;">
+									<option value="">All Payment Status</option>
+									<option value="Paid" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Paid') ? 'selected' : '' ?>>Paid</option>
+									<option value="Partial" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Partial') ? 'selected' : '' ?>>Partial</option>
+									<option value="Unpaid" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Unpaid') ? 'selected' : '' ?>>Unpaid</option>
+								</select>
+							</form>
+						</div>
 						<div class="col-sm-12 col-md-6" style="margin-left: auto;">
 							<div id="DataTables_Table_0_filter" class="dataTables_filter">
 								<label>Search: 
-									<form method="GET">
+									<form method="GET" class="form-inline">
+										<input type="hidden" name="limit" value="<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>">
+										<input type="hidden" name="filter" value="<?= isset($_GET['filter']) ? htmlspecialchars($_GET['filter']) : '' ?>">
 										<input type="search" name="search" class="form-control form-control-sm" placeholder="Search payments..." value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
 									</form>
 								</label>
@@ -367,15 +398,17 @@
 								<tr>
 									<th style="text-align: center;">Payment Code</th>
 									<th style="text-align: center;">Work Order Code</th>
+									<th style="text-align: center;">Created At</th>
 									<th style="text-align: center;">Total Amount</th>
 									<th style="text-align: center;">Status</th>
-									<th style="text-align: center;">Date</th>
+									<th style="text-align: center;">Date Paid</th>
 									<th class="datatable-nosort" style="padding-left: 25px;">Action</th>
 								</tr>
 							</thead>
 							<?php
 								$where = "1";
 								$from_clause = "payments p LEFT JOIN work_order wo ON p.work_order_id = wo.id";
+								$payment_status_sql = "COALESCE(NULLIF(p.payment_status, ''), CASE WHEN p.status IS NULL OR p.status = 'Pending' OR p.status = '' THEN 'Unpaid' ELSE p.status END)";
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -418,8 +451,12 @@
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
-								    $f = mysqli_real_escape_string($conn, $_GET['filter']);
-								    $where .= " AND p.status='$f'";
+									$allowed_payment_status = ['Paid', 'Partial', 'Unpaid'];
+
+									if (in_array($_GET['filter'], $allowed_payment_status, true)) {
+										$f = mysqli_real_escape_string($conn, $_GET['filter']);
+										$where .= " AND $payment_status_sql='$f'";
+									}
 								}
 
 								// Get total count for pagination info
@@ -433,10 +470,13 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT p.*, wo.code AS work_order_code FROM $from_clause WHERE $where ORDER BY p.date DESC LIMIT $limit OFFSET $offset");
+								$result = mysqli_query($conn, "SELECT p.*, wo.code AS work_order_code FROM $from_clause WHERE $where ORDER BY COALESCE(p.date, DATE(p.created_at)) DESC, p.created_at DESC, p.id DESC LIMIT $limit OFFSET $offset");
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
+								$pagination_limit = isset($_GET['limit']) ? urlencode($_GET['limit']) : '10';
+								$pagination_search = isset($_GET['search']) ? urlencode($_GET['search']) : '';
+								$pagination_filter = isset($_GET['filter']) ? urlencode($_GET['filter']) : '';
 							?>
 							<tbody>
 								<?php while ($row = mysqli_fetch_assoc($result)) { ?>
@@ -444,6 +484,7 @@
 								<tr id="payment-row-<?= (int) $row['id'] ?>">
 									<td style="text-align: center;"><?= htmlspecialchars($row['payment_code']) ?></td>
 									<td style="text-align: center;"><?= htmlspecialchars($row['work_order_code'] ?? '—') ?></td>
+									<td style="text-align: center;"><?= htmlspecialchars(payment_display_date($row['created_at'], 'M d, Y h:i A')) ?></td>
 									<td style="text-align: center;" id="payment-total-<?= (int) $row['id'] ?>">Php <?= htmlspecialchars(number_format((float) $row['total_amount'], 2)) ?></td>
 									<td>
 										<?php
@@ -463,7 +504,7 @@
 											<?= htmlspecialchars($display_status) ?>
 										</span>
 									</td>
-									<td style="text-align: center;"><?= htmlspecialchars($row['date']) ?></td>
+									<td style="text-align: center;" id="payment-date-paid-<?= (int) $row['id'] ?>"><?= htmlspecialchars(payment_display_date($row['date'])) ?></td>
 									
 									<td>
 										<button type="button" class="btn btn-sm btn-primary" style="margin-right: 5px;" onclick="openPaymentModal(<?= (int) $row['id'] ?>)">
@@ -494,7 +535,7 @@
 								<ul class="pagination justify-content-end">
 									<!-- Previous Button -->
 									<li class="paginate_button page-item previous <?= ($current_page <= 1) ? 'disabled' : '' ?>">
-										<a href="?page=<?= max(1, $current_page - 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
+										<a href="?page=<?= max(1, $current_page - 1) ?>&limit=<?= $pagination_limit ?>&search=<?= $pagination_search ?>&filter=<?= $pagination_filter ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-left">
 												<img src="src/images/angle-double-small-left.png" width="20px" style="border: none">
 											</i> 
@@ -507,7 +548,7 @@
 										$end_page = min($total_pages, $current_page + 2);
 										
 										if ($start_page > 1) {
-											echo '<li class="paginate_button page-item"><a href="?page=1&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">1</a></li>';
+											echo '<li class="paginate_button page-item"><a href="?page=1&limit=' . $pagination_limit . '&search=' . $pagination_search . '&filter=' . $pagination_filter . '" class="page-link">1</a></li>';
 											if ($start_page > 2) {
 												echo '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
 											}
@@ -515,20 +556,20 @@
 										
 										for ($i = $start_page; $i <= $end_page; $i++) {
 											$active = ($i == $current_page) ? 'active' : '';
-											echo '<li class="paginate_button page-item ' . $active . '"><a href="?page=' . $i . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">' . $i . '</a></li>';
+											echo '<li class="paginate_button page-item ' . $active . '"><a href="?page=' . $i . '&limit=' . $pagination_limit . '&search=' . $pagination_search . '&filter=' . $pagination_filter . '" class="page-link">' . $i . '</a></li>';
 										}
 										
 										if ($end_page < $total_pages) {
 											if ($end_page < $total_pages - 1) {
 												echo '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
 											}
-											echo '<li class="paginate_button page-item"><a href="?page=' . $total_pages . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">' . $total_pages . '</a></li>';
+											echo '<li class="paginate_button page-item"><a href="?page=' . $total_pages . '&limit=' . $pagination_limit . '&search=' . $pagination_search . '&filter=' . $pagination_filter . '" class="page-link">' . $total_pages . '</a></li>';
 										}
 									?>
 
 									<!-- Next Button -->
 									<li class="paginate_button page-item next <?= ($current_page >= $total_pages) ? 'disabled' : '' ?>">
-										<a href="?page=<?= min($total_pages, $current_page + 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
+										<a href="?page=<?= min($total_pages, $current_page + 1) ?>&limit=<?= $pagination_limit ?>&search=<?= $pagination_search ?>&filter=<?= $pagination_filter ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-right">
 												<img src="src/images/angle-double-small-right.png" width="20px" style="border: none">
 											</i>
@@ -784,6 +825,29 @@
 			});
 		}
 
+		function formatDateForDisplay(value) {
+			if (!value || value === '0000-00-00' || value === '0000-00-00 00:00:00') return '—';
+
+			const normalized = String(value).trim();
+			const [datePart] = normalized.split(' ');
+			const parts = datePart.split('-').map(Number);
+
+			if (parts.length === 3 && parts.every(Boolean)) {
+				return new Intl.DateTimeFormat('en-PH', {
+					month: 'short',
+					day: '2-digit',
+					year: 'numeric'
+				}).format(new Date(parts[0], parts[1] - 1, parts[2]));
+			}
+
+			const parsed = new Date(normalized);
+			return Number.isNaN(parsed.getTime()) ? normalized : new Intl.DateTimeFormat('en-PH', {
+				month: 'short',
+				day: '2-digit',
+				year: 'numeric'
+			}).format(parsed);
+		}
+
 		function escapeHtml(value) {
 			if (value === null || value === undefined || value === '') return '—';
 			const map = {
@@ -998,9 +1062,10 @@
 			document.getElementById('refundPaymentBtn').disabled = !(values.refundable > 0);
 		}
 
-		function updateListRow(paymentId, status, total) {
+		function updateListRow(paymentId, status, total, paidDate) {
 			const statusEl = document.getElementById('payment-status-' + paymentId);
 			const totalEl = document.getElementById('payment-total-' + paymentId);
+			const paidDateEl = document.getElementById('payment-date-paid-' + paymentId);
 
 			if (statusEl) {
 				statusEl.textContent = status;
@@ -1015,6 +1080,10 @@
 					minimumFractionDigits: 2,
 					maximumFractionDigits: 2
 				});
+			}
+
+			if (paidDateEl) {
+				paidDateEl.textContent = formatDateForDisplay(paidDate);
 			}
 		}
 
@@ -1132,6 +1201,7 @@
 						remaining_balance: data.remaining_balance,
 						payment_status: data.payment_status,
 						status: data.payment_status,
+						date: data.date,
 						notes: document.getElementById('payment_notes').value
 					};
 					currentPaymentDetails.computed = {
@@ -1147,7 +1217,7 @@
 
 					updatePaymentComputation();
 					renderPaymentHistory();
-					updateListRow(paymentId, data.payment_status, data.total_amount);
+					updateListRow(paymentId, data.payment_status, data.total_amount, data.date);
 					document.getElementById('printReceiptBtn').disabled = false;
 					document.getElementById('emailReceiptBtn').disabled = !(currentPaymentDetails.payment && currentPaymentDetails.payment.customer_email);
 					showPaymentAlert(data.message || 'Payment saved successfully', 'success');

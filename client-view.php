@@ -7,6 +7,18 @@
 	include 'header.php';
 	include 'sidebar.php'; 
 	include 'src/db/connection.php';
+
+	function payment_display_date($value, $format = 'M d, Y') {
+		if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
+			return '—';
+		}
+
+		try {
+			return (new DateTime($value))->format($format);
+		} catch (Exception $e) {
+			return $value;
+		}
+	}
 	
 	$client_id = isset($_GET['client_id']) ? intval($_GET['client_id']) : 0;
 	$row = null;
@@ -238,7 +250,7 @@
 					}
 
 					// Search for items
-					fetch(`/MACPROTECH/src/handlers/search_items.php?q=${encodeURIComponent(searchTerm)}`)
+					fetch(`src/handlers/search_items.php?q=${encodeURIComponent(searchTerm)}`)
 						.then(response => {
 							if (!response.ok) {
 								throw new Error(`HTTP error! status: ${response.status}`);
@@ -617,7 +629,7 @@
 function viewWorkOrder(id) {
 			// Open drawer first, then fetch and render into modal
 			openViewDrawer();
-			fetch('/MACPROTECH/src/handlers/get_work_order.php?id=' + encodeURIComponent(id))
+			fetch('src/handlers/get_work_order.php?id=' + encodeURIComponent(id))
 
 			.then(response => response.json())
 			.then(data => {
@@ -783,7 +795,7 @@ function viewWorkOrder(id) {
 				yesBtn.textContent = 'Deleting...';
 			}
 
-			fetch('/MACPROTECH/src/handlers/delete_work_order.php', {
+			fetch('src/handlers/delete_work_order.php', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
@@ -834,7 +846,7 @@ function viewWorkOrder(id) {
 		// EDIT WORK ORDER
 		function editWorkOrder(id) {
 			// Fetch the work order data
-			fetch('/MACPROTECH/src/handlers/get_work_order.php?id=' + encodeURIComponent(id))
+			fetch('src/handlers/get_work_order.php?id=' + encodeURIComponent(id))
 			.then(response => response.json())
 			.then(data => {
 				if (data.success) {
@@ -1282,7 +1294,7 @@ function viewWorkOrder(id) {
 										<tr>
 											<td style="text-align: center;"><?= htmlspecialchars($wo['code']) ?></td>
 
-											<td style="text-align: center;"><?= htmlspecialchars($wo['request_date']) ?></td>
+											<td style="text-align: center;"><?= htmlspecialchars(payment_display_date($wo['request_date'])) ?></td>
 
 											<td style="text-align: center;"><?= htmlspecialchars($wo['unit_type']) ?></td>
 
@@ -1292,7 +1304,7 @@ function viewWorkOrder(id) {
 											
 											<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost'] + $wo['diagnostic_fee']) ?></td>
 											
-											<td style="text-align: center;"><?= htmlspecialchars($wo['completion_date'] ?? '—')?></td>
+											<td style="text-align: center;"><?= htmlspecialchars(payment_display_date($wo['completion_date'], 'M d, Y') ?? '—')?></td>
 											
 											<td style="text-align: center;">
 												<?php

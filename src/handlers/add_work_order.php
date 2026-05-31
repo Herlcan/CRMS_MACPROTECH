@@ -5,6 +5,7 @@
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/payment_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
 
 $add_work_order_message = '';
@@ -83,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
     $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
     $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
 
+    ensure_payment_detail_columns($conn);
     ensure_notifications_table($conn);
 
     // Start transaction
@@ -231,7 +233,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         // Create Payment Record
         $total_payment_amount += $purchased_parts_total;
         $payment_status = 'Unpaid';
-        $payment_date = date('Y-m-d');
 
         // Get the last payment ID to generate payment code
         $last_payment_query = mysqli_query($conn, "SELECT id FROM payments ORDER BY id DESC LIMIT 1");
@@ -241,14 +242,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
         // Insert payment record
         $payment_query = mysqli_prepare($conn,
-            "INSERT INTO payments (payment_code, work_order_id, total_amount, status, date) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO payments (payment_code, work_order_id, total_amount, status) VALUES (?, ?, ?, ?)"
         );
 
         if (!$payment_query) {
             throw new Exception('Database error: ' . mysqli_error($conn));
         }
 
-        mysqli_stmt_bind_param($payment_query, "sidss", $payment_code, $id, $total_payment_amount, $payment_status, $payment_date);
+        mysqli_stmt_bind_param($payment_query, "sids", $payment_code, $id, $total_payment_amount, $payment_status);
         if (!mysqli_stmt_execute($payment_query)) {
             throw new Exception('Failed to create payment record: ' . mysqli_stmt_error($payment_query));
         }
