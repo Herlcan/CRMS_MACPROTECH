@@ -7,6 +7,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/payment_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/work_order_assignment_schema.php';
 
 $add_work_order_message = '';
 $add_work_order_error = '';
@@ -86,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
     ensure_payment_detail_columns($conn);
     ensure_notifications_table($conn);
+    ensure_work_order_assignments_table($conn);
 
     // Start transaction
     mysqli_begin_transaction($conn);
@@ -254,6 +256,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
             throw new Exception('Failed to create payment record: ' . mysqli_stmt_error($payment_query));
         }
         mysqli_stmt_close($payment_query);
+
+        if ($technician_id) {
+            record_work_order_assignment($conn, $id, null, $technician_id, (int) $_SESSION['user_id'], 'Initial assignment');
+        }
 
         notify_work_order_assigned($conn, $technician_id, $code, $id);
 

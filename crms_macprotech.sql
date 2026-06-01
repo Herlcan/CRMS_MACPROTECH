@@ -240,6 +240,23 @@ CREATE TABLE `work_order` (
   `notes` longtext DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `work_order_assignments`
+--
+
+CREATE TABLE `work_order_assignments` (
+  `id` int(11) NOT NULL,
+  `work_order_id` int(11) NOT NULL,
+  `technician_id` int(11) NOT NULL,
+  `assigned_by` int(11) DEFAULT NULL,
+  `assigned_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `unassigned_at` datetime DEFAULT NULL,
+  `reason` text DEFAULT NULL,
+  `is_current` tinyint(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- Indexes for dumped tables
 --
@@ -333,6 +350,15 @@ ALTER TABLE `work_order`
   ADD KEY `technician_id` (`technician_id`);
 
 --
+-- Indexes for table `work_order_assignments`
+--
+ALTER TABLE `work_order_assignments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_work_order_assignments_work_order` (`work_order_id`),
+  ADD KEY `idx_work_order_assignments_technician` (`technician_id`),
+  ADD KEY `idx_work_order_assignments_current` (`work_order_id`,`is_current`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -400,6 +426,12 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `work_order`
 --
 ALTER TABLE `work_order`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `work_order_assignments`
+--
+ALTER TABLE `work_order_assignments`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

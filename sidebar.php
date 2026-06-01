@@ -27,30 +27,25 @@
 						<span class="micon dw dw-user">
 							<img src="src/images/users.png" width="20px" height="20px">
 						</span>
-						<span class="mtext">Clients</span>
+						<span class="mtext">Customers</span>
 					</a>
 				</li>
 				<?php endif; ?>
-				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Technician'): ?>
 				<li>
 					<a href="work-order.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-shopping-basket">
 								<img src="src/images/shopping-basket.png" width="20px" height="20px">
 						</span>
-						<span class="mtext">Work Order</span>
+						<span class="mtext">Work Orders</span>
 					</a>
 				</li>
-				<?php endif; ?>
-				<?php if ($_SESSION['role'] == 'Administrator'): ?>
-				
-				<?php endif; ?>
 				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk' || $_SESSION['role'] == 'Technician'): ?>
 				<li>
 					<a href="items.php" class="dropdown-toggle no-arrow">
 						<span class="micon fa fa-cart-plus">
 							<img src="src/images/dolly-flatbed-alt.png" width="20px" height="20px">
 						</span>
-						<span class="mtext">Product Items</span>
+						<span class="mtext">Inventory</span>
 					</a>
 				</li>
 				<?php endif; ?>
@@ -60,7 +55,7 @@
 						<span class="micon dw dw-money">
 							<img src="src/images/money-bills-simple.png" width="20px" height="20px">
 						</span>
-						<span class="mtext">Payment</span>
+						<span class="mtext">Payments</span>
 					</a>
 				</li>
 				<?php endif; ?>
@@ -72,6 +67,16 @@
 						<span class="mtext">Notifications</span>
 					</a>
 				</li>
+				<?php if ($_SESSION['role'] == 'Administrator'): ?>
+				<li>
+					<a href="reports.php" class="dropdown-toggle no-arrow">
+						<span class="micon dw dw-money">
+							<img src="src/images/reports.png" width="20px" height="20px">
+						</span>
+						<span class="mtext">Reports</span>
+					</a>
+				</li>
+				<?php endif; ?>
 				<!--<li>
 					<a href="settings.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-settings2">

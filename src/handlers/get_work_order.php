@@ -7,8 +7,45 @@ header('Content-Type: application/json');
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/work_order_assignment_schema.php';
 
-$response = ['success' => false, 'message' => 'Unknown error', 'workOrder' => null, 'purchasedParts' => [], 'clientParts' => []];
+$response = [
+    'success' => false,
+    'message' => 'Unknown error',
+    'workOrder' => null,
+    'purchasedParts' => [],
+    'clientParts' => [],
+    'payments' => [],
+    'technicians' => [],
+    'assignmentHistory' => [],
+    'activityTimeline' => [],
+    'canReassign' => false
+];
+
+function work_order_user_role(mysqli $conn): string
+{
+    if (empty($_SESSION['user_id'])) {
+        return '';
+    }
+
+    $query = mysqli_prepare($conn, "SELECT role FROM users WHERE id = ? LIMIT 1");
+    if (!$query) {
+        return '';
+    }
+
+    mysqli_stmt_bind_param($query, "i", $_SESSION['user_id']);
+    mysqli_stmt_execute($query);
+    mysqli_stmt_bind_result($query, $role);
+    mysqli_stmt_fetch($query);
+    mysqli_stmt_close($query);
+
+    return (string) $role;
+}
+
+function work_order_can_reassign(mysqli $conn): bool
+{
+    return in_array(work_order_user_role($conn), ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], true);
+}
 
 try {
     if (!isset($_GET['id']) || empty($_GET['id'])) {
@@ -21,11 +58,17 @@ try {
         throw new Exception('Invalid work order ID');
     }
 
-    // Fetch work order with technician name
+    ensure_work_order_assignments_table($conn);
+
+    // Fetch work order with technician and customer names.
     $query = mysqli_prepare($conn, "
-        SELECT wo.*, CONCAT(u.first_name, ' ', u.last_name) AS technician_name
+        SELECT
+            wo.*,
+            CONCAT(u.first_name, ' ', u.last_name) AS technician_name,
+            CONCAT(c.first_name, ' ', c.last_name) AS customer_name
         FROM work_order wo
         LEFT JOIN users u ON wo.technician_id = u.id
+        LEFT JOIN client c ON wo.client_id = c.id
         WHERE wo.id = ?
     ");
     if (!$query) {
@@ -89,6 +132,94 @@ try {
         }
     }
 
+    $technicians = [];
+    $techniciansQuery = mysqli_query($conn, "
+        SELECT id, first_name, last_name, role
+        FROM users
+        WHERE role IN ('Technician', 'Administrator')
+        ORDER BY last_name, first_name
+    ");
+
+    if ($techniciansQuery) {
+        while ($technician = mysqli_fetch_assoc($techniciansQuery)) {
+            $technicians[] = $technician;
+        }
+    }
+
+    $assignment_history = [];
+    $assignmentQuery = mysqli_prepare($conn, "
+        SELECT
+            woa.*,
+            CONCAT(tech.first_name, ' ', tech.last_name) AS technician_name,
+            CONCAT(assigner.first_name, ' ', assigner.last_name) AS assigned_by_name
+        FROM work_order_assignments woa
+        LEFT JOIN users tech ON woa.technician_id = tech.id
+        LEFT JOIN users assigner ON woa.assigned_by = assigner.id
+        WHERE woa.work_order_id = ?
+        ORDER BY woa.assigned_at ASC, woa.id ASC
+    ");
+
+    if ($assignmentQuery) {
+        mysqli_stmt_bind_param($assignmentQuery, "i", $work_order_id);
+        if (mysqli_stmt_execute($assignmentQuery)) {
+            $assignmentResult = mysqli_stmt_get_result($assignmentQuery);
+            $assignment_history = mysqli_fetch_all($assignmentResult, MYSQLI_ASSOC);
+        }
+        mysqli_stmt_close($assignmentQuery);
+    }
+
+    $activity_timeline = [];
+    if (empty($assignment_history) && !empty($work_order['technician_id'])) {
+        $activity_timeline[] = [
+            'date' => $work_order['request_date'] ?? '',
+            'title' => 'Assigned to ' . ($work_order['technician_name'] ?: 'Unassigned'),
+            'details' => '',
+            'type' => 'assignment'
+        ];
+    }
+
+    foreach ($assignment_history as $index => $assignment) {
+        $date = $assignment['assigned_at'] ?? null;
+        if (!$date) {
+            continue;
+        }
+
+        $activity_timeline[] = [
+            'date' => $date,
+            'title' => ($index === 0 ? 'Assigned to ' : 'Reassigned to ') . ($assignment['technician_name'] ?: 'Unassigned'),
+            'details' => $assignment['reason'] ?: '',
+            'type' => $index === 0 ? 'assignment' : 'reassignment'
+        ];
+    }
+
+    $activityQuery = mysqli_prepare($conn, "
+        SELECT action, created_at
+        FROM activity_logs
+        WHERE work_order_id = ?
+        AND action NOT LIKE 'Reassigned technician%'
+        ORDER BY created_at ASC, id ASC
+    ");
+
+    if ($activityQuery) {
+        mysqli_stmt_bind_param($activityQuery, "i", $work_order_id);
+        if (mysqli_stmt_execute($activityQuery)) {
+            $activityResult = mysqli_stmt_get_result($activityQuery);
+            while ($activity = mysqli_fetch_assoc($activityResult)) {
+                $activity_timeline[] = [
+                    'date' => $activity['created_at'],
+                    'title' => $activity['action'],
+                    'details' => '',
+                    'type' => 'activity'
+                ];
+            }
+        }
+        mysqli_stmt_close($activityQuery);
+    }
+
+    usort($activity_timeline, function ($a, $b) {
+        return strcmp((string) $a['date'], (string) $b['date']);
+    });
+
     // Fetch purchased parts (returns empty array if no parts exist)
     $purchased_parts = [];
     $purchased_query = mysqli_prepare($conn, "
@@ -130,6 +261,10 @@ try {
         'purchasedParts' => $purchased_parts,
         'clientParts' => $client_parts,
         'payments' => $payments,
+        'technicians' => $technicians,
+        'assignmentHistory' => $assignment_history,
+        'activityTimeline' => $activity_timeline,
+        'canReassign' => work_order_can_reassign($conn),
         'cancelledFromStatus' => $cancelled_from_status
     ];
 

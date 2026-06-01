@@ -6,6 +6,7 @@ ini_set('display_startup_errors', '1');
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/work_order_assignment_schema.php';
 
 $update_work_order_message = '';
 $update_work_order_error = '';
@@ -88,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
         $update_work_order_error = 'Invalid work order ID';
     } else {
         ensure_notifications_table($conn);
+        ensure_work_order_assignments_table($conn);
 
         // Start transaction
         mysqli_begin_transaction($conn);
@@ -231,7 +233,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
             }
 
             if ($technician_id && $technician_id !== $existingTechnicianId) {
+                record_work_order_assignment(
+                    $conn,
+                    $work_order_id,
+                    $existingTechnicianId,
+                    $technician_id,
+                    (int) $_SESSION['user_id'],
+                    'Changed from work order edit'
+                );
                 notify_work_order_assigned($conn, $technician_id, $workOrderCode, $work_order_id);
+            } elseif (!$technician_id && $existingTechnicianId) {
+                record_work_order_assignment(
+                    $conn,
+                    $work_order_id,
+                    $existingTechnicianId,
+                    null,
+                    (int) $_SESSION['user_id'],
+                    'Technician removed from work order edit'
+                );
             } elseif ($technician_id) {
                 notify_work_order_updated($conn, $technician_id, $workOrderCode, 'Work order details were updated.');
             }
