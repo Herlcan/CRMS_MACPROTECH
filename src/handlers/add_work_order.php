@@ -8,6 +8,7 @@ include '../../auth_check.php';
 require_once __DIR__ . '/payment_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
+require_once __DIR__ . '/ordered_part_schema.php';
 
 $add_work_order_message = '';
 $add_work_order_error = '';
@@ -88,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
     ensure_payment_detail_columns($conn);
     ensure_notifications_table($conn);
     ensure_work_order_assignments_table($conn);
+    ensure_ordered_parts_table($conn);
 
     // Start transaction
     mysqli_begin_transaction($conn);
@@ -148,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
         // Calculate total payment amount (diagnostic fee + work order cost + purchased parts cost)
         $purchased_parts_total = 0;
+        $ordered_parts_total = 0;
         $total_payment_amount = floatval($diagnostic_fee) + floatval($work_order_cost);
 
         // Handle Purchased Parts (may be empty)
@@ -202,6 +205,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
             }
         }
 
+        $ordered_parts_total = save_ordered_parts_from_post($conn, $id);
+
         // Handle Client Provided Parts (may be empty)
         if (isset($_POST['client_part_product_name']) && is_array($_POST['client_part_product_name'])) {
             $product_names = $_POST['client_part_product_name'];
@@ -233,7 +238,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         }
 
         // Create Payment Record
-        $total_payment_amount += $purchased_parts_total;
+        $total_payment_amount += $purchased_parts_total + $ordered_parts_total;
         $payment_status = 'Unpaid';
 
         // Get the last payment ID to generate payment code

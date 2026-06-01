@@ -7,6 +7,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
+require_once __DIR__ . '/ordered_part_schema.php';
 
 $update_work_order_message = '';
 $update_work_order_error = '';
@@ -90,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
     } else {
         ensure_notifications_table($conn);
         ensure_work_order_assignments_table($conn);
+        ensure_ordered_parts_table($conn);
 
         // Start transaction
         mysqli_begin_transaction($conn);
@@ -173,6 +175,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
             }
             mysqli_stmt_close($delete_client);
 
+            // Delete existing ordered parts
+            $delete_ordered = mysqli_prepare($conn, "DELETE FROM ordered_parts WHERE work_order_id = ?");
+            if (!$delete_ordered) {
+                throw new Exception('Database error: ' . mysqli_error($conn));
+            }
+            mysqli_stmt_bind_param($delete_ordered, "i", $work_order_id);
+            if (!mysqli_stmt_execute($delete_ordered)) {
+                throw new Exception('Failed to delete existing ordered parts');
+            }
+            mysqli_stmt_close($delete_ordered);
+
             // Handle Purchased Parts (may be empty)
             if (isset($_POST['purchased_part_item_id']) && is_array($_POST['purchased_part_item_id'])) {
                 $item_ids = $_POST['purchased_part_item_id'];
@@ -201,6 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                     }
                 }
             }
+
+            save_ordered_parts_from_post($conn, $work_order_id);
 
             // Handle Client Provided Parts (may be empty)
             if (isset($_POST['client_part_product_name']) && is_array($_POST['client_part_product_name'])) {

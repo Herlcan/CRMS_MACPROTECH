@@ -99,6 +99,24 @@ CREATE TABLE `item_category` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `ordered_parts`
+--
+
+CREATE TABLE `ordered_parts` (
+  `id` int(11) NOT NULL,
+  `work_order_id` int(11) NOT NULL,
+  `part_name` varchar(255) NOT NULL,
+  `brand` varchar(100) DEFAULT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `payments`
 --
 
@@ -302,6 +320,13 @@ ALTER TABLE `item_category`
   ADD KEY `category_name` (`category_name`);
 
 --
+-- Indexes for table `ordered_parts`
+--
+ALTER TABLE `ordered_parts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_ordered_parts_work_order` (`work_order_id`);
+
+--
 -- Indexes for table `payments`
 --
 ALTER TABLE `payments`
@@ -390,6 +415,12 @@ ALTER TABLE `items`
 -- AUTO_INCREMENT for table `item_category`
 --
 ALTER TABLE `item_category`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `ordered_parts`
+--
+ALTER TABLE `ordered_parts`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

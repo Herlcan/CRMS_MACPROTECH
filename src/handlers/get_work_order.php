@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
+require_once __DIR__ . '/ordered_part_schema.php';
 
 $response = [
     'success' => false,
@@ -15,6 +16,7 @@ $response = [
     'workOrder' => null,
     'purchasedParts' => [],
     'clientParts' => [],
+    'orderedParts' => [],
     'payments' => [],
     'technicians' => [],
     'assignmentHistory' => [],
@@ -59,6 +61,7 @@ try {
     }
 
     ensure_work_order_assignments_table($conn);
+    ensure_ordered_parts_table($conn);
 
     // Fetch work order with technician and customer names.
     $query = mysqli_prepare($conn, "
@@ -239,6 +242,23 @@ try {
         mysqli_stmt_close($purchased_query);
     }
 
+    $ordered_parts = [];
+    $ordered_query = mysqli_prepare($conn, "
+        SELECT *
+        FROM ordered_parts
+        WHERE work_order_id = ?
+        ORDER BY id ASC
+    ");
+
+    if ($ordered_query) {
+        mysqli_stmt_bind_param($ordered_query, "i", $work_order_id);
+        if (mysqli_stmt_execute($ordered_query)) {
+            $ordered_result = mysqli_stmt_get_result($ordered_query);
+            $ordered_parts = mysqli_fetch_all($ordered_result, MYSQLI_ASSOC);
+        }
+        mysqli_stmt_close($ordered_query);
+    }
+
     // Fetch client provided parts (returns empty array if no parts exist)
     $client_parts = [];
     $client_query = mysqli_prepare($conn, "
@@ -260,6 +280,7 @@ try {
         'workOrder' => $work_order,
         'purchasedParts' => $purchased_parts,
         'clientParts' => $client_parts,
+        'orderedParts' => $ordered_parts,
         'payments' => $payments,
         'technicians' => $technicians,
         'assignmentHistory' => $assignment_history,

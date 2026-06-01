@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/ordered_part_schema.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 
@@ -45,6 +46,8 @@ try {
     if (!mysqli_begin_transaction($conn)) {
         throw new Exception('Failed to start transaction');
     }
+
+    ensure_ordered_parts_table($conn);
 
     // Revert stock for purchased items before deletion
     $revert_stock = mysqli_prepare($conn, "
@@ -93,6 +96,17 @@ try {
         throw new Exception('Failed to delete client provided parts: ' . mysqli_stmt_error($delete_client_parts));
     }
     mysqli_stmt_close($delete_client_parts);
+
+    // Delete ordered parts (may have 0 rows if no items exist)
+    $delete_ordered_parts = mysqli_prepare($conn, "DELETE FROM ordered_parts WHERE work_order_id = ?");
+    if (!$delete_ordered_parts) {
+        throw new Exception('Database error: ' . mysqli_error($conn));
+    }
+    mysqli_stmt_bind_param($delete_ordered_parts, "i", $work_order_id);
+    if (!mysqli_stmt_execute($delete_ordered_parts)) {
+        throw new Exception('Failed to delete ordered parts: ' . mysqli_stmt_error($delete_ordered_parts));
+    }
+    mysqli_stmt_close($delete_ordered_parts);
 
     // Delete work order
     $delete_work_order = mysqli_prepare($conn, "DELETE FROM work_order WHERE id = ?");

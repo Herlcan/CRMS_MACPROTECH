@@ -46,6 +46,15 @@
 		}
 	}
 
+	$itemCategories = [];
+	$itemCategoryQuery = "SELECT id, category_name FROM item_category ORDER BY category_name ASC";
+	$itemCategoryResult = mysqli_query($conn, $itemCategoryQuery);
+	if ($itemCategoryResult) {
+		while ($itemCategoryRow = mysqli_fetch_assoc($itemCategoryResult)) {
+			$itemCategories[] = $itemCategoryRow;
+		}
+	}
+
 ?>
 	<!-- Hidden checkbox for add transaction modal toggle -->
 	<input type="checkbox" id="addWorkOrderToggle" class="add-client-toggle" onchange="if (!this.checked) resetFormToAdd();">
@@ -126,7 +135,7 @@
 <!-- STEP 2: PARTS -->
 				<div id="step2Form" class="form-step" style="display: none;">
 					<div class="row">
-						<div style="width: 65%;">
+						<div style="width: 65%; max-height: 55vh; overflow-y: auto; padding-right: 10px;">
 							<div style="margin-bottom: 30px;">
 								<h6 style="margin-bottom: 15px; font-weight: 600; border-bottom: 2px solid #007bff; padding-bottom: 10px;">Purchase Parts</h6>
 								<div id="purchasedPartsContainer">
@@ -157,6 +166,62 @@
 									</div>
 								</div>
 								<button type="button" class="btn btn-secondary" onclick="addPurchasedPartEntry()" style="margin-top: 10px;">+ Add Purchased Part</button>
+							</div>
+
+							<!-- ORDERED PARTS SECTION -->
+							<div style="margin-bottom: 30px;">
+								<h6 style="margin-bottom: 15px; font-weight: 600; border-bottom: 2px solid #fd7e14; padding-bottom: 10px;">Ordered Parts</h6>
+								<div id="orderedPartsContainer">
+									<div class="ordered-part-entry" style="margin-bottom: 20px; padding: 15px; border: 1px solid #fd7e14; border-radius: 4px; background-color: #fff7ed;">
+										<div class="row">
+											<div style="width: 47%;">
+												<div class="form-group">
+													<label class="form-label">Part Name</label>
+													<input type="text" class="form-control" placeholder="Enter part name" name="ordered_part_name[]" autocomplete="off">
+												</div>
+											</div>
+											<div style="width: 48%; padding-left: 3%;">
+												<div class="form-group">
+													<label class="form-label">Part Category</label>
+													<select class="form-control" name="ordered_part_category[]" autocomplete="off">
+														<option value="">-- Select Category --</option>
+														<?php foreach ($itemCategories as $category): ?>
+															<option value="<?= htmlspecialchars($category['category_name']) ?>"><?= htmlspecialchars($category['category_name']) ?></option>
+														<?php endforeach; ?>
+													</select>
+												</div>
+											</div>
+											<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+												<button type="button" class="btn btn-sm btn-danger" onclick="removeOrderedPartEntry(this)">×</button>
+											</div>
+										</div>
+										<div class="row">
+											<div style="width: 47%;">
+												<div class="form-group">
+													<label class="form-label">Brand</label>
+													<input type="text" class="form-control" placeholder="Enter brand" name="ordered_part_brand[]" autocomplete="off">
+												</div>
+											</div>
+											<div style="width: 23%; padding-left: 3%;">
+												<div class="form-group">
+													<label class="form-label">Quantity</label>
+													<input type="number" class="form-control" placeholder="Qty" name="ordered_part_quantity[]" min="1" value="1" autocomplete="off">
+												</div>
+											</div>
+											<div style="width: 25%; padding-left: 3%;">
+												<div class="form-group">
+													<label class="form-label">Price</label>
+													<input type="number" class="form-control" placeholder="Price" name="ordered_part_price[]" min="0" step="0.01" autocomplete="off">
+												</div>
+											</div>
+										</div>
+										<div class="form-group" style="margin-bottom: 0;">
+											<label class="form-label">Description</label>
+											<textarea class="form-control" placeholder="Enter description" name="ordered_part_description[]" style="height: 50px;" autocomplete="off"></textarea>
+										</div>
+									</div>
+								</div>
+								<button type="button" class="btn btn-secondary" onclick="addOrderedPartEntry()" style="margin-top: 10px;">+ Add Ordered Part</button>
 							</div>
 
 							<!-- CLIENT PROVIDED PARTS SECTION -->
@@ -235,6 +300,69 @@
 	<!-- JavaScript for multi-step form -->
 	<script>
 		console.log('Modal script loaded');
+		const orderedPartCategories = <?= json_encode(array_column($itemCategories, 'category_name'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+
+		function renderOrderedPartCategoryOptions(selectedCategory = '') {
+			return '<option value="">-- Select Category --</option>' + orderedPartCategories.map(category => {
+				const selected = String(category) === String(selectedCategory || '') ? ' selected' : '';
+				return `<option value="${escapeHtml(category)}"${selected}>${escapeHtml(category)}</option>`;
+			}).join('');
+		}
+
+		function orderedPartEntryTemplate(part = {}) {
+			const partName = part.part_name || '';
+			const brand = part.brand || '';
+			const category = part.category || '';
+			const description = part.description || '';
+			const quantity = part.quantity || 1;
+			const price = part.price || '';
+
+			return `
+				<div class="row">
+					<div style="width: 47%;">
+						<div class="form-group">
+							<label class="form-label">Part Name</label>
+							<input type="text" class="form-control" placeholder="Enter part name" name="ordered_part_name[]" value="${escapeHtml(partName)}" autocomplete="off">
+						</div>
+					</div>
+					<div style="width: 48%; padding-left: 3%;">
+						<div class="form-group">
+							<label class="form-label">Part Category</label>
+							<select class="form-control" name="ordered_part_category[]" autocomplete="off">
+								${renderOrderedPartCategoryOptions(category)}
+							</select>
+						</div>
+					</div>
+					<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
+						<button type="button" class="btn btn-sm btn-danger" onclick="removeOrderedPartEntry(this)">×</button>
+					</div>
+				</div>
+				<div class="row">
+					<div style="width: 47%;">
+						<div class="form-group">
+							<label class="form-label">Brand</label>
+							<input type="text" class="form-control" placeholder="Enter brand" name="ordered_part_brand[]" value="${escapeHtml(brand)}" autocomplete="off">
+						</div>
+					</div>
+					<div style="width: 23%; padding-left: 3%;">
+						<div class="form-group">
+							<label class="form-label">Quantity</label>
+							<input type="number" class="form-control" placeholder="Qty" name="ordered_part_quantity[]" min="1" value="${escapeHtml(quantity)}" autocomplete="off">
+						</div>
+					</div>
+					<div style="width: 25%; padding-left: 3%;">
+						<div class="form-group">
+							<label class="form-label">Price</label>
+							<input type="number" class="form-control" placeholder="Price" name="ordered_part_price[]" min="0" step="0.01" value="${escapeHtml(price)}" autocomplete="off">
+						</div>
+					</div>
+				</div>
+				<div class="form-group" style="margin-bottom: 0;">
+					<label class="form-label">Description</label>
+					<textarea class="form-control" placeholder="Enter description" name="ordered_part_description[]" style="height: 50px;" autocomplete="off">${escapeHtml(description)}</textarea>
+				</div>
+			`;
+		}
 		
 		document.addEventListener('DOMContentLoaded', function() {
 			// Handle part search autocomplete for purchased parts
@@ -455,6 +583,33 @@
 			}
 		}
 
+		// ORDERED PARTS FUNCTIONS
+		function addOrderedPartEntry(part = {}) {
+			const orderedPartsContainer = document.getElementById('orderedPartsContainer');
+			const partEntry = document.createElement('div');
+			partEntry.className = 'ordered-part-entry';
+			partEntry.style.marginBottom = '20px';
+			partEntry.style.padding = '15px';
+			partEntry.style.border = '1px solid #fd7e14';
+			partEntry.style.borderRadius = '4px';
+			partEntry.style.backgroundColor = '#fff7ed';
+			partEntry.innerHTML = orderedPartEntryTemplate(part);
+
+			orderedPartsContainer.appendChild(partEntry);
+		}
+
+		function removeOrderedPartEntry(button) {
+			const orderedPartsContainer = document.getElementById('orderedPartsContainer');
+			if (orderedPartsContainer.children.length > 1) {
+				button.closest('.ordered-part-entry').remove();
+			} else {
+				MacproDialog.info({
+					title: 'Ordered Part Entry',
+					message: 'Leave this entry blank if no ordered part is needed.'
+				});
+			}
+		}
+
 		// CLIENT PROVIDED PARTS FUNCTIONS
 		function addClientProvidedPartEntry() {
 			const clientProvidedPartsContainer = document.getElementById('clientProvidedPartsContainer');
@@ -647,6 +802,7 @@ function viewWorkOrder(id) {
 				const wo = data.workOrder;
 				const purchased = data.purchasedParts || [];
 				const clientParts = data.clientParts || [];
+				const orderedParts = data.orderedParts || [];
 				const payments = data.payments || [];
 
 				// Populate Header Section
@@ -691,7 +847,7 @@ function viewWorkOrder(id) {
 				// Parts
 				const partsEl = document.getElementById('vw_parts');
 				let partsHtml = '';
-				if (purchased.length > 0 || clientParts.length > 0) {
+				if (purchased.length > 0 || orderedParts.length > 0 || clientParts.length > 0) {
 					partsHtml = '<hr style="margin: 25px 0;"><h6 style="font-weight: 700; margin-bottom: 15px; color: #333;">Parts Used</h6>';
 					
 					if (purchased.length) {
@@ -703,6 +859,21 @@ function viewWorkOrder(id) {
 									const price = parseFloat(p.product_price) || 0;
 									const total = qty * price;
 									return `<li style="margin-bottom: 8px; color: #555;">${p.product_name||'Item'} <strong>x${qty}</strong> @ Php ${price.toFixed(2)} = <span style="color: #28a745; font-weight: 700;">Php ${total.toFixed(2)}</span></li>`;
+								}).join('') + `</ul>
+							</div>
+						</div>`;
+					}
+					if (orderedParts.length) {
+						partsHtml += `<div style="margin-bottom: 15px;">
+							<small style="color: #6c757d; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 10px;">Ordered Parts</small>
+							<div style="background: #fff7ed; border-left: 3px solid #fd7e14; padding: 12px; border-radius: 6px;">
+								<ul style="margin: 0; padding-left: 20px;">` + orderedParts.map(p => {
+									const qty = parseFloat(p.quantity) || 0;
+									const price = parseFloat(p.price) || 0;
+									const total = qty * price;
+									const name = `${p.brand ? escapeHtml(p.brand) + ' ' : ''}${escapeHtml(p.part_name || 'Item')}`;
+									const category = p.category ? ` <small style="color: #6c757d;">(${escapeHtml(p.category)})</small>` : '';
+									return `<li style="margin-bottom: 8px; color: #555;">${name}${category} <strong>x${qty}</strong> @ Php ${price.toFixed(2)} = <span style="color: #fd7e14; font-weight: 700;">Php ${total.toFixed(2)}</span>${p.description ? `<br><small>${escapeHtml(p.description)}</small>` : ''}</li>`;
 								}).join('') + `</ul>
 							</div>
 						</div>`;
@@ -726,31 +897,38 @@ function viewWorkOrder(id) {
 					const price = parseFloat(part.product_price) || 0;
 					return sum + (quantity * price);
 				}, 0);
+				const orderedPartTotal = orderedParts.reduce((sum, part) => {
+					const quantity = parseFloat(part.quantity) || 0;
+					const price = parseFloat(part.price) || 0;
+					return sum + (quantity * price);
+				}, 0);
 
-				const grandTotal = diagnosticFee + workOrderCost + purchasedPartTotal;
+				const grandTotal = diagnosticFee + workOrderCost + purchasedPartTotal + orderedPartTotal;
 
 				let paymentHtml = `
-					<div class="row">
-						<div class="col-md-4" style="display: grid; gap: 12px; width: 100%;">
-							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #667eea;">
+					<div style="display: grid; gap: 14px;">
+						<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-width: 0;">
 								<small style="color: #667eea; font-weight: 600;">Diagnostic Fee</small>
-								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${diagnosticFee.toFixed(2)}</p>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${diagnosticFee.toFixed(2)}</p>
 							</div>
-							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #667eea;">
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-width: 0;">
 								<small style="color: #667eea; font-weight: 600;">Work Order Cost</small>
-								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${workOrderCost.toFixed(2)}</p>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${workOrderCost.toFixed(2)}</p>
 							</div>
-							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea;">
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-width: 0;">
 								<small style="color: #667eea; font-weight: 600;">Purchased Parts</small>
-								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${purchasedPartTotal.toFixed(2)}</p>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${purchasedPartTotal.toFixed(2)}</p>
+							</div>
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #fd7e14; min-width: 0;">
+								<small style="color: #fd7e14; font-weight: 600;">Ordered Parts</small>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #fd7e14; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${orderedPartTotal.toFixed(2)}</p>
 							</div>
 						</div>
-						<div class="col-md-8" style="margin-left: auto;">
-							<div style="background: #333341; color: white; padding: 25px; border-radius: 8px; display: grid; place-items: center; height: 95%;">
-								<small style="opacity: 0.9; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px; font-size: 0.9rem;">Total Amount</small>
-								<p style="font-size: 2.5rem; font-weight: 700; margin: 0;">Php ${grandTotal.toFixed(2)}</p>
-								<small style="opacity: 0.85; display: block; margin-top: 8px; font-size: 0.85rem;">(Diagnostic + Work Order + Parts)</small>
-							</div>
+						<div style="background: #333341; color: white; padding: 24px; border-radius: 8px; text-align: center;">
+							<small style="opacity: 0.9; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px; font-size: 0.9rem;">Total Amount</small>
+							<p style="font-size: 2.5rem; font-weight: 700; margin: 0; overflow-wrap: anywhere;">Php ${grandTotal.toFixed(2)}</p>
+							<small style="opacity: 0.85; display: block; margin-top: 8px; font-size: 0.85rem;">(Diagnostic + Work Order + Purchased/Ordered Parts)</small>
 						</div>
 					</div>
 				`;
@@ -854,7 +1032,7 @@ function viewWorkOrder(id) {
 			.then(response => response.json())
 			.then(data => {
 				if (data.success) {
-					populateEditForm(data.workOrder, data.purchasedParts, data.clientParts);
+					populateEditForm(data.workOrder, data.purchasedParts, data.clientParts, data.orderedParts);
 					// Switch to step 1 and open modal
 					goToStep(1);
 					document.getElementById('addWorkOrderToggle').checked = true;
@@ -874,7 +1052,7 @@ function viewWorkOrder(id) {
 			});
 		}
 
-		function populateEditForm(workOrder, purchasedParts, clientParts) {
+		function populateEditForm(workOrder, purchasedParts, clientParts, orderedParts) {
 			// Store the work order ID for update
 			let workOrderIdInput = document.querySelector('input[name="work_order_id"]');
 			if (!workOrderIdInput) {
@@ -985,6 +1163,16 @@ function viewWorkOrder(id) {
 					</div>
 				`;
 				purchasedContainer.appendChild(partEntry);
+			}
+
+			// Clear and populate ordered parts
+			const orderedContainer = document.getElementById('orderedPartsContainer');
+			orderedContainer.innerHTML = '';
+
+			if (orderedParts && orderedParts.length > 0) {
+				orderedParts.forEach(part => addOrderedPartEntry(part));
+			} else {
+				addOrderedPartEntry();
 			}
 
 			// Clear and populate client provided parts
@@ -1120,6 +1308,10 @@ function viewWorkOrder(id) {
 					</div>
 				</div>
 			`;
+
+			const orderedContainer = document.getElementById('orderedPartsContainer');
+			orderedContainer.innerHTML = '';
+			addOrderedPartEntry();
 
 			const clientContainer = document.getElementById('clientProvidedPartsContainer');
 			clientContainer.innerHTML = `

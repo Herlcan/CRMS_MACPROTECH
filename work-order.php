@@ -697,6 +697,7 @@ function viewWorkOrder(id) {
 				const wo = data.workOrder;
 				const purchased = data.purchasedParts || [];
 				const clientParts = data.clientParts || [];
+				const orderedParts = data.orderedParts || [];
 				const payments = data.payments || [];
 				const timeline = data.activityTimeline || [];
 				currentWorkOrderForReassign = wo;
@@ -745,7 +746,7 @@ function viewWorkOrder(id) {
 				// Parts
 				const partsEl = document.getElementById('vw_parts');
 				let partsHtml = '';
-				if (purchased.length > 0 || clientParts.length > 0) {
+				if (purchased.length > 0 || orderedParts.length > 0 || clientParts.length > 0) {
 					partsHtml = '<hr style="margin: 25px 0;"><h6 style="font-weight: 700; margin-bottom: 15px; color: #333;">Parts Used</h6>';
 					
 					if (purchased.length) {
@@ -757,6 +758,21 @@ function viewWorkOrder(id) {
 									const price = parseFloat(p.product_price) || 0;
 									const total = qty * price;
 									return `<li style="margin-bottom: 8px; color: #555;">${p.product_name||'Item'} <strong>x${qty}</strong> @ Php ${price.toFixed(2)} = <span style="color: #28a745; font-weight: 700;">Php ${total.toFixed(2)}</span></li>`;
+								}).join('') + `</ul>
+							</div>
+						</div>`;
+					}
+					if (orderedParts.length) {
+						partsHtml += `<div style="margin-bottom: 15px;">
+							<small style="color: #6c757d; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 10px;">Ordered Parts</small>
+							<div style="background: #fff7ed; border-left: 3px solid #fd7e14; padding: 12px; border-radius: 6px;">
+								<ul style="margin: 0; padding-left: 20px;">` + orderedParts.map(p => {
+									const qty = parseFloat(p.quantity) || 0;
+									const price = parseFloat(p.price) || 0;
+									const total = qty * price;
+									const name = `${p.brand ? escapeHtml(p.brand) + ' ' : ''}${escapeHtml(p.part_name || 'Item')}`;
+									const category = p.category ? ` <small style="color: #6c757d;">(${escapeHtml(p.category)})</small>` : '';
+									return `<li style="margin-bottom: 8px; color: #555;">${name}${category} <strong>x${qty}</strong> @ Php ${price.toFixed(2)} = <span style="color: #fd7e14; font-weight: 700;">Php ${total.toFixed(2)}</span>${p.description ? `<br><small>${escapeHtml(p.description)}</small>` : ''}</li>`;
 								}).join('') + `</ul>
 							</div>
 						</div>`;
@@ -780,31 +796,38 @@ function viewWorkOrder(id) {
 					const price = parseFloat(part.product_price) || 0;
 					return sum + (quantity * price);
 				}, 0);
+				const orderedPartTotal = orderedParts.reduce((sum, part) => {
+					const quantity = parseFloat(part.quantity) || 0;
+					const price = parseFloat(part.price) || 0;
+					return sum + (quantity * price);
+				}, 0);
 
-				const grandTotal = diagnosticFee + workOrderCost + purchasedPartTotal;
+				const grandTotal = diagnosticFee + workOrderCost + purchasedPartTotal + orderedPartTotal;
 
 				let paymentHtml = `
-					<div class="row">
-						<div class="col-md-4" style="display: grid; gap: 12px; width: 100%;">
-							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #667eea;">
+					<div style="display: grid; gap: 14px;">
+						<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-width: 0;">
 								<small style="color: #667eea; font-weight: 600;">Diagnostic Fee</small>
-								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${diagnosticFee.toFixed(2)}</p>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${diagnosticFee.toFixed(2)}</p>
 							</div>
-							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #667eea;">
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-width: 0;">
 								<small style="color: #667eea; font-weight: 600;">Work Order Cost</small>
-								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${workOrderCost.toFixed(2)}</p>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${workOrderCost.toFixed(2)}</p>
 							</div>
-							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea;">
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea; min-width: 0;">
 								<small style="color: #667eea; font-weight: 600;">Purchased Parts</small>
-								<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${purchasedPartTotal.toFixed(2)}</p>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${purchasedPartTotal.toFixed(2)}</p>
+							</div>
+							<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #fd7e14; min-width: 0;">
+								<small style="color: #fd7e14; font-weight: 600;">Ordered Parts</small>
+								<p style="font-size: 1.2rem; font-weight: 700; color: #fd7e14; margin: 8px 0 0 0; overflow-wrap: anywhere;">Php ${orderedPartTotal.toFixed(2)}</p>
 							</div>
 						</div>
-						<div class="col-md-8" style="margin-left: auto;">
-							<div style="background: #333341; color: white; padding: 25px; border-radius: 8px; display: grid; place-items: center; height: 95%;">
-								<small style="opacity: 0.9; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px; font-size: 0.9rem;">Total Amount</small>
-								<p style="font-size: 2.5rem; font-weight: 700; margin: 0;">Php ${grandTotal.toFixed(2)}</p>
-								<small style="opacity: 0.85; display: block; margin-top: 8px; font-size: 0.85rem;">(Diagnostic + Work Order + Parts)</small>
-							</div>
+						<div style="background: #333341; color: white; padding: 24px; border-radius: 8px; text-align: center;">
+							<small style="opacity: 0.9; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px; font-size: 0.9rem;">Total Amount</small>
+							<p style="font-size: 2.5rem; font-weight: 700; margin: 0; overflow-wrap: anywhere;">Php ${grandTotal.toFixed(2)}</p>
+							<small style="opacity: 0.85; display: block; margin-top: 8px; font-size: 0.85rem;">(Diagnostic + Work Order + Purchased/Ordered Parts)</small>
 						</div>
 					</div>
 				`;

@@ -288,7 +288,7 @@
 					<div class="row">
 						<div class="col-md-6 col-sm-12">
 							<div class="title">
-								<h4><i class="micon dw dw-table mtext"></i> Product Items</h4>
+								<h4><i class="micon dw dw-table mtext"></i> Inventory</h4>
 							</div>
 						</div>
 						<div class="col-md-6 col-sm-12 text-right" style="margin-left: auto;">
