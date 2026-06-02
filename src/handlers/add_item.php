@@ -5,6 +5,8 @@ ini_set('display_errors', 1);
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/item_schema.php';
+require_once __DIR__ . '/category_schema.php';
 
 $add_item_error = '';
 
@@ -32,10 +34,12 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
         return 0;
     }
 
-    if (strlen($category_name) > 20) {
-        $error = "Category must be 20 characters or fewer.";
+    if (strlen($category_name) > 50) {
+        $error = "Category must be 50 characters or fewer.";
         return 0;
     }
+
+    ensure_item_category_name_column($conn);
 
     $check_query = mysqli_prepare($conn, "SELECT id FROM item_category WHERE LOWER(category_name) = LOWER(?) LIMIT 1");
     if (!$check_query) {
@@ -79,9 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     $description  = trim($_POST['description']);
     $category     = resolveItemCategoryId($conn, $_POST['category'] ?? '', $_POST['other_category'] ?? '', $add_item_error);
     $date         = $_POST['date'] ?? date('Y-m-d');
-    $capital      = (float) ($_POST['capital'] ?? 0);
-    $quantity     = (int) ($_POST['quantity'] ?? 0);
-    $price        = (float) ($_POST['price'] ?? 0);
 
     if (empty($add_item_error) && (empty($brand_name) || empty($model) || $category <= 0)) {
         $add_item_error = "Please fill all required fields.";
@@ -136,23 +137,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     }
 
     if (empty($add_item_error)) {
+        try {
+            ensure_items_inventory_columns($conn);
+        } catch (Exception $e) {
+            redirectItemWithDialog('error', 'Product Item Not Created', $e->getMessage());
+        }
+
+        mysqli_begin_transaction($conn);
 
         $add_query = mysqli_prepare($conn,
             "INSERT INTO items
-            (brand_name, model, description, category_id, capital, quantity, price, date, image)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            (brand_name, model, description, category_id, quantity, markup_percentage, average_price, status, date, image)
+            VALUES (?, ?, ?, ?, 0, 0.00, 0.00, '', ?, ?)"
         );
+
+        if (!$add_query) {
+            mysqli_rollback($conn);
+            redirectItemWithDialog('error', 'Product Item Not Created', 'Database error. Please try again.');
+        }
 
         mysqli_stmt_bind_param(
             $add_query,
-            "sssididss",
+            "sssiss",
             $brand_name,
             $model,
             $description,
             $category,
-            $capital,
-            $quantity,
-            $price,
             $date,
             $image_name_to_save
         );
@@ -180,8 +190,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
                 "UPDATE items SET product_code = ? WHERE id = ?"
             );
 
+            if (!$update_query) {
+                mysqli_stmt_close($add_query);
+                mysqli_rollback($conn);
+                redirectItemWithDialog('error', 'Product Item Not Created', 'Failed to generate product code.');
+            }
+
             mysqli_stmt_bind_param($update_query, "si", $code, $id);
-            mysqli_stmt_execute($update_query);
+            if (!mysqli_stmt_execute($update_query)) {
+                mysqli_stmt_close($add_query);
+                mysqli_stmt_close($update_query);
+                mysqli_rollback($conn);
+                redirectItemWithDialog('error', 'Product Item Not Created', 'Failed to generate product code.');
+            }
+
+            mysqli_commit($conn);
 
             mysqli_stmt_close($add_query);
             mysqli_stmt_close($update_query);
@@ -190,6 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
             redirectItemWithDialog('success', 'Product Item Created', 'New product item created successfully.');
 
         } else {
+            mysqli_rollback($conn);
             $add_item_error = "Database error. Please try again.";
         }
     }

@@ -79,10 +79,53 @@ CREATE TABLE `items` (
   `model` varchar(100) NOT NULL,
   `description` text NOT NULL,
   `category_id` int(11) NOT NULL,
-  `capital` int(11) NOT NULL,
-  `quantity` int(11) NOT NULL,
-  `price` int(11) NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 0,
+  `markup_percentage` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `average_price` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `status` varchar(50) NOT NULL DEFAULT '',
   `date` date NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `inventory_transaction`
+--
+
+CREATE TABLE `inventory_transaction` (
+  `id` int(11) NOT NULL,
+  `item_id` int(11) NOT NULL,
+  `total_stock_in` int(11) NOT NULL DEFAULT 0,
+  `total_stock_out` int(11) NOT NULL DEFAULT 0,
+  `status` varchar(50) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `stock_in_transaction`
+--
+
+CREATE TABLE `stock_in_transaction` (
+  `id` int(11) NOT NULL,
+  `item_id` int(11) NOT NULL,
+  `capital` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `stock_in` int(11) NOT NULL DEFAULT 0,
+  `stock_in_date` date NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `stock_out_transaction`
+--
+
+CREATE TABLE `stock_out_transaction` (
+  `id` int(11) NOT NULL,
+  `item_id` int(11) NOT NULL,
+  `work_order_id` int(11) NOT NULL DEFAULT 0,
+  `quantity` int(11) NOT NULL DEFAULT 0,
+  `stock_out_date` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -93,7 +136,7 @@ CREATE TABLE `items` (
 
 CREATE TABLE `item_category` (
   `id` int(11) NOT NULL,
-  `category_name` varchar(20) NOT NULL
+  `category_name` varchar(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -313,6 +356,31 @@ ALTER TABLE `items`
   ADD KEY `model` (`model`);
 
 --
+-- Indexes for table `inventory_transaction`
+--
+ALTER TABLE `inventory_transaction`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_inventory_transaction_item` (`item_id`),
+  ADD KEY `idx_inventory_transaction_status` (`status`);
+
+--
+-- Indexes for table `stock_in_transaction`
+--
+ALTER TABLE `stock_in_transaction`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_stock_in_transaction_item` (`item_id`),
+  ADD KEY `idx_stock_in_transaction_date` (`stock_in_date`);
+
+--
+-- Indexes for table `stock_out_transaction`
+--
+ALTER TABLE `stock_out_transaction`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_stock_out_transaction_item` (`item_id`),
+  ADD KEY `idx_stock_out_transaction_work_order` (`work_order_id`),
+  ADD KEY `idx_stock_out_transaction_date` (`stock_out_date`);
+
+--
 -- Indexes for table `item_category`
 --
 ALTER TABLE `item_category`
@@ -409,6 +477,24 @@ ALTER TABLE `customer_provided_component`
 -- AUTO_INCREMENT for table `items`
 --
 ALTER TABLE `items`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `inventory_transaction`
+--
+ALTER TABLE `inventory_transaction`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `stock_in_transaction`
+--
+ALTER TABLE `stock_in_transaction`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `stock_out_transaction`
+--
+ALTER TABLE `stock_out_transaction`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

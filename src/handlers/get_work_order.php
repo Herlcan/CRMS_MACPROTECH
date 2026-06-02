@@ -9,6 +9,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
+require_once __DIR__ . '/item_schema.php';
 
 $response = [
     'success' => false,
@@ -50,6 +51,8 @@ function work_order_can_reassign(mysqli $conn): bool
 }
 
 try {
+    ensure_items_inventory_columns($conn);
+
     if (!isset($_GET['id']) || empty($_GET['id'])) {
         throw new Exception('Work order ID is required');
     }
@@ -226,7 +229,7 @@ try {
     // Fetch purchased parts (returns empty array if no parts exist)
     $purchased_parts = [];
     $purchased_query = mysqli_prepare($conn, "
-        SELECT pi.*, COALESCE(i.brand_name, 'Unknown Item') as product_name, COALESCE(i.price, 0) as product_price
+        SELECT pi.*, COALESCE(i.brand_name, 'Unknown Item') as product_name, COALESCE(i.average_price, 0) as product_price
         FROM purchased_item pi
         LEFT JOIN items i ON pi.product_id = i.id
         WHERE pi.work_order_id = ?

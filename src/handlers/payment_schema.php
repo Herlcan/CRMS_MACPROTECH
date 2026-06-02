@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/item_schema.php';
+
 function payment_column_exists(mysqli $conn, string $column): bool
 {
     $column = mysqli_real_escape_string($conn, $column);
@@ -81,6 +83,8 @@ function ensure_payment_detail_columns(mysqli $conn): void
 
 function get_payment_costs(mysqli $conn, int $workOrderId): array
 {
+    ensure_items_inventory_columns($conn);
+
     $costs = [
         'diagnostic_fee' => 0,
         'work_order_cost' => 0,
@@ -109,7 +113,7 @@ function get_payment_costs(mysqli $conn, int $workOrderId): array
     }
 
     $partsQuery = mysqli_prepare($conn, "
-        SELECT pi.quantity, COALESCE(i.price, 0) AS product_price
+        SELECT pi.quantity, COALESCE(i.average_price, 0) AS product_price
         FROM purchased_item pi
         LEFT JOIN items i ON pi.product_id = i.id
         WHERE pi.work_order_id = ?

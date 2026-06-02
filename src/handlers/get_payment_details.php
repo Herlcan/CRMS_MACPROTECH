@@ -17,6 +17,7 @@ try {
     }
 
     ensure_payment_detail_columns($conn);
+    ensure_items_inventory_columns($conn);
 
     if (empty($_GET['id'])) {
         throw new Exception('Payment ID is required');
@@ -72,7 +73,7 @@ try {
             COALESCE(i.product_code, '') AS product_code,
             COALESCE(i.brand_name, 'Unknown Item') AS product_name,
             COALESCE(i.model, '') AS product_model,
-            COALESCE(i.price, 0) AS product_price
+            COALESCE(i.average_price, 0) AS product_price
         FROM purchased_item pi
         LEFT JOIN items i ON pi.product_id = i.id
         WHERE pi.work_order_id = ?

@@ -2,6 +2,7 @@
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/category_schema.php';
 
 $add_category_message = '';
 $add_category_error = '';
@@ -10,10 +11,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
 
     $category_name = trim($_POST['category_name']);
 
+    try {
+        ensure_item_category_name_column($conn);
+    } catch (Exception $e) {
+        $add_category_error = $e->getMessage();
+    }
+
     // Validation
-    if (empty($category_name)) {
+    if (!empty($add_category_error)) {
+
+    } elseif (empty($category_name)) {
 
         $add_category_error = 'Category name is required.';
+
+    } elseif (strlen($category_name) > 50) {
+
+        $add_category_error = 'Category name must be 50 characters or fewer.';
 
     } else {
 

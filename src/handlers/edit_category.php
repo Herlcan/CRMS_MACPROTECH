@@ -5,6 +5,7 @@
 
     include '../db/connection.php';
     include '../../auth_check.php';
+    require_once __DIR__ . '/category_schema.php';
 
     $edit_category_message = '';
     $edit_category_error = '';
@@ -13,6 +14,24 @@
 
         $category_id  = $_POST['id'];
         $category_name = trim($_POST['category']);
+
+        try {
+            ensure_item_category_name_column($conn);
+        } catch (Exception $e) {
+            $edit_category_error = $e->getMessage();
+        }
+
+        if ($edit_category_error === '' && $category_name === '') {
+            $edit_category_error = 'Category name is required.';
+        }
+
+        if ($edit_category_error === '' && strlen($category_name) > 50) {
+            $edit_category_error = 'Category name must be 50 characters or fewer.';
+        }
+
+        if ($edit_category_error !== '') {
+            return;
+        }
 
         // Check duplicate username or email
         $check_query = mysqli_prepare($conn,

@@ -5,6 +5,8 @@ ini_set('display_errors', 1);
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/item_schema.php';
+require_once __DIR__ . '/category_schema.php';
 
 $edit_item_error = '';
 
@@ -32,10 +34,12 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
         return 0;
     }
 
-    if (strlen($category_name) > 20) {
-        $error = "Category must be 20 characters or fewer.";
+    if (strlen($category_name) > 50) {
+        $error = "Category must be 50 characters or fewer.";
         return 0;
     }
+
+    ensure_item_category_name_column($conn);
 
     $check_query = mysqli_prepare($conn, "SELECT id FROM item_category WHERE LOWER(category_name) = LOWER(?) LIMIT 1");
     if (!$check_query) {
@@ -80,15 +84,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
     $description  = trim($_POST['description']);
     $category     = resolveItemCategoryId($conn, $_POST['category'] ?? '', $_POST['other_category'] ?? '', $edit_item_error);
     $date         = $_POST['date'] ?? date('Y-m-d');
-    $capital      = (float) $_POST['capital'];
-    $quantity     = (int) $_POST['quantity'];
-    $price        = (float) $_POST['price'];
 
     if (empty($edit_item_error) && (empty($brand_name) || empty($model) || $category <= 0)) {
         $edit_item_error = "Please fill all required fields.";
     }
 
     if (empty($edit_item_error)) {
+        try {
+            ensure_items_inventory_columns($conn);
+        } catch (Exception $e) {
+            redirectItemWithDialog('error', 'Product Item Not Updated', $e->getMessage());
+        }
         
         $image_name_to_save = null;
 
@@ -131,17 +137,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
         // Update query based on whether image was uploaded
         if ($image_name_to_save) {
             $update_query = mysqli_prepare($conn,
-                "UPDATE items SET brand_name = ?, model = ?, description = ?, category_id = ?, date = ?, capital = ?, quantity = ?, price = ?, image = ? WHERE id = ?"
+                "UPDATE items SET brand_name = ?, model = ?, description = ?, category_id = ?, date = ?, image = ? WHERE id = ?"
             );
-            mysqli_stmt_bind_param($update_query, "sssisdidsi",
-                $brand_name, $model, $description, $category, $date, $capital, $quantity, $price, $image_name_to_save, $item_id
+            mysqli_stmt_bind_param($update_query, "sssissi",
+                $brand_name, $model, $description, $category, $date, $image_name_to_save, $item_id
             );
         } else {
             $update_query = mysqli_prepare($conn,
-                "UPDATE items SET brand_name = ?, model = ?, description = ?, category_id = ?, date = ?, capital = ?, quantity = ?, price = ? WHERE id = ?"
+                "UPDATE items SET brand_name = ?, model = ?, description = ?, category_id = ?, date = ? WHERE id = ?"
             );
-            mysqli_stmt_bind_param($update_query, "sssisdidi",
-                $brand_name, $model, $description, $category, $date, $capital, $quantity, $price, $item_id
+            mysqli_stmt_bind_param($update_query, "sssisi",
+                $brand_name, $model, $description, $category, $date, $item_id
             );
         }
 

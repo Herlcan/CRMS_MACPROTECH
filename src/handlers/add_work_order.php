@@ -9,6 +9,7 @@ require_once __DIR__ . '/payment_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
+require_once __DIR__ . '/inventory_transaction_schema.php';
 
 $add_work_order_message = '';
 $add_work_order_error = '';
@@ -90,6 +91,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
     ensure_notifications_table($conn);
     ensure_work_order_assignments_table($conn);
     ensure_ordered_parts_table($conn);
+    ensure_items_inventory_columns($conn);
+    ensure_inventory_transaction_table($conn);
+    backfill_inventory_transactions_from_items($conn);
 
     // Start transaction
     mysqli_begin_transaction($conn);
@@ -164,13 +168,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
                 $quantity = isset($quantities[$i]) ? intval($quantities[$i]) : 1;
 
                 if (!empty($product_id) && $quantity > 0) {
+                    $product_id = (int) $product_id;
+
                     // Get the item price for total calculation
-                    $price_query = mysqli_prepare($conn, "SELECT price FROM items WHERE id = ?");
+                    $price_query = mysqli_prepare($conn, "SELECT average_price FROM items WHERE id = ?");
+                    if (!$price_query) {
+                        throw new Exception('Database error: ' . mysqli_error($conn));
+                    }
                     mysqli_stmt_bind_param($price_query, "i", $product_id);
                     mysqli_stmt_execute($price_query);
                     $price_result = mysqli_stmt_get_result($price_query);
                     $price_row = mysqli_fetch_assoc($price_result);
-                    $item_price = $price_row ? floatval($price_row['price']) : 0;
+                    $item_price = $price_row ? floatval($price_row['average_price']) : 0;
                     mysqli_stmt_close($price_query);
 
                     // Add to purchased parts total
@@ -193,16 +202,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
                             $conn, "UPDATE items SET quantity = quantity - ? WHERE id = ?"
                         );
 
+                        if (!$deduct_query) {
+                            throw new Exception('Database error: ' . mysqli_error($conn));
+                        }
+
                         mysqli_stmt_bind_param($deduct_query, "ii", $quantity, $product_id);
 
                         if(!mysqli_stmt_execute($deduct_query)) {
                             throw new Exception('Failed to add purchased item');
                         }
+                        mysqli_stmt_close($deduct_query);
+
                         notify_low_stock_for_item($conn, (int) $product_id);
                     }
                     mysqli_stmt_close($purchased_query);
                 }
             }
+            sync_stock_out_transactions_for_work_order($conn, $id);
         }
 
         $ordered_parts_total = save_ordered_parts_from_post($conn, $id);

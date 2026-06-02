@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/ordered_part_schema.php';
+require_once __DIR__ . '/inventory_transaction_schema.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 
@@ -42,6 +43,10 @@ try {
     }
     mysqli_stmt_close($verify_query);
 
+    ensure_items_inventory_columns($conn);
+    ensure_inventory_transaction_table($conn);
+    backfill_inventory_transactions_from_items($conn);
+
     // Start transaction
     if (!mysqli_begin_transaction($conn)) {
         throw new Exception('Failed to start transaction');
@@ -63,17 +68,32 @@ try {
         throw new Exception('Failed to fetch purchased items: ' . mysqli_stmt_error($revert_stock));
     }
     $stock_result = mysqli_stmt_get_result($revert_stock);
-    $row = mysqli_fetch_assoc($stock_result);
 
-    $revert_stock_query = mysqli_prepare (
-        $conn, "UPDATE items SET quantity = quantity + ? WHERE id = ?"
-    );
+    while ($row = mysqli_fetch_assoc($stock_result)) {
+        $product_id = (int) $row['product_id'];
+        $quantity = (int) $row['quantity'];
 
-    mysqli_stmt_bind_param($revert_stock_query, "ii", $row['quantity'], $row['product_id']);
+        if ($product_id <= 0 || $quantity <= 0) {
+            continue;
+        }
 
-    if(!mysqli_stmt_execute($revert_stock_query)) {
-        throw new Exception('Failed to revert stock for purchased items: ' . mysqli_stmt_error($revert_stock_query));
+        $revert_stock_query = mysqli_prepare(
+            $conn,
+            "UPDATE items SET quantity = quantity + ? WHERE id = ?"
+        );
+        if (!$revert_stock_query) {
+            throw new Exception('Database error: ' . mysqli_error($conn));
+        }
+
+        mysqli_stmt_bind_param($revert_stock_query, "ii", $quantity, $product_id);
+
+        if (!mysqli_stmt_execute($revert_stock_query)) {
+            throw new Exception('Failed to revert stock for purchased items: ' . mysqli_stmt_error($revert_stock_query));
+        }
+        mysqli_stmt_close($revert_stock_query);
+
     }
+    mysqli_stmt_close($revert_stock);
 
     // Delete purchased items (may have 0 rows if no items exist)
     $delete_purchased = mysqli_prepare($conn, "DELETE FROM purchased_item WHERE work_order_id = ?");
@@ -85,6 +105,7 @@ try {
         throw new Exception('Failed to delete purchased items: ' . mysqli_stmt_error($delete_purchased));
     }
     mysqli_stmt_close($delete_purchased);
+    sync_stock_out_transactions_for_work_order($conn, $work_order_id);
 
     // Delete customer provided components (may have 0 rows if no items exist)
     $delete_client_parts = mysqli_prepare($conn, "DELETE FROM customer_provided_component WHERE work_order_id = ?");

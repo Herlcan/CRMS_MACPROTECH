@@ -8,6 +8,7 @@ include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
+require_once __DIR__ . '/inventory_transaction_schema.php';
 
 $update_work_order_message = '';
 $update_work_order_error = '';
@@ -92,6 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
         ensure_notifications_table($conn);
         ensure_work_order_assignments_table($conn);
         ensure_ordered_parts_table($conn);
+        ensure_items_inventory_columns($conn);
+        ensure_inventory_transaction_table($conn);
+        backfill_inventory_transactions_from_items($conn);
 
         // Start transaction
         mysqli_begin_transaction($conn);
@@ -153,6 +157,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
             }
             mysqli_stmt_close($update_query);
 
+            $existing_purchased = mysqli_prepare(
+                $conn,
+                "SELECT product_id, quantity FROM purchased_item WHERE work_order_id = ?"
+            );
+            if (!$existing_purchased) {
+                throw new Exception('Database error: ' . mysqli_error($conn));
+            }
+            mysqli_stmt_bind_param($existing_purchased, "i", $work_order_id);
+            if (!mysqli_stmt_execute($existing_purchased)) {
+                throw new Exception('Failed to fetch existing purchased items: ' . mysqli_stmt_error($existing_purchased));
+            }
+            $existing_purchased_result = mysqli_stmt_get_result($existing_purchased);
+
+            while ($existing_part = mysqli_fetch_assoc($existing_purchased_result)) {
+                $product_id = (int) $existing_part['product_id'];
+                $quantity = (int) $existing_part['quantity'];
+
+                if ($product_id <= 0 || $quantity <= 0) {
+                    continue;
+                }
+
+                $restore_query = mysqli_prepare($conn, "UPDATE items SET quantity = quantity + ? WHERE id = ?");
+                if (!$restore_query) {
+                    throw new Exception('Database error: ' . mysqli_error($conn));
+                }
+                mysqli_stmt_bind_param($restore_query, "ii", $quantity, $product_id);
+                if (!mysqli_stmt_execute($restore_query)) {
+                    throw new Exception('Failed to restore existing purchased item stock: ' . mysqli_stmt_error($restore_query));
+                }
+                mysqli_stmt_close($restore_query);
+
+            }
+            mysqli_stmt_close($existing_purchased);
+
             // Delete existing purchased items
             $delete_purchased = mysqli_prepare($conn, "DELETE FROM purchased_item WHERE work_order_id = ?");
             if (!$delete_purchased) {
@@ -163,6 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                 throw new Exception('Failed to delete existing purchased items');
             }
             mysqli_stmt_close($delete_purchased);
+            sync_stock_out_transactions_for_work_order($conn, $work_order_id);
 
             // Delete existing client provided parts
             $delete_client = mysqli_prepare($conn, "DELETE FROM customer_provided_component WHERE work_order_id = ?");
@@ -197,6 +236,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                     $quantity = isset($quantities[$i]) ? intval($quantities[$i]) : 1;
 
                     if (!empty($product_id) && $quantity > 0) {
+                        $product_id = (int) $product_id;
+
                         $purchased_query = mysqli_prepare(
                             $conn,
                             "INSERT INTO purchased_item (work_order_id, product_id, quantity, date) VALUES (?, ?, ?, ?)"
@@ -211,8 +252,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                             throw new Exception('Failed to add purchased item');
                         }
                         mysqli_stmt_close($purchased_query);
+
+                        $deduct_query = mysqli_prepare($conn, "UPDATE items SET quantity = quantity - ? WHERE id = ?");
+                        if (!$deduct_query) {
+                            throw new Exception('Database error: ' . mysqli_error($conn));
+                        }
+                        mysqli_stmt_bind_param($deduct_query, "ii", $quantity, $product_id);
+                        if (!mysqli_stmt_execute($deduct_query)) {
+                            throw new Exception('Failed to deduct purchased item stock: ' . mysqli_stmt_error($deduct_query));
+                        }
+                        mysqli_stmt_close($deduct_query);
+
+                        notify_low_stock_for_item($conn, $product_id);
                     }
                 }
+                sync_stock_out_transactions_for_work_order($conn, $work_order_id);
             }
 
             save_ordered_parts_from_post($conn, $work_order_id);
