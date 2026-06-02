@@ -1,4 +1,3 @@
-
 <?php
 	include 'src/db/connection.php';
 	include 'header.php';
