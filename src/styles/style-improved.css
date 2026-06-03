@@ -67,6 +67,10 @@
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 76px;
     --header-height: 70px;
+    --sidebar-transition-duration: 0.25s;
+    --sidebar-transition-easing: ease-in-out;
+    --banner-logo-crop: 20%;
+    --banner-logo-zoom-height: 166.667%;
 }
 
 /* ================= RESET & BASE STYLES ================= */
@@ -1305,7 +1309,9 @@ h6, .h6 {
     top: 0;
     left: 0;
     overflow: hidden;
-    transition: 0.25s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    transition: width var(--sidebar-transition-duration) var(--sidebar-transition-easing);
     border-right: 1px solid rgba(255, 255, 255, 0.05);
     z-index: 900;
 }
@@ -1313,16 +1319,20 @@ h6, .h6 {
 /* Brand */
 .brand-logo {
     height: var(--header-height);
+    width: var(--sidebar-width);
     background: #161623;
     display: flex;
     align-items: center;
     padding: 0 var(--spacing-4);
     justify-content: space-between;
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    width: var(--sidebar-width);
-    z-index: 901;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    z-index: 2;
+    transition:
+        width var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        padding var(--sidebar-transition-duration) var(--sidebar-transition-easing);
 }
 
 .sidebar-collapse-toggle {
@@ -1350,9 +1360,14 @@ h6, .h6 {
 .brand-logo a {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-3);
     text-decoration: none;
     color: var(--bg-primary);
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .brand-logo h4 {
@@ -1363,13 +1378,49 @@ h6, .h6 {
     line-height: 1;
 }
 
+/* Logo Image Styles */
+.brand-logo .sidebar-logo {
+    display: block !important;
+    object-fit: contain;
+    object-position: center;
+    flex-shrink: 0;
+    transition:
+        width var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        height var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        max-width var(--sidebar-transition-duration) var(--sidebar-transition-easing);
+}
+
+.brand-logo .sidebar-logo.is-banner {
+    width: auto;
+    min-width: 100%;
+    height: var(--banner-logo-zoom-height);
+    max-height: none;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    clip-path: inset(var(--banner-logo-crop) 0 var(--banner-logo-crop) 0);
+}
+
+.brand-logo .sidebar-logo.is-circle {
+    width: 51px;
+    height: 51px;
+    max-width: 51px;
+    border: 0;
+    border-radius: 100%;
+    clip-path: none;
+}
+
 /* Menu Block */
 .menu-block {
-    height: 100%;
-    padding-top: var(--header-height);
+    width: var(--sidebar-width);
+    flex: 1;
+    min-height: 0;
+    padding-top: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+    transition: width var(--sidebar-transition-duration) var(--sidebar-transition-easing);
 }
 
 .menu-block::-webkit-scrollbar {
@@ -1399,7 +1450,10 @@ h6, .h6 {
     font-size: 14.5px;
     letter-spacing: 0.3px;
     text-decoration: none;
-    transition: background 0.2s ease;
+    transition:
+        background 0.2s ease,
+        padding var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        gap var(--sidebar-transition-duration) var(--sidebar-transition-easing);
     position: relative;
     gap: var(--spacing-3);
 }
@@ -1412,6 +1466,9 @@ h6, .h6 {
     justify-content: center;
     font-size: 18px;
     flex-shrink: 0;
+    transition:
+        width var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        height var(--sidebar-transition-duration) var(--sidebar-transition-easing);
 }
 
 .sidebar-menu li a:hover {
@@ -1442,6 +1499,13 @@ h6, .h6 {
     color: #b5b5b5;
     padding: 12px 10px;
     border-top: 1px solid rgba(255,255,255,0.08);
+    max-height: 56px;
+    overflow: hidden;
+    transition:
+        opacity var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        max-height var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        padding var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        border-color var(--sidebar-transition-duration) var(--sidebar-transition-easing);
 }
 
 @keyframes slideIn {
@@ -1453,12 +1517,21 @@ h6, .h6 {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 150px;
+    opacity: 1;
+    visibility: visible;
+    transition:
+        opacity var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        max-width var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        visibility 0s linear 0s;
 }
 
 html.sidebar-collapsed .left-side-bar,
 html.sidebar-collapsed .brand-logo,
+html.sidebar-collapsed .menu-block,
 body.sidebar-collapsed .left-side-bar,
-body.sidebar-collapsed .brand-logo {
+body.sidebar-collapsed .brand-logo,
+body.sidebar-collapsed .menu-block {
     width: var(--sidebar-collapsed-width);
 }
 
@@ -1469,12 +1542,43 @@ body.sidebar-collapsed .brand-logo {
 }
 
 html.sidebar-collapsed .brand-name,
+body.sidebar-collapsed .brand-name {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: var(--sidebar-collapsed-width);
+    min-width: var(--sidebar-collapsed-width);
+    flex: 0 0 var(--sidebar-collapsed-width);
+    gap: 0;
+    padding: 0;
+}
+
+html.sidebar-collapsed .brand-logo .sidebar-logo.is-circle,
+body.sidebar-collapsed .brand-logo .sidebar-logo.is-circle {
+    width: 46px !important;
+    height: 46px !important;
+    max-width: 46px;
+}
+
 html.sidebar-collapsed .mtext,
+body.sidebar-collapsed .mtext {
+    max-width: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+        opacity var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        max-width var(--sidebar-transition-duration) var(--sidebar-transition-easing),
+        visibility 0s linear var(--sidebar-transition-duration);
+}
+
 html.sidebar-collapsed .sidebar-footer,
-body.sidebar-collapsed .brand-name,
-body.sidebar-collapsed .mtext,
 body.sidebar-collapsed .sidebar-footer {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-color: transparent;
 }
 
 html.sidebar-collapsed .sidebar-collapse-toggle,
@@ -2939,8 +3043,10 @@ table tbody tr:hover {
 
     html.sidebar-collapsed .left-side-bar,
     html.sidebar-collapsed .brand-logo,
+    html.sidebar-collapsed .menu-block,
     body.sidebar-collapsed .left-side-bar,
-    body.sidebar-collapsed .brand-logo {
+    body.sidebar-collapsed .brand-logo,
+    body.sidebar-collapsed .menu-block {
         width: var(--sidebar-width);
     }
 
@@ -2957,12 +3063,18 @@ table tbody tr:hover {
 
     html.sidebar-collapsed .mtext,
     body.sidebar-collapsed .mtext {
-        display: inline;
+        max-width: 150px;
+        opacity: 1;
+        visibility: visible;
     }
 
     html.sidebar-collapsed .sidebar-footer,
     body.sidebar-collapsed .sidebar-footer {
-        display: block;
+        opacity: 1;
+        visibility: visible;
+        max-height: 56px;
+        padding: 12px 10px;
+        border-top-color: rgba(255,255,255,0.08);
     }
 
     html.sidebar-collapsed .sidebar-menu li a,

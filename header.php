@@ -36,7 +36,7 @@
 			} catch (error) {}
 		})();
 	</script>
-	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css">
+	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css?v=<?= filemtime(__DIR__ . '/src/styles/style-improved.css'); ?>">
 	<script defer src="src/scripts/dialogs.js"></script>
 	<script defer src="src/scripts/notifications.js"></script>
 </head>
@@ -70,7 +70,9 @@
 
 	<div class="header">
 		<div class="header-left">
-			<div class="menu-icon dw dw-menu"></div>
+			<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true">
+				<img src="src/images/menu-bar.png" width="20" height="20" alt="Menu">
+			</button>
 		</div>
 		<div class="header-right">
 			<div class="notification-dropdown">

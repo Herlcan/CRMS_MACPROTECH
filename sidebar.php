@@ -1,10 +1,16 @@
 <div class="left-side-bar">
 	<div class="brand-logo">
-		<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true">
-			<img src="src/images/sidebar-white.png" width="20" height="20" alt="">
-		</button>
 		<a href="index.php" class="brand-name">
-			<h4>MACPROTECH</h4>
+			<img
+				src="src/images/MACPROTECH_LOGO_BANNER.png"
+				class="sidebar-logo is-banner"
+				id="sidebarLogo"
+				width="210"
+				height="54"
+				alt="MACPROTECH"
+				data-banner-src="src/images/MACPROTECH_LOGO_BANNER.png"
+				data-circle-src="src/images/MACPROTECH_LOGO_CIRCLE.png"
+			>
 		</a>
 		<div class="close-sidebar" data-toggle="left-sidebar-close">
 			<i class="ion-close-round"></i>
@@ -113,6 +119,7 @@
 <script>
 	(function () {
 		const collapseToggle = document.getElementById('sidebarCollapseToggle');
+		const sidebarLogo = document.getElementById('sidebarLogo');
 		const storageKey = 'macprotechSidebarCollapsed';
 
 		function getStoredCollapsed() {
@@ -134,6 +141,11 @@
 			document.body.classList.toggle('sidebar-collapsed', isCollapsed);
 			if (collapseToggle) {
 				collapseToggle.setAttribute('aria-expanded', String(!isCollapsed));
+			}
+			if (sidebarLogo) {
+				sidebarLogo.src = isCollapsed ? sidebarLogo.dataset.circleSrc : sidebarLogo.dataset.bannerSrc;
+				sidebarLogo.classList.toggle('is-circle', isCollapsed);
+				sidebarLogo.classList.toggle('is-banner', !isCollapsed);
 			}
 		}
 
