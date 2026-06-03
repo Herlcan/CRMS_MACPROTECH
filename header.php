@@ -71,7 +71,7 @@
 	<div class="header">
 		<div class="header-left">
 			<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true">
-				<img src="src/images/menu-bar.png" width="20" height="20" alt="Menu">
+				<img src="src/images/menu-bar.png" width="30" height="30" alt="Menu">
 			</button>
 		</div>
 		<div class="header-right">

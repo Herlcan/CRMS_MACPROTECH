@@ -1068,7 +1068,7 @@
 
 			if (statusEl) {
 				statusEl.textContent = status;
-				statusEl.className = 'badge ' + (status === 'Paid' ? 'bg-admin' : (status === 'Partial' ? 'bg-info' : (status.includes('Refunded') ? 'bg-danger' : 'bg-staff')));
+				statusEl.className = 'badge ' + (status === 'Paid' ? 'bg-admin' : (status === 'Partial' ? 'bg-info' : (status.includes('Refunded') ? 'bg-warning' : 'bg-staff')));
 				statusEl.style.display = 'grid';
 				statusEl.style.alignItems = 'center';
 				statusEl.style.justifyContent = 'center';

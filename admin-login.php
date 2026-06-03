@@ -70,50 +70,60 @@ if (session_status() === PHP_SESSION_NONE) {
 			</div>
 		</div>
 	<?php endif; ?>
-	<div class="login-wrap d-flex align-items-center flex-wrap justify-content-center">
-		<div class="container">
-			<div class="row-login align-items-center">
-				<div class="col-md-12">
-					<div class="login-box bg-white box-shadow border-radius-10">
-						<form method="POST">
-							<div class="text-center mb-30" style="margin-bottom: 1px;">
-								<h2 class="h2 text-primary">MACPROTECH</h2>
-								<p class="h5" style="margin-bottom: 5px;">Admin</p>
-							</div>
-							<div class="form-group">
-								<label class="form-label">Username</label>
-								<div class="input-group custom">
-									<input type="text" class="form-control form-control-lg" placeholder="Enter username" name="username" required autocomplete="off">
-									<div class="input-group-append custom">
-										<span class="input-group-text"><img src="src/images/user-dark.png" style="width: 20px;"></span>
-									</div>
-								</div>
-							</div>
-							<div class="form-group">
-								<label class="form-label">Password</label>
-								<div class="input-group custom">
-									<input type="password" class="form-control form-control-lg" placeholder="Enter password" name="password" required autocomplete="off">
-									<div class="input-group-append custom">
-										<span class="input-group-text"><img src="src/images/lock.png" style="width: 20px;"></span>
-									</div>
-								</div>
-							</div>
-							<div class="row-div-right pb-30">
-								<div class="col-6" style="display: grid; place-items: rigth;">
-									<div class="forgot-password"><a href="forgot-password.html">Forgot Password?</a></div>
-								</div>
-							</div>
-							<div class="form-group">
-								<input class="btn btn-primary btn-lg btn-block" type="submit" value="Login" name="login">
-							</div>
-							<div class="text-center">
-								<a href="login.php">User Login</a>
-							</div>
-						</form>
+	<main class="login-wrap">
+		<section class="login-card" aria-label="MACPROTECH admin login">
+			<div class="login-brand-panel">
+				<div class="login-brand-content">
+					<img class="login-brand-logo" src="src/images/MACPROTECH_LOGO_SQUARE.png" alt="MACPROTECH logo">
+					<p class="login-eyebrow">Administrator Workspace</p>
+					<h1>Welcome back, Admin</h1>
+					<p class="login-brand-copy">Sign in to oversee service operations, manage staff access, and keep MACPROTECH workflows moving securely.</p>
+					<div class="login-brand-highlights" aria-label="Admin portal highlights">
+						<span>Staff management</span>
+						<span>System oversight</span>
+						<span>Secure controls</span>
 					</div>
 				</div>
 			</div>
-		</div>
-	</div>
+
+			<div class="login-form-panel">
+				<form class="login-form" method="POST">
+					<div class="login-form-header">
+						<p class="login-form-kicker">Admin Login</p>
+						<h2>Access admin tools</h2>
+						<p>Use your administrator account to continue.</p>
+					</div>
+
+					<div class="login-field">
+						<label for="admin-username">Username</label>
+						<div class="login-input-wrap">
+							<img src="src/images/user-dark.png" alt="" aria-hidden="true">
+							<input id="admin-username" type="text" placeholder="Enter username" name="username" required autocomplete="username">
+						</div>
+					</div>
+
+					<div class="login-field">
+						<label for="admin-password">Password</label>
+						<div class="login-input-wrap">
+							<img src="src/images/lock.png" alt="" aria-hidden="true">
+							<input id="admin-password" type="password" placeholder="Enter password" name="password" required autocomplete="current-password">
+						</div>
+					</div>
+
+					<div class="login-form-links">
+						<span>Administrator access</span>
+						<a href="forgot-password.html">Forgot Password?</a>
+					</div>
+
+					<button class="login-submit" type="submit" name="login" value="1">
+						<img src="src/images/sign-in-alt.png" alt="" aria-hidden="true">
+						<span>Login</span>
+					</button>
+
+					<a class="login-admin-link" href="login.php">User Login</a>
+				</form>
+			</div>
+		</section>
+	</main>
 </body>
 </html>

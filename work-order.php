@@ -435,6 +435,29 @@
 			return status === 'Ready for Release' ? 'Repaired' : (status || 'Pending');
 		}
 
+		function getStatusBadgeClass(status) {
+			switch ((status || '').toLowerCase()) {
+				case 'pending':
+					return 'bg-pending';
+				case 'diagnosing':
+					return 'bg-diagnosing';
+				case 'waiting for parts':
+					return 'bg-waiting';
+				case 'in progress':
+					return 'bg-inprogress';
+				case 'repaired':
+				case 'ready for release':
+					return 'bg-repaired';
+				case 'released':
+					return 'bg-released';
+				case 'cancelled':
+				case 'canceled':
+					return 'bg-cancelled';
+				default:
+					return 'bg-pending';
+			}
+		}
+
 		function canReassignStatus(status) {
 			return !['Completed', 'Repaired', 'Ready for Release', 'Released', 'Cancelled'].includes(status || '');
 		}
@@ -715,15 +738,8 @@ function viewWorkOrder(id) {
 				const statusBadge = document.querySelector('#vw_status .badge');
 				const displayStatus = getDisplayStatus(wo.status);
 				statusBadge.textContent = displayStatus;
-				statusBadge.className = 'badge';
-				const status = displayStatus.toLowerCase();
-				if (status === 'pending') statusBadge.style.background = '#ffc107';
-				else if (status === 'diagnosing') statusBadge.style.background = '#7c3aed';
-				else if (status === 'waiting for parts') statusBadge.style.background = '#f59e0b';
-				else if (status === 'in progress') statusBadge.style.background = '#0d6efd';
-				else if (status === 'repaired' || status === 'released') statusBadge.style.background = '#198754';
-				else if (status === 'cancelled') statusBadge.style.background = '#dc3545';
-				else statusBadge.style.background = '#0dcaf0';
+				statusBadge.removeAttribute('style');
+				statusBadge.className = 'badge ' + getStatusBadgeClass(displayStatus);
 
 				renderWorkOrderStepper(wo.status || 'Pending', data.cancelledFromStatus || null);
 

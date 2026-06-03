@@ -43,7 +43,7 @@
 		<div class="brand-logo">
 			<a href="index.php">
 				<img src="src/images/logo.png" width="50px">
-				<h4 style="color: #f3f3f4;font-size: 20px;padding: 15px"> MACPROTECH</h4>
+				<h4 style="color: #ffffff;font-size: 20px;padding: 15px"> MACPROTECH</h4>
 			</a>
 			<div class="close-sidebar" data-toggle="left-sidebar-close">
 				<i class="ion-close-round"></i>
@@ -89,7 +89,7 @@
 								<div class="font-14 text-secondary weight-500">Technician</div>
 							</div>
 							<div class="widget-icon">
-								<div class="icon" data-color="#2c515b"><span class="micon fa fa-wrench"></span></div>
+								<div class="icon" data-color="ink"><span class="micon fa fa-wrench"></span></div>
 							</div>
 						</div>
 					</div>
@@ -102,7 +102,7 @@
 								<div class="font-14 text-secondary weight-500">Services</div>
 							</div>
 							<div class="widget-icon">
-								<div class="icon" data-color="#09cc06"><i class="icon-copy fa fa-handshake-o" aria-hidden="true"></i></div>
+								<div class="icon" data-color="blue"><i class="icon-copy fa fa-handshake-o" aria-hidden="true"></i></div>
 							</div>
 						</div>
 					</div>

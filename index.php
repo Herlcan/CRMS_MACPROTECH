@@ -247,10 +247,6 @@
 				<p>Live overview of repairs, payments, inventory, and technician workload.</p>
 			</div>
 			<div class="dashboard-header-actions">
-				<a href="work-order.php" class="btn btn-primary">New Work Order</a>
-				<?php if ($can_view_reports): ?>
-					<a href="reports.php" class="btn btn-secondary">Reports</a>
-				<?php endif; ?>
 			</div>
 		</div>
 

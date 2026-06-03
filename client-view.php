@@ -735,6 +735,29 @@
 			return String(text).replace(/[&<>"']/g, m => map[m]);
 		}
 
+		function getStatusBadgeClass(status) {
+			switch ((status || '').toLowerCase()) {
+				case 'pending':
+					return 'bg-pending';
+				case 'diagnosing':
+					return 'bg-diagnosing';
+				case 'waiting for parts':
+					return 'bg-waiting';
+				case 'in progress':
+					return 'bg-inprogress';
+				case 'repaired':
+				case 'ready for release':
+					return 'bg-repaired';
+				case 'released':
+					return 'bg-released';
+				case 'cancelled':
+				case 'canceled':
+					return 'bg-cancelled';
+				default:
+					return 'bg-pending';
+			}
+		}
+
 		function renderWorkOrderStepper(currentStatus, cancelledFromStatus) {
 			const stepper = document.getElementById('workOrderStepper');
 			if (!stepper) return;
@@ -816,15 +839,8 @@ function viewWorkOrder(id) {
 				const statusBadge = document.querySelector('#vw_status .badge');
 				const displayStatus = wo.status === 'Ready for Release' ? 'Repaired' : (wo.status || 'Pending');
 				statusBadge.textContent = displayStatus;
-				statusBadge.className = 'badge';
-				const status = displayStatus.toLowerCase();
-				if (status === 'pending') statusBadge.style.background = '#ffc107';
-				else if (status === 'diagnosing') statusBadge.style.background = '#7c3aed';
-				else if (status === 'waiting for parts') statusBadge.style.background = '#f59e0b';
-				else if (status === 'in progress') statusBadge.style.background = '#0d6efd';
-				else if (status === 'repaired' || status === 'released') statusBadge.style.background = '#198754';
-				else if (status === 'cancelled') statusBadge.style.background = '#dc3545';
-				else statusBadge.style.background = '#0dcaf0';
+				statusBadge.removeAttribute('style');
+				statusBadge.className = 'badge ' + getStatusBadgeClass(displayStatus);
 
 				renderWorkOrderStepper(wo.status || 'Pending', data.cancelledFromStatus || null);
 
@@ -1504,27 +1520,28 @@ function viewWorkOrder(id) {
 											
 											<td style="text-align: center;">
 												<?php
-													$status = strtolower($wo['status']);
+													$display_status = ($wo['status'] === 'Ready for Release') ? 'Repaired' : $wo['status'];
+													$status = strtolower($display_status);
 													$status_class = '';
 
 													if ($status == 'pending') {
-														$status_class = 'bg-warning';
+														$status_class = 'bg-pending';
 													} elseif ($status == 'diagnosing') {
-														$status_class = 'bg-info';
+														$status_class = 'bg-diagnosing';
 													} elseif ($status == 'waiting for parts') {
-														$status_class = 'bg-warning';
+														$status_class = 'bg-waiting';
 													} elseif ($status == 'in progress') {
-														$status_class = 'bg-info';
+														$status_class = 'bg-inprogress';
 													} elseif ($status == 'repaired') {
-														$status_class = 'bg-success';
+														$status_class = 'bg-repaired';
 													} elseif ($status == 'released') {
-														$status_class = 'bg-success';
-													} elseif ($status == 'cancelled') {
-														$status_class = 'bg-danger';
+														$status_class = 'bg-released';
+													} elseif ($status == 'cancelled' || $status == 'canceled') {
+														$status_class = 'bg-cancelled';
 													}
 												?>
 												<span class="badge <?= $status_class ?>" style="width: 100%; ">
-													<?= htmlspecialchars($wo['status']) ?>
+													<?= htmlspecialchars($display_status) ?>
 												</span>
 											</td>
 											

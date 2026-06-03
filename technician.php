@@ -102,7 +102,7 @@
 									<td>juan@gmail.com</td>
 									<td>09876543234</td>
 									<td>Specialization 2</td>
-									<td><span class="badge bg-danger">Deactivated</span></td>
+									<td><span class="badge bg-warning">Deactivated</span></td>
 									<td>
 										<div class="dropdown">
 											<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">

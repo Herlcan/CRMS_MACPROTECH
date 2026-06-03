@@ -22,7 +22,7 @@
 				<li>
 					<a href="index.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-house">
-							<img src="src/images/dashboard-panel.png" width="20px" height="20px">
+							<img src="src/images/dashboard.png" width="20px" height="20px">
 						</span>
 						<span class="mtext">Dashboard</span>
 					</a>
@@ -40,7 +40,7 @@
 				<li>
 					<a href="work-order.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-shopping-basket">
-								<img src="src/images/shopping-basket.png" width="20px" height="20px">
+								<img src="src/images/repair.png" width="20px" height="20px">
 						</span>
 						<span class="mtext">Work Orders</span>
 					</a>

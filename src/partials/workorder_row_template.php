@@ -35,7 +35,7 @@
 	<?php if ($canEdit): ?>
 		<div class="status-wrapper" style="position: relative; width:100%;">
 			<select 
-				class="form-select badge text-white <?= $status_class ?> status-select"
+				class="form-select badge <?= $status_class ?> status-select"
 				data-id="<?= $wo['id'] ?>"
 				data-old="<?= $display_status ?>"
 				style="width: 100%; border: 0;">
@@ -57,7 +57,7 @@
 	</td>
 			
 	<td style="text-align: center;">
-		<button class="btn btn-sm btn-primary view-workorder-btn" data-id="<?= $wo['id'] ?>" style="margin-right: 5px;">
+		<button class="btn btn-sm btn-outline-primary view-workorder-btn" data-id="<?= $wo['id'] ?>" style="margin-right: 5px;">
 			<i class="dw dw-eye"></i> View
 		</button>
 	</td>
