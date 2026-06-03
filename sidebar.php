@@ -2,14 +2,21 @@
 	<div class="brand-logo">
 		<a href="index.php" class="brand-name">
 			<img
-				src="src/images/MACPROTECH_LOGO_BANNER.png"
+				src="src/images/MACPROTECH_LOGO_BANNER_SIDEBAR.png"
 				class="sidebar-logo is-banner"
-				id="sidebarLogo"
 				width="210"
-				height="54"
+				height="105"
 				alt="MACPROTECH"
-				data-banner-src="src/images/MACPROTECH_LOGO_BANNER.png"
-				data-circle-src="src/images/MACPROTECH_LOGO_CIRCLE.png"
+				decoding="async"
+			>
+			<img
+				src="src/images/MACPROTECH_LOGO_CIRCLE_SIDEBAR.png"
+				class="sidebar-logo is-circle"
+				width="56"
+				height="56"
+				alt=""
+				aria-hidden="true"
+				decoding="async"
 			>
 		</a>
 		<div class="close-sidebar" data-toggle="left-sidebar-close">
@@ -119,8 +126,11 @@
 <script>
 	(function () {
 		const collapseToggle = document.getElementById('sidebarCollapseToggle');
-		const sidebarLogo = document.getElementById('sidebarLogo');
 		const storageKey = 'macprotechSidebarCollapsed';
+		const transitionClass = 'sidebar-transitioning';
+		const transitionDuration = 340;
+		let transitionTimer = null;
+		let storageTimer = null;
 
 		function getStoredCollapsed() {
 			try {
@@ -136,26 +146,42 @@
 			} catch (error) {}
 		}
 
-		function setSidebarCollapsed(isCollapsed) {
+		function markSidebarTransitioning() {
+			if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+				return;
+			}
+
+			document.documentElement.classList.add(transitionClass);
+			window.clearTimeout(transitionTimer);
+			transitionTimer = window.setTimeout(function () {
+				document.documentElement.classList.remove(transitionClass);
+			}, transitionDuration);
+		}
+
+		function setSidebarCollapsed(isCollapsed, shouldAnimate) {
+			if (shouldAnimate) {
+				markSidebarTransitioning();
+			}
+
 			document.documentElement.classList.toggle('sidebar-collapsed', isCollapsed);
 			document.body.classList.toggle('sidebar-collapsed', isCollapsed);
 			if (collapseToggle) {
 				collapseToggle.setAttribute('aria-expanded', String(!isCollapsed));
 			}
-			if (sidebarLogo) {
-				sidebarLogo.src = isCollapsed ? sidebarLogo.dataset.circleSrc : sidebarLogo.dataset.bannerSrc;
-				sidebarLogo.classList.toggle('is-circle', isCollapsed);
-				sidebarLogo.classList.toggle('is-banner', !isCollapsed);
-			}
 		}
 
-		setSidebarCollapsed(getStoredCollapsed());
+		setSidebarCollapsed(getStoredCollapsed(), false);
 
 		if (collapseToggle) {
 			collapseToggle.addEventListener('click', function () {
 				const isCollapsed = !document.body.classList.contains('sidebar-collapsed');
-				setSidebarCollapsed(isCollapsed);
-				storeSidebarCollapsed(isCollapsed);
+				window.requestAnimationFrame(function () {
+					setSidebarCollapsed(isCollapsed, true);
+					window.clearTimeout(storageTimer);
+					storageTimer = window.setTimeout(function () {
+						storeSidebarCollapsed(isCollapsed);
+					}, transitionDuration);
+				});
 			});
 		}
 	})();
