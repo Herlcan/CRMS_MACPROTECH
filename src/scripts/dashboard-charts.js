@@ -14,6 +14,18 @@ document.addEventListener("DOMContentLoaded", function () {
 		});
 	}
 
+	function escapeHtml(value) {
+		return String(value || "").replace(/[&<>"']/g, function (char) {
+			return {
+				"&": "&amp;",
+				"<": "&lt;",
+				">": "&gt;",
+				'"': "&quot;",
+				"'": "&#039;"
+			}[char];
+		});
+	}
+
 	const palette = {
 		blue: "#0036bf",
 		blueBright: "#0050ff",
@@ -48,12 +60,45 @@ document.addEventListener("DOMContentLoaded", function () {
 		return palette.ink;
 	}
 
+	function renderStatusBreakdown(container, labels, data, colors) {
+		if (!container) return;
+
+		const total = data.reduce(function (sum, value) {
+			return sum + Number(value || 0);
+		}, 0);
+
+		if (!labels.length || !data.length || total <= 0) {
+			container.innerHTML = '<div class="dashboard-empty">No work orders yet.</div>';
+			return;
+		}
+
+		container.innerHTML = labels.map(function (label, index) {
+			const count = Number(data[index] || 0);
+			const percent = total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
+			const color = colors[index] || palette.ink;
+
+			return [
+				'<div class="status-breakdown-item">',
+				'  <span class="status-breakdown-dot" style="background-color: ' + color + '"></span>',
+				'  <span class="status-breakdown-main">',
+				'    <span class="status-breakdown-label">' + escapeHtml(label) + ' (' + count.toLocaleString() + ')</span>',
+				'    <span class="status-breakdown-bar"><span style="width: ' + percent + '%; background-color: ' + color + '"></span></span>',
+				'  </span>',
+				'  <span class="status-breakdown-percent">' + percent + '%</span>',
+				'</div>'
+			].join('');
+		}).join('');
+	}
+
 	const statusChart = document.getElementById("statusChart");
 
 	if (statusChart) {
 		const labels = parseJson(statusChart.dataset.labels, []);
 		const data = parseJson(statusChart.dataset.data, []);
 		const colors = labels.map(statusColor);
+		const statusBreakdown = document.getElementById("statusBreakdown");
+
+		renderStatusBreakdown(statusBreakdown, labels, data, colors);
 
 		new Chart(statusChart, {
 			type: "doughnut",
@@ -73,13 +118,7 @@ document.addEventListener("DOMContentLoaded", function () {
 				cutout: "68%",
 				plugins: {
 					legend: {
-						position: "bottom",
-						labels: {
-							padding: 18,
-							font: { size: 13 },
-							usePointStyle: true,
-							pointStyleWidth: 10
-						}
+						display: false
 					},
 					tooltip: {
 						callbacks: {
@@ -134,12 +173,11 @@ document.addEventListener("DOMContentLoaded", function () {
 		const woData = parseJson(statusChart.dataset.woTrend, [0, 0, 0, 0, 0, 0]);
 		const lowStockData = parseJson(statusChart.dataset.lowStockTrend, [0, 0, 0, 0, 0, 0]);
 		const openData = parseJson(statusChart.dataset.openTrend, [0, 0, 0, 0, 0, 0]);
-		const revTotal = parseFloat(statusChart.dataset.revTotal || "0");
-		const revSpark = [0, 0, 0, 0, 0, revTotal];
+		const revenueData = parseJson(statusChart.dataset.revenueTrend, [0, 0, 0, 0, 0, 0]);
 
 		sparkline("spark-wo", woData, palette.blue);
 		sparkline("spark-open", openData, palette.blueDark);
-		sparkline("spark-rev", revSpark, palette.blueBright);
+		sparkline("spark-rev", revenueData, palette.blueBright);
 		sparkline("spark-cl", lowStockData, palette.orange);
 	}
 

@@ -584,7 +584,9 @@
 				} else if (index < activeIndex) {
 					state = ' completed';
 				} else if (index === activeIndex) {
-					state = ' active' + (step === 'Released' ? ' completed' : '');
+					state = ' active';
+				} else {
+					state = ' upcoming';
 				}
 
 				return `

@@ -39,6 +39,7 @@
 	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css?v=<?= filemtime(__DIR__ . '/src/styles/style-improved.css'); ?>">
 	<script defer src="src/scripts/dialogs.js"></script>
 	<script defer src="src/scripts/notifications.js"></script>
+	<script defer src="src/scripts/transition-tabs.js?v=<?= filemtime(__DIR__ . '/src/scripts/transition-tabs.js'); ?>"></script>
 </head>
 
 <body>

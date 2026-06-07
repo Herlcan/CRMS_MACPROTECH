@@ -296,10 +296,17 @@
 				</div>
 				<!-- Simple Datatable start -->
 				<div class="card-box mb-30">
-					<div class="tab-header" style="margin: 0; padding: 0 20px;">
-						<a href="<?= htmlspecialchars(inventory_tab_url('product_inventory')) ?>" style="padding: 12px 18px; font-weight: 600; color: <?= $active_tab === 'product_inventory' ? '#0d6efd' : '#666' ?>; border-bottom: <?= $active_tab === 'product_inventory' ? '2px solid #0d6efd' : '2px solid transparent' ?>;">Product Inventory</a>
-						<a href="<?= htmlspecialchars(inventory_tab_url('stock_records')) ?>" style="padding: 12px 18px; font-weight: 600; color: <?= $active_tab === 'stock_records' ? '#0d6efd' : '#666' ?>; border-bottom: <?= $active_tab === 'stock_records' ? '2px solid #0d6efd' : '2px solid transparent' ?>;">Stock Records</a>
-					</div>
+					<div class="tabs macpro-transition-tabs" data-transition-tabs="inventory">
+						<input type="radio" id="inventory-tab-product" name="inventory-tab" <?= $active_tab === 'product_inventory' ? 'checked' : '' ?>>
+						<input type="radio" id="inventory-tab-stock" name="inventory-tab" <?= $active_tab === 'stock_records' ? 'checked' : '' ?>>
+
+						<div class="tab-header" role="tablist" aria-label="Inventory sections">
+							<label for="inventory-tab-product" role="tab" tabindex="0" aria-selected="<?= $active_tab === 'product_inventory' ? 'true' : 'false' ?>" data-tab-href="<?= htmlspecialchars(inventory_tab_url('product_inventory')) ?>">Product Inventory</label>
+							<label for="inventory-tab-stock" role="tab" tabindex="0" aria-selected="<?= $active_tab === 'stock_records' ? 'true' : 'false' ?>" data-tab-href="<?= htmlspecialchars(inventory_tab_url('stock_records')) ?>">Stock Records</label>
+						</div>
+
+						<div class="tab-body">
+							<div class="tab-panel">
 					<div class="row mb-20">
 						<div class="col-sm-12 col-md-6">
 							<div class="dataTables_length" id="DataTables_Table_0_length">
@@ -599,6 +606,9 @@
 										</a>
 									</li>
 								</ul>
+							</div>
+						</div>
+					</div>
 							</div>
 						</div>
 					</div>

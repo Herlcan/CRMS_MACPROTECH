@@ -1,0 +1,199 @@
+(function () {
+    const transitionDelay = 160;
+    const minimumSkeletonTime = 220;
+
+    function renderSkeleton(tabs) {
+        const body = tabs.querySelector('.tab-body');
+
+        if (!body) {
+            return 0;
+        }
+
+        body.innerHTML = [
+            '<div class="tab-panel macpro-tab-skeleton" role="status" aria-live="polite" aria-label="Loading tab content">',
+            '  <div class="macpro-skeleton-controls">',
+            '    <span class="macpro-skeleton-line macpro-skeleton-line-sm"></span>',
+            '    <span class="macpro-skeleton-pill"></span>',
+            '    <span class="macpro-skeleton-pill macpro-skeleton-pill-wide"></span>',
+            '  </div>',
+            '  <div class="macpro-skeleton-search">',
+            '    <span class="macpro-skeleton-line macpro-skeleton-line-xs"></span>',
+            '    <span class="macpro-skeleton-input"></span>',
+            '  </div>',
+            '  <div class="macpro-skeleton-table">',
+            '    <div class="macpro-skeleton-row macpro-skeleton-row-head"><span></span><span></span><span></span><span></span><span></span></div>',
+            '    <div class="macpro-skeleton-row"><span></span><span></span><span></span><span></span><span></span></div>',
+            '    <div class="macpro-skeleton-row"><span></span><span></span><span></span><span></span><span></span></div>',
+            '    <div class="macpro-skeleton-row"><span></span><span></span><span></span><span></span><span></span></div>',
+            '    <div class="macpro-skeleton-row"><span></span><span></span><span></span><span></span><span></span></div>',
+            '  </div>',
+            '</div>'
+        ].join('');
+
+        tabs.classList.remove('is-switching');
+        tabs.classList.add('is-loading');
+
+        return Date.now();
+    }
+
+    function findMatchingTabs(documentRoot, currentTabs) {
+        const group = currentTabs.getAttribute('data-transition-tabs');
+        const candidates = Array.prototype.slice.call(documentRoot.querySelectorAll('[data-transition-tabs]'));
+
+        return candidates.find(function (candidate) {
+            return candidate.getAttribute('data-transition-tabs') === group;
+        }) || candidates[0] || null;
+    }
+
+    function setActiveTab(tab, tabs) {
+        const inputId = tab.getAttribute('for');
+        const input = inputId ? tabs.querySelector('#' + inputId) : null;
+
+        if (input) {
+            input.checked = true;
+        }
+
+        tabs.querySelectorAll('[role="tab"]').forEach(function (candidate) {
+            candidate.setAttribute('aria-selected', candidate === tab ? 'true' : 'false');
+        });
+    }
+
+    function rebindTabs(tabs) {
+        tabs.querySelectorAll('[data-tab-href]').forEach(function (tab) {
+            bindTab(tab, tabs);
+        });
+    }
+
+    function replaceTabs(currentTabs, nextTabs) {
+        currentTabs.innerHTML = nextTabs.innerHTML;
+        currentTabs.className = nextTabs.className;
+        currentTabs.removeAttribute('aria-busy');
+        currentTabs.dataset.loading = 'false';
+        rebindTabs(currentTabs);
+    }
+
+    function loadTab(tab, tabs, shouldPushState) {
+        const href = tab.getAttribute('data-tab-href');
+        const selected = tab.getAttribute('aria-selected') === 'true';
+
+        if (!href || selected || tabs.dataset.loading === 'true') {
+            return;
+        }
+
+        const url = new URL(href, window.location.href);
+        const startedAt = Date.now();
+        let skeletonShownAt = 0;
+        const skeletonTimer = window.setTimeout(function () {
+            if (tabs.dataset.loading === 'true') {
+                skeletonShownAt = renderSkeleton(tabs);
+            }
+        }, transitionDelay);
+
+        setActiveTab(tab, tabs);
+        tabs.dataset.loading = 'true';
+        tabs.setAttribute('aria-busy', 'true');
+        tabs.classList.add('is-switching');
+
+        fetch(url.href, {
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Unable to load tab.');
+                }
+
+                return response.text();
+            })
+            .then(function (html) {
+                const nextDocument = new DOMParser().parseFromString(html, 'text/html');
+                const nextTabs = findMatchingTabs(nextDocument, tabs);
+
+                if (!nextTabs) {
+                    throw new Error('Matching tab content was not found.');
+                }
+
+                window.clearTimeout(skeletonTimer);
+
+                window.setTimeout(function () {
+                    replaceTabs(tabs, nextTabs);
+
+                    if (shouldPushState) {
+                        window.history.pushState({ macproTransitionTabs: true }, '', url.href);
+                    }
+                }, skeletonShownAt
+                    ? Math.max(0, minimumSkeletonTime - (Date.now() - skeletonShownAt))
+                    : Math.max(0, transitionDelay - (Date.now() - startedAt)));
+            })
+            .catch(function () {
+                window.clearTimeout(skeletonTimer);
+                window.location.href = url.href;
+            });
+    }
+
+    function bindTab(tab, tabs) {
+        if (tab.dataset.transitionTabBound === 'true') {
+            return;
+        }
+
+        tab.dataset.transitionTabBound = 'true';
+
+        tab.addEventListener('click', function (event) {
+            event.preventDefault();
+            loadTab(tab, tabs, true);
+        });
+
+        tab.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+                return;
+            }
+
+            event.preventDefault();
+            loadTab(tab, tabs, true);
+        });
+    }
+
+    function initTransitionTabs() {
+        document.querySelectorAll('[data-transition-tabs]').forEach(function (tabs) {
+            rebindTabs(tabs);
+        });
+    }
+
+    window.addEventListener('popstate', function () {
+        const tabs = document.querySelector('[data-transition-tabs]');
+
+        if (!tabs) {
+            return;
+        }
+
+        fetch(window.location.href, {
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Unable to load tab.');
+                }
+
+                return response.text();
+            })
+            .then(function (html) {
+                const nextDocument = new DOMParser().parseFromString(html, 'text/html');
+                const nextTabs = findMatchingTabs(nextDocument, tabs);
+
+                if (nextTabs) {
+                    replaceTabs(tabs, nextTabs);
+                }
+            });
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTransitionTabs);
+    } else {
+        initTransitionTabs();
+    }
+})();

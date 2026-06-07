@@ -335,11 +335,17 @@
 					</div>
 
 					<div class="card-box mb-30">
-						<div class="tab-header" style="margin: 0; padding: 0 20px;">
-							<a href="<?= htmlspecialchars(stock_records_tab_url($item_id, 'inventory_transaction')) ?>" style="padding: 12px 18px; font-weight: 600; color: <?= $active_stock_record_tab === 'inventory_transaction' ? '#0d6efd' : '#666' ?>; border-bottom: <?= $active_stock_record_tab === 'inventory_transaction' ? '2px solid #0d6efd' : '2px solid transparent' ?>;">Stock-In Transaction History</a>
-							<a href="<?= htmlspecialchars(stock_records_tab_url($item_id, 'stock_out_history')) ?>" style="padding: 12px 18px; font-weight: 600; color: <?= $active_stock_record_tab === 'stock_out_history' ? '#0d6efd' : '#666' ?>; border-bottom: <?= $active_stock_record_tab === 'stock_out_history' ? '2px solid #0d6efd' : '2px solid transparent' ?>;">Stock-Out Work Order History</a>
-						</div>
-						<div class="pb-20">
+						<div class="tabs macpro-transition-tabs" data-transition-tabs="stock-history">
+							<input type="radio" id="stock-history-tab-in" name="stock-history-tab" <?= $active_stock_record_tab === 'inventory_transaction' ? 'checked' : '' ?>>
+							<input type="radio" id="stock-history-tab-out" name="stock-history-tab" <?= $active_stock_record_tab === 'stock_out_history' ? 'checked' : '' ?>>
+
+							<div class="tab-header" role="tablist" aria-label="Stock history sections">
+								<label for="stock-history-tab-in" role="tab" tabindex="0" aria-selected="<?= $active_stock_record_tab === 'inventory_transaction' ? 'true' : 'false' ?>" data-tab-href="<?= htmlspecialchars(stock_records_tab_url($item_id, 'inventory_transaction')) ?>">Stock-In Transaction History</label>
+								<label for="stock-history-tab-out" role="tab" tabindex="0" aria-selected="<?= $active_stock_record_tab === 'stock_out_history' ? 'true' : 'false' ?>" data-tab-href="<?= htmlspecialchars(stock_records_tab_url($item_id, 'stock_out_history')) ?>">Stock-Out Work Order History</label>
+							</div>
+
+							<div class="tab-body">
+								<div class="tab-panel pb-20">
 							<?php if ($active_stock_record_tab === 'inventory_transaction'): ?>
 								<div class="row mb-20">
 									<div class="col-sm-12 col-md-6">
@@ -505,6 +511,8 @@
 									</tbody>
 								</table>
 							<?php endif; ?>
+						</div>
+					</div>
 						</div>
 					</div>
 				<?php endif; ?>

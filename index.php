@@ -313,28 +313,31 @@
 		</div>
 
 		<div class="dashboard-grid dashboard-grid-main pb-10">
-			<div class="card-box dashboard-chart-card">
+			<div class="card-box dashboard-chart-card dashboard-status-card">
 				<div class="dashboard-card-heading">
 					<div>
 						<h5>Work Order Status</h5>
 						<p><?= number_format($open_workorders) ?> active repairs out of <?= number_format($total_workorders) ?> total.</p>
 					</div>
 				</div>
-				<div class="dashboard-donut-wrap">
-					<canvas
-						id="statusChart"
-						height="300"
-						data-labels='<?= htmlspecialchars(json_encode($status_labels), ENT_QUOTES, 'UTF-8') ?>'
-						data-data='<?= htmlspecialchars(json_encode($status_data), ENT_QUOTES, 'UTF-8') ?>'
-						data-wo-trend='<?= htmlspecialchars(json_encode($workorder_series['data']), ENT_QUOTES, 'UTF-8') ?>'
-						data-low-stock-trend='<?= htmlspecialchars(json_encode(array_fill(0, 5, 0) + [5 => $low_stock_count]), ENT_QUOTES, 'UTF-8') ?>'
-						data-open-trend='<?= htmlspecialchars(json_encode(array_fill(0, 5, 0) + [5 => $open_workorders]), ENT_QUOTES, 'UTF-8') ?>'
-						data-rev-total='<?= htmlspecialchars((string) $total_revenue, ENT_QUOTES, 'UTF-8') ?>'
-					></canvas>
-					<div class="donut-center">
-						<div class="donut-total"><?= number_format($total_chart) ?></div>
-						<div class="donut-sub">Total</div>
+				<div class="dashboard-donut-layout">
+					<div class="dashboard-donut-wrap">
+						<canvas
+							id="statusChart"
+							height="300"
+							data-labels='<?= htmlspecialchars(json_encode($status_labels), ENT_QUOTES, 'UTF-8') ?>'
+							data-data='<?= htmlspecialchars(json_encode($status_data), ENT_QUOTES, 'UTF-8') ?>'
+							data-wo-trend='<?= htmlspecialchars(json_encode($workorder_series['data']), ENT_QUOTES, 'UTF-8') ?>'
+							data-low-stock-trend='<?= htmlspecialchars(json_encode(array_fill(0, 5, 0) + [5 => $low_stock_count]), ENT_QUOTES, 'UTF-8') ?>'
+							data-open-trend='<?= htmlspecialchars(json_encode(array_fill(0, 5, 0) + [5 => $open_workorders]), ENT_QUOTES, 'UTF-8') ?>'
+							data-revenue-trend='<?= htmlspecialchars(json_encode($revenue_series['data']), ENT_QUOTES, 'UTF-8') ?>'
+						></canvas>
+						<div class="donut-center">
+							<div class="donut-total"><?= number_format($total_chart) ?></div>
+							<div class="donut-sub">Total</div>
+						</div>
 					</div>
+					<div class="status-breakdown" id="statusBreakdown" aria-label="Work order status breakdown"></div>
 				</div>
 			</div>
 

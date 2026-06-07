@@ -2209,6 +2209,19 @@ html.sidebar-transitioning .left-side-bar {
 	box-shadow: 0 8px 20px rgba(var(--brand-black-rgb), .09);
 }
 
+.dashboard-status-card {
+	max-height: none;
+}
+
+.dashboard-donut-layout {
+	display: grid;
+	grid-template-columns: minmax(210px, 0.9fr) minmax(220px, 1.1fr);
+	gap: 20px;
+	align-items: center;
+	flex: 1;
+	min-height: 280px;
+}
+
 .dashboard-donut-wrap,
 #monthlyChart {
 	position: relative;
@@ -2222,6 +2235,74 @@ html.sidebar-transitioning .left-side-bar {
 	max-width: 350px;
 	width: 100%;
 	margin: auto;
+}
+
+.status-breakdown {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: 280px;
+	overflow-y: auto;
+	padding-right: 4px;
+}
+
+.status-breakdown-item {
+	display: grid;
+	grid-template-columns: 10px minmax(0, 1fr) auto;
+	gap: 10px;
+	align-items: center;
+	padding: 10px 0;
+	border-bottom: 1px solid rgba(var(--brand-blue-rgb), 0.1);
+}
+
+.status-breakdown-item:last-child {
+	border-bottom: 0;
+}
+
+.status-breakdown-dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	box-shadow: 0 0 0 3px rgba(var(--brand-black-rgb), 0.04);
+}
+
+.status-breakdown-main {
+	min-width: 0;
+}
+
+.status-breakdown-label {
+	display: block;
+	color: var(--brand-black);
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.status-breakdown-bar {
+	display: block;
+	height: 5px;
+	margin-top: 7px;
+	border-radius: 999px;
+	background: rgba(var(--brand-blue-rgb), 0.08);
+	overflow: hidden;
+}
+
+.status-breakdown-bar span {
+	display: block;
+	height: 100%;
+	min-width: 4px;
+	border-radius: inherit;
+}
+
+.status-breakdown-percent {
+	color: var(--ink-600);
+	font-size: 12px;
+	font-weight: 700;
+	text-align: right;
+	white-space: nowrap;
 }
 
 @media (max-width: 1199px) {
@@ -2714,6 +2795,180 @@ canvas#monthlyChart {
 #tab-purchase:checked ~ .tab-header label[for="tab-purchase"] {
     border-bottom: 3px solid var(--brand-blue);
     color: var(--brand-black);
+}
+
+.macpro-transition-tabs .tab-header {
+    margin: 0;
+    padding: 0 20px;
+}
+
+.macpro-transition-tabs .tab-header label {
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+
+.macpro-transition-tabs .tab-header label:hover,
+.macpro-transition-tabs .tab-header label:focus {
+    color: var(--brand-black);
+    outline: none;
+}
+
+.macpro-transition-tabs .tab-panel {
+    display: block;
+    animation: macproTabEnter .22s ease both;
+    transition: opacity .16s ease, transform .16s ease;
+}
+
+.macpro-transition-tabs.is-switching .tab-panel {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.macpro-transition-tabs.is-switching .tab-header label {
+    pointer-events: none;
+}
+
+.macpro-transition-tabs.is-loading .tab-header label {
+    pointer-events: none;
+}
+
+.macpro-tab-skeleton {
+    display: block;
+}
+
+.macpro-skeleton-controls,
+.macpro-skeleton-search {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.macpro-skeleton-search {
+    justify-content: flex-end;
+}
+
+.macpro-skeleton-table {
+    border: 1px solid var(--ink-100);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(var(--brand-white-rgb), .72);
+}
+
+.macpro-skeleton-row {
+    display: grid;
+    grid-template-columns: 1.1fr .9fr 1.3fr .8fr .7fr;
+    gap: 18px;
+    align-items: center;
+    min-height: 54px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--ink-100);
+}
+
+.macpro-skeleton-row:first-child {
+    border-top: 0;
+}
+
+.macpro-skeleton-row-head {
+    min-height: 46px;
+    background: rgba(var(--brand-black-rgb), .02);
+}
+
+.macpro-skeleton-line,
+.macpro-skeleton-pill,
+.macpro-skeleton-input,
+.macpro-skeleton-row span {
+    display: block;
+    height: 12px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--ink-100) 0%, rgba(var(--brand-white-rgb), .95) 46%, var(--ink-100) 100%);
+    background-size: 220% 100%;
+    animation: macproSkeletonPulse 1.15s ease-in-out infinite;
+}
+
+.macpro-skeleton-line-sm {
+    width: 86px;
+}
+
+.macpro-skeleton-line-xs {
+    width: 54px;
+}
+
+.macpro-skeleton-pill {
+    width: 82px;
+    height: 34px;
+    border-radius: 8px;
+}
+
+.macpro-skeleton-pill-wide {
+    width: 128px;
+}
+
+.macpro-skeleton-input {
+    width: min(260px, 70%);
+    height: 34px;
+    border-radius: 8px;
+}
+
+.macpro-skeleton-row span:nth-child(2) {
+    width: 72%;
+}
+
+.macpro-skeleton-row span:nth-child(4),
+.macpro-skeleton-row span:nth-child(5) {
+    width: 64%;
+}
+
+@media (max-width: 767px) {
+    .macpro-skeleton-controls,
+    .macpro-skeleton-search {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .macpro-skeleton-input {
+        flex: 1 1 180px;
+        width: auto;
+    }
+
+    .macpro-skeleton-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .macpro-skeleton-row span:nth-child(n+3) {
+        display: none;
+    }
+}
+
+#inventory-tab-product:checked ~ .tab-header label[for="inventory-tab-product"],
+#inventory-tab-stock:checked ~ .tab-header label[for="inventory-tab-stock"],
+#stock-history-tab-in:checked ~ .tab-header label[for="stock-history-tab-in"],
+#stock-history-tab-out:checked ~ .tab-header label[for="stock-history-tab-out"] {
+    border-bottom-color: var(--brand-blue);
+    color: var(--brand-black);
+}
+
+@keyframes macproTabEnter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes macproSkeletonPulse {
+    from {
+        background-position: 120% 0;
+    }
+
+    to {
+        background-position: -120% 0;
+    }
 }
 
 
@@ -3656,9 +3911,19 @@ table tbody tr:hover {
         min-height: 360px;
     }
 
+    .dashboard-donut-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
     .dashboard-donut-wrap,
     #monthlyChart {
         min-height: 280px;
+    }
+
+    .status-breakdown {
+        max-height: none;
+        padding-right: 0;
     }
 
     .dashboard-table {
@@ -4628,17 +4893,20 @@ textarea.form-control {
     top: 20px;
     left: 50%;
     width: 100%;
-    height: 2px;
+    height: 3px;
     background-color: var(--ink-200);
+    border-radius: 999px;
     z-index: 0;
+    opacity: 0.65;
 }
 
 .stepper-item.active:not(:last-child)::after {
-    background-color: var(--brand-blue);
+    background-color: var(--ink-200);
 }
 
 .stepper-item.completed:not(:last-child)::after {
     background-color: var(--brand-blue);
+    opacity: 1;
 }
 
 .stepper-circle {
@@ -4656,19 +4924,35 @@ textarea.form-control {
     position: relative;
     z-index: 2;
     transition: all 0.3s ease;
+    overflow: hidden;
 }
 
 .stepper-item.active .stepper-circle {
-    background-color: var(--brand-blue);
+    background-color: var(--brand-white);
     border-color: var(--brand-blue);
-    color: var(--brand-white);
-    box-shadow: 0 2px 8px rgba(var(--brand-blue-rgb), 0.3);
+    color: var(--brand-blue);
+    box-shadow: 0 0 0 5px rgba(var(--brand-blue-rgb), 0.12), 0 8px 18px rgba(var(--brand-blue-rgb), 0.22);
+    transform: scale(1.04);
 }
 
 .stepper-item.completed .stepper-circle {
     background-color: var(--brand-blue);
     border-color: var(--brand-blue);
-    color: var(--brand-white);
+    color: transparent;
+    box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb), 0.2);
+}
+
+.stepper-item.completed .stepper-circle::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('../images/check-white.svg') center / 18px 18px no-repeat;
+}
+
+.stepper-item.upcoming .stepper-circle {
+    background-color: var(--ink-50);
+    border-color: var(--ink-200);
+    color: rgba(var(--brand-black-rgb), 0.28);
 }
 
 .stepper-item.cancelled .stepper-circle {
@@ -4682,19 +4966,26 @@ textarea.form-control {
     margin-top: 12px;
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--ink-600);
+    color: rgba(var(--brand-black-rgb), 0.48);
     text-align: center;
     line-height: 1.3;
     max-width: 120px;
     overflow-wrap: anywhere;
+    transition: color 0.3s ease, opacity 0.3s ease;
 }
 
 .stepper-item.active .stepper-label {
     color: var(--brand-blue);
+    font-weight: 800;
 }
 
 .stepper-item.completed .stepper-label {
-    color: var(--brand-blue);
+    color: var(--brand-black);
+}
+
+.stepper-item.upcoming .stepper-label {
+    color: rgba(var(--brand-black-rgb), 0.34);
+    font-weight: 600;
 }
 
 .stepper-item.cancelled .stepper-label {
