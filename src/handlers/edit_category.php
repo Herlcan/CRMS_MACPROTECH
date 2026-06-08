@@ -6,6 +6,7 @@
     include '../db/connection.php';
     include '../../auth_check.php';
     require_once __DIR__ . '/category_schema.php';
+    require_once __DIR__ . '/activity_log_helper.php';
 
     $edit_category_message = '';
     $edit_category_error = '';
@@ -68,6 +69,7 @@
             if (mysqli_stmt_execute($update_query)) {
 
                 mysqli_stmt_close($update_query);
+                log_activity($conn, "Updated item category {$category_name} (#{$category_id})");
                 $redirect = isset($_POST['redirect']) ? $_POST['redirect'] : 'item-category.php';
                 header("Location: ../../" . basename($redirect));
                 exit();

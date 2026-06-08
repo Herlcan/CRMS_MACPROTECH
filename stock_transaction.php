@@ -283,7 +283,7 @@
 							</div>
 						</div>
 						<div class="col-md-6 col-sm-12 text-right" style="margin-left: auto;">
-							<a href="items.php?tab=stock_records" class="btn btn-secondary">Back to Stock Records</a>
+							<a href="items.php" class="btn btn-secondary">Back to Inventory</a>
 						</div>
 					</div>
 				</div>

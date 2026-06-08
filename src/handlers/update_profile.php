@@ -9,6 +9,8 @@
 $update_message = '';
 $update_error = '';
 
+require_once __DIR__ . '/activity_log_helper.php';
+
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 	$username = mysqli_real_escape_string($conn, $_POST['username']);
@@ -56,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 			
 			if (mysqli_stmt_execute($update_query)) {
 				$update_message = 'Profile updated successfully!';
+				log_activity($conn, "Updated own profile");
 				$_SESSION['username'] = $username;
 				$_SESSION['dialog_flash'] = [
 					'type' => 'success',

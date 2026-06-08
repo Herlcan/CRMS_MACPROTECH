@@ -9,6 +9,7 @@ require_once '../db/connection.php';
 require_once '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 function current_user_role(mysqli $conn): string
 {
@@ -180,17 +181,8 @@ try {
     $clientName = user_full_name($workOrder['client_first_name'] ?? null, $workOrder['client_last_name'] ?? null);
     $device = trim((string) $workOrder['unit_type'] . ' ' . (string) $workOrder['brand'] . ' ' . (string) $workOrder['model']);
 
-    $logStmt = $conn->prepare("
-        INSERT INTO activity_logs (user_id, work_order_id, action)
-        VALUES (?, ?, ?)
-    ");
-
-    if ($logStmt) {
-        $action = "Reassigned technician from {$oldName} to {$newName}. Reason: {$reason}";
-        $logStmt->bind_param("iis", $changedBy, $workOrderId, $action);
-        $logStmt->execute();
-        $logStmt->close();
-    }
+    $action = "Reassigned technician from {$oldName} to {$newName}. Reason: {$reason}";
+    log_activity($conn, $action, $workOrderId, $changedBy);
 
     create_notification(
         $conn,

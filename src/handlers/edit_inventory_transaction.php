@@ -6,6 +6,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 if (!function_exists('redirectStockRecordsWithDialog')) {
     function redirectStockRecordsWithDialog($item_id, $type, $title, $message) {
@@ -20,7 +21,7 @@ if (!function_exists('redirectStockRecordsWithDialog')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['edit_inventory_transaction'])) {
-    header("Location: ../../items.php?tab=stock_records");
+    header("Location: ../../items.php");
     exit();
 }
 
@@ -84,6 +85,7 @@ try {
 
     mysqli_stmt_close($query);
     sync_item_from_inventory_transactions($conn, $item_id);
+    log_activity($conn, "Updated stock-in transaction #{$transaction_id} for product item #{$item_id}");
     notify_low_stock_for_item($conn, $item_id);
     redirectStockRecordsWithDialog($item_id, 'success', 'Transaction Updated', 'Stock-in transaction updated successfully.');
 } catch (Exception $e) {

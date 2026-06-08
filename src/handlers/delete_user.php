@@ -1,6 +1,7 @@
 <?php
 session_start();
 include '../db/connection.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 function redirectUserWithDialog($type, $title, $message) {
     $_SESSION['dialog_flash'] = [
@@ -22,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     $logged_in_user_id = $_SESSION['user_id'];
 
     // Get role of user being deleted
-    $role_query = mysqli_prepare($conn, "SELECT role FROM users WHERE id = ?");
+    $role_query = mysqli_prepare($conn, "SELECT username, first_name, last_name, role FROM users WHERE id = ?");
     mysqli_stmt_bind_param($role_query, "i", $user_id);
     mysqli_stmt_execute($role_query);
     $result = mysqli_stmt_get_result($role_query);
@@ -31,6 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
 
     if (!$user) {
         redirectUserWithDialog('error', 'User Not Found', 'The selected user could not be found.');
+    }
+    $deleted_user_name = trim($user['first_name'] . ' ' . $user['last_name']);
+    if ($deleted_user_name === '') {
+        $deleted_user_name = $user['username'];
     }
 
     $is_current_user = ($logged_in_user_id == $user_id);
@@ -63,6 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
 
     if (mysqli_stmt_execute($delete_query)) {
 
+        log_activity(
+            $conn,
+            "Deleted user {$deleted_user_name} ({$user['username']}, {$user['role']})",
+            null,
+            (int) $logged_in_user_id
+        );
         mysqli_stmt_close($delete_query);
 
         /*

@@ -4,6 +4,7 @@ ini_set('display_errors', 1);
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $update_message = '';
 $update_error = '';
@@ -69,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_user'])) {
 			
 			if (mysqli_stmt_execute($update_query)) {
 				$update_message = 'User updated successfully!';
+                log_activity($conn, "Updated user {$first_name} {$last_name} ({$username}, {$role})");
 
                 redirectUserWithDialog('success', 'User Updated', 'User updated successfully.');
 			} else {

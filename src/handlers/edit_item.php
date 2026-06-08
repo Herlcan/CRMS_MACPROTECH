@@ -7,6 +7,7 @@ include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/category_schema.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $edit_item_error = '';
 
@@ -71,6 +72,7 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
     }
 
     $category_id = mysqli_insert_id($conn);
+    log_activity($conn, "Added item category {$category_name}");
     mysqli_stmt_close($insert_query);
 
     return (int) $category_id;
@@ -153,6 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
 
         if (mysqli_stmt_execute($update_query)) {
             mysqli_stmt_close($update_query);
+            log_activity($conn, "Updated product item {$brand_name} {$model} (#{$item_id})");
             notify_low_stock_for_item($conn, $item_id);
             redirectItemWithDialog('success', 'Product Item Updated', 'Product item updated successfully.');
         } else {

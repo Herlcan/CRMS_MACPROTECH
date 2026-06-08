@@ -9,6 +9,7 @@ require_once '../db/connection.php';
 require_once '../../auth_check.php';
 require_once 'config.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/Exception.php';
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/PHPMailer.php';
@@ -202,16 +203,8 @@ try {
      */
     $userId = $_SESSION['user_id'];
     $previousDisplayStatus = $previousStatus === 'Ready for Release' ? 'Repaired' : $previousStatus;
-
-    $logStmt = $conn->prepare("
-        INSERT INTO activity_logs (user_id, work_order_id, action)
-        VALUES (?, ?, ?)
-    ");
-
     $action = "Changed status from {$previousDisplayStatus} to {$status}";
-    $logStmt->bind_param("iis", $userId, $id, $action);
-    $logStmt->execute();
-    $logStmt->close();
+    log_activity($conn, $action, $id, (int) $userId);
 
 
     /**

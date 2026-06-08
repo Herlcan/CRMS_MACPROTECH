@@ -28,14 +28,12 @@
 		return $text;
 	}
 
-	$allowed_inventory_tabs = ['product_inventory', 'stock_records'];
-	$active_tab = $_GET['tab'] ?? 'product_inventory';
-	if (!in_array($active_tab, $allowed_inventory_tabs, true)) {
-		$active_tab = 'product_inventory';
-	}
+	$active_tab = 'product_inventory';
 
 	function inventory_url(array $overrides = []) {
 		$params = array_merge($_GET, $overrides);
+		unset($params['tab'], $params['filter']);
+
 		foreach ($params as $key => $value) {
 			if ($value === '' || $value === null) {
 				unset($params[$key]);
@@ -298,11 +296,9 @@
 				<div class="card-box mb-30">
 					<div class="tabs macpro-transition-tabs" data-transition-tabs="inventory">
 						<input type="radio" id="inventory-tab-product" name="inventory-tab" <?= $active_tab === 'product_inventory' ? 'checked' : '' ?>>
-						<input type="radio" id="inventory-tab-stock" name="inventory-tab" <?= $active_tab === 'stock_records' ? 'checked' : '' ?>>
 
 						<div class="tab-header" role="tablist" aria-label="Inventory sections">
 							<label for="inventory-tab-product" role="tab" tabindex="0" aria-selected="<?= $active_tab === 'product_inventory' ? 'true' : 'false' ?>" data-tab-href="<?= htmlspecialchars(inventory_tab_url('product_inventory')) ?>">Product Inventory</label>
-							<label for="inventory-tab-stock" role="tab" tabindex="0" aria-selected="<?= $active_tab === 'stock_records' ? 'true' : 'false' ?>" data-tab-href="<?= htmlspecialchars(inventory_tab_url('stock_records')) ?>">Stock Records</label>
 						</div>
 
 						<div class="tab-body">
@@ -312,10 +308,8 @@
 							<div class="dataTables_length" id="DataTables_Table_0_length">
 								<label>Show 
 									<form method="GET" style="display: inline;">
-										<input type="hidden" name="tab" value="<?= htmlspecialchars($active_tab) ?>">
 										<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
 										<input type="hidden" name="category" value="<?= isset($_GET['category']) ? htmlspecialchars($_GET['category']) : '' ?>">
-										<input type="hidden" name="filter" value="<?= isset($_GET['filter']) ? htmlspecialchars($_GET['filter']) : '' ?>">
 										<select name="limit" aria-controls="DataTables_Table_0" class="custom-select custom-select-sm form-control form-control-sm" onchange="this.form.submit();">
 											<option value="10" <?= (isset($_GET['limit']) && $_GET['limit'] == '10') ? 'selected' : '' ?>>10</option>
 											<option value="25" <?= (isset($_GET['limit']) && $_GET['limit'] == '25') ? 'selected' : '' ?>>25</option>
@@ -330,12 +324,8 @@
 							<form method="GET" class="form-inline">
 
 								<!-- Preserve search + limit -->
-								<input type="hidden" name="tab" value="<?= htmlspecialchars($active_tab) ?>">
 								<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
 								<input type="hidden" name="limit" value="<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>">
-								<?php if ($active_tab === 'stock_records'): ?>
-									<input type="hidden" name="filter" value="<?= isset($_GET['filter']) ? htmlspecialchars($_GET['filter']) : '' ?>">
-								<?php endif; ?>
 
 								<select name="category" class="form-control form-control-sm" onchange="this.form.submit()" style=" max-height: 40px;">
 									<option value="">All Categories</option>
@@ -354,29 +344,14 @@
 
 								</select>
 							</form>
-							<?php if ($active_tab === 'stock_records'): ?>
-								<form method="GET" class="form-inline" style="margin-left: 10px;">
-									<input type="hidden" name="tab" value="<?= htmlspecialchars($active_tab) ?>">
-									<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
-									<input type="hidden" name="limit" value="<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>">
-									<input type="hidden" name="category" value="<?= isset($_GET['category']) ? htmlspecialchars($_GET['category']) : '' ?>">
-									<select name="filter" class="form-control form-control-sm" onchange="this.form.submit()" style="max-height: 40px;">
-										<option value="">All Status</option>
-										<option value="In Stock" <?= (isset($_GET['filter']) && $_GET['filter'] === 'In Stock') ? 'selected' : '' ?>>In Stock</option>
-										<option value="Out of Stock" <?= (isset($_GET['filter']) && $_GET['filter'] === 'Out of Stock') ? 'selected' : '' ?>>Out of Stock</option>
-									</select>
-								</form>
-							<?php endif; ?>
 						</div>
 						<div class="col-sm-12 col-md-6" style="margin-left: auto;">
 							<div id="DataTables_Table_0_filter" class="dataTables_filter">
 								<label>Search:
 									<form method="GET">
-										<input type="hidden" name="tab" value="<?= htmlspecialchars($active_tab) ?>">
 										<input type="hidden" name="limit" value="<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>">
 										<input type="hidden" name="category" value="<?= isset($_GET['category']) ? htmlspecialchars($_GET['category']) : '' ?>">
-										<input type="hidden" name="filter" value="<?= isset($_GET['filter']) ? htmlspecialchars($_GET['filter']) : '' ?>">
-										<input type="search" name="search" class="form-control form-control-sm" placeholder="<?= $active_tab === 'stock_records' ? 'Search stock records...' : 'Search items...' ?>" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
+										<input type="search" name="search" class="form-control form-control-sm" placeholder="Search items..." value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
 									</form>
 								</label>
 							</div>
@@ -386,22 +361,13 @@
 						<table class="data-table table responsive">
 							<thead>
 								<tr>
-										<?php if ($active_tab === 'stock_records'): ?>
-											<th style="text-align: center;">Product Code</th>
-											<th style="text-align: center;">Product Name</th>
-											<th style="text-align: center;">Total Stock-In</th>
-											<th style="text-align: center;">Total Stock-Out</th>
-											<th style="text-align: center;">Status</th>
-											<th class="datatable-nosort" style="text-align: center;">Action</th>
-									<?php else: ?>
-										<th style="width: 13%; text-align: center;">Product Code</th>
-										<th style="width: 10%; text-align: center;">Image</th>
-										<th style="text-align: center;">Product Name</th>
-										<th style="width: 10%; text-align: center;">Quantity</th>
-										<th style="width: 12%; text-align: center;">Average Price</th>
-										<th style="width: 12%; text-align: center;">Status</th>
-										<th class="datatable-nosort" style="width: 10%; text-align: center;">Action</th>
-									<?php endif; ?>
+									<th style="width: 13%; text-align: center;">Product Code</th>
+									<th style="width: 10%; text-align: center;">Image</th>
+									<th style="text-align: center;">Product Name</th>
+									<th style="width: 10%; text-align: center;">Quantity</th>
+									<th style="width: 12%; text-align: center;">Average Price</th>
+									<th style="width: 12%; text-align: center;">Status</th>
+									<th class="datatable-nosort" style="width: 10%; text-align: center;">Action</th>
 								</tr>
 							</thead>
 							<?php
@@ -423,33 +389,17 @@
 								// Secure search
 								if (!empty($_GET['search'])) {
 								    $s = mysqli_real_escape_string($conn, strtolower($_GET['search']));
-									if ($active_tab === 'stock_records') {
-										$where .= " AND (LOWER(i.brand_name) LIKE '%$s%' OR LOWER(i.model) LIKE '%$s%' OR LOWER(CONCAT(i.brand_name, ' ', i.model)) LIKE '%$s%' OR LOWER(i.product_code) LIKE '%$s%' OR LOWER(it.status) LIKE '%$s%')";
-									} else {
-										$where .= " AND (LOWER(brand_name) LIKE '%$s%' OR LOWER(model) LIKE '%$s%' OR LOWER(product_code) LIKE '%$s%' OR LOWER(status) LIKE '%$s%')";
-									}
+									$where .= " AND (LOWER(brand_name) LIKE '%$s%' OR LOWER(model) LIKE '%$s%' OR LOWER(product_code) LIKE '%$s%' OR LOWER(status) LIKE '%$s%')";
 								}
 								
 								// Category filter
 								if (!empty($_GET['category'])) {
 									$cat = mysqli_real_escape_string($conn, $_GET['category']);
-									$where .= ($active_tab === 'stock_records') ? " AND i.category_id='$cat'" : " AND category_id='$cat'";
-								}
-
-								if ($active_tab === 'stock_records' && !empty($_GET['filter'])) {
-									$allowed_status = ['In Stock', 'Out of Stock'];
-									if (in_array($_GET['filter'], $allowed_status, true)) {
-										$f = mysqli_real_escape_string($conn, $_GET['filter']);
-										$where .= " AND it.status='$f'";
-									}
+									$where .= " AND category_id='$cat'";
 								}
 
 									// Get total count for pagination info
-									if ($active_tab === 'stock_records') {
-										$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM items i LEFT JOIN inventory_transaction it ON it.item_id = i.id WHERE $where");
-									} else {
-									$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM items WHERE $where");
-								}
+								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM items WHERE $where");
 								$count_row = mysqli_fetch_assoc($count_result);
 								$total_records = $count_row['total'];
 
@@ -463,49 +413,13 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-									if ($active_tab === 'stock_records') {
-										$result = mysqli_query($conn, "
-											SELECT
-												i.id AS item_id,
-												i.product_code,
-												i.brand_name,
-												i.model,
-												i.description,
-												COALESCE(it.total_stock_in, 0) AS total_stock_in,
-												COALESCE(it.total_stock_out, 0) AS total_stock_out,
-												COALESCE(it.status, '') AS status
-											FROM items i
-											LEFT JOIN inventory_transaction it ON it.item_id = i.id
-											WHERE $where
-											ORDER BY i.brand_name ASC, i.model ASC
-											LIMIT $limit OFFSET $offset
-										");
-								} else {
-									$result = mysqli_query($conn, "SELECT * FROM items WHERE $where ORDER BY brand_name ASC LIMIT $limit OFFSET $offset");
-								}
+								$result = mysqli_query($conn, "SELECT * FROM items WHERE $where ORDER BY brand_name ASC LIMIT $limit OFFSET $offset");
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
 								?>
 							<tbody>
 								<?php while ($row = mysqli_fetch_assoc($result)) { ?>
-									<?php if ($active_tab === 'stock_records'): ?>
-										<?php
-											$product_name = trim(($row['brand_name'] ?? '') . ' ' . ($row['model'] ?? ''));
-											$status_value = trim($row['status'] ?? '');
-											$status_style = $status_value === '' ? 'background: #f3f4f6; color: #6b7280;' : (strtolower($status_value) === 'out of stock' ? 'background: #fee2e2; color: #dc2626;' : 'background: #dcfce7; color: #16a34a;');
-										?>
-										<tr>
-											<td style="text-align: center;"><?= htmlspecialchars($row['product_code'] ?? '') ?></td>
-											<td><?= htmlspecialchars($product_name) ?></td>
-											<td style="text-align: center;"><?= htmlspecialchars((string) $row['total_stock_in']) ?></td>
-											<td style="text-align: center;"><?= htmlspecialchars((string) $row['total_stock_out']) ?></td>
-											<td style="text-align: center;"><span class="badge" style="<?= $status_style ?>"><?= htmlspecialchars($status_value) ?></span></td>
-											<td style="text-align: center;">
-												<a class="btn btn-sm btn-outline-primary" href="stock_transaction.php?item_id=<?= (int) $row['item_id'] ?>">View</a>
-											</td>
-										</tr>
-									<?php else: ?>
 										<?php $item_status_style = strtolower($row['status'] ?? '') === 'out of stock' ? 'background: #fee2e2; color: #dc2626;' : 'background: #dcfce7; color: #16a34a;'; ?>
 										<tr>
 											<td style="text-align: center;"><?= htmlspecialchars($row['product_code']) ?></td>
@@ -529,6 +443,7 @@
 														<img src="src/images/menu-dots.png" width="25px" style="border: none">
 													</a>
 													<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
+														<a class="dropdown-item" href="stock_transaction.php?item_id=<?= (int) $row['id'] ?>"><i class="dw dw-eye"></i> View</a>
 														<a class="dropdown-item" href="#" onclick="editItem('<?= $row['id'] ?>', '<?= htmlspecialchars($row['brand_name']) ?>', '<?= htmlspecialchars($row['model']) ?>', '<?= htmlspecialchars($row['description']) ?>', '<?= $row['category_id'] ?>', '<?= $row['date'] ?>'); return false;"><i class="dw dw-edit2"></i> Edit</a>
 														<a class="dropdown-item text-danger"
 														   href="src/handlers/delete_item.php?id=<?= $row['id'] ?>"
@@ -541,11 +456,10 @@
 												</div>
 											</td>
 										</tr>
-									<?php endif; ?>
 								<?php } ?>
 								<?php if ($total_records == 0): ?>
 								<tr>
-									<td colspan="<?= $active_tab === 'stock_records' ? '6' : '7' ?>" style="text-align: center;"><?= $active_tab === 'stock_records' ? 'No stock records found' : 'No product items found' ?></td>
+									<td colspan="7" style="text-align: center;">No product items found</td>
 								</tr>
 								<?php endif; ?>
 							</tbody>

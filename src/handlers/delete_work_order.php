@@ -9,6 +9,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 
@@ -28,7 +29,7 @@ try {
     }
 
     // Verify work order exists
-    $verify_query = mysqli_prepare($conn, "SELECT id FROM work_order WHERE id = ?");
+    $verify_query = mysqli_prepare($conn, "SELECT id, code FROM work_order WHERE id = ?");
     if (!$verify_query) {
         throw new Exception('Database error: ' . mysqli_error($conn));
     }
@@ -37,10 +38,13 @@ try {
     mysqli_stmt_execute($verify_query);
     $result = mysqli_stmt_get_result($verify_query);
 
-    if (mysqli_num_rows($result) === 0) {
+    $work_order = mysqli_fetch_assoc($result);
+
+    if (!$work_order) {
         mysqli_stmt_close($verify_query);
         throw new Exception('Work order not found');
     }
+    $work_order_code = $work_order['code'] ?: ('WO-' . sprintf('%04d', $work_order_id));
     mysqli_stmt_close($verify_query);
 
     ensure_items_inventory_columns($conn);
@@ -143,6 +147,7 @@ try {
         throw new Exception('Work order could not be deleted');
     }
     mysqli_stmt_close($delete_work_order);
+    log_activity($conn, "Deleted work order {$work_order_code}", $work_order_id);
 
     // Commit transaction
     if (!mysqli_commit($conn)) {

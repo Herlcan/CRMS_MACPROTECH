@@ -6,6 +6,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 if (!function_exists('redirectStockRecordsWithDialog')) {
     function redirectStockRecordsWithDialog($item_id, $type, $title, $message) {
@@ -20,7 +21,7 @@ if (!function_exists('redirectStockRecordsWithDialog')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['add_inventory_transaction'])) {
-    header("Location: ../../items.php?tab=stock_records");
+    header("Location: ../../items.php");
     exit();
 }
 
@@ -73,6 +74,7 @@ try {
     }
 
     sync_item_from_inventory_transactions($conn, $item_id, $markup_percentage, $average_price);
+    log_activity($conn, "Added {$stock_in} stock-in unit(s) for product item #{$item_id}");
 
     mysqli_commit($conn);
 

@@ -414,7 +414,7 @@
 							</span>
 						</a>
 					<?php endif; ?>
-					<a href="items.php?tab=stock_records" class="attention-item">
+					<a href="items.php" class="attention-item">
 						<span class="attention-count"><?= number_format($low_stock_count) ?></span>
 						<span>
 							<strong>Low stock items</strong>

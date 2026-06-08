@@ -5,6 +5,7 @@ ini_set('display_errors', 1);
 
 include '../db/connection.php';
 include '../../auth_check.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $add_user_message = '';
 $add_user_error = '';
@@ -94,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
             if (mysqli_stmt_execute($add_query)) {
 
+                log_activity($conn, "Added user {$first_name} {$last_name} ({$username}, {$role})");
                 mysqli_stmt_close($add_query);
 
                 redirectUserWithDialog('success', 'New User Created', 'New user created successfully.');

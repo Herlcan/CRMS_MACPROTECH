@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 
 include '../db/connection.php';
 include 'payment_schema.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 $transactionStarted = false;
@@ -49,9 +50,10 @@ try {
     $transactionStarted = true;
 
     $paymentQuery = mysqli_prepare($conn, "
-        SELECT id, work_order_id, total_amount, discount_amount, amount_paid
-        FROM payments
-        WHERE id = ?
+        SELECT p.id, p.work_order_id, p.total_amount, p.discount_amount, p.amount_paid, wo.code
+        FROM payments p
+        INNER JOIN work_order wo ON wo.id = p.work_order_id
+        WHERE p.id = ?
         LIMIT 1
         FOR UPDATE
     ");
@@ -94,6 +96,12 @@ try {
     );
 
     $summary = refresh_payment_summary($conn, $paymentId);
+    log_activity(
+        $conn,
+        'Recorded refund of Php ' . number_format($refundAmount, 2) . " for {$payment['code']}",
+        (int) $payment['work_order_id'],
+        $userId
+    );
     mysqli_commit($conn);
     $transactionStarted = false;
 

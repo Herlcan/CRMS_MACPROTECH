@@ -2,6 +2,7 @@
 
     include '../db/connection.php';
     include '../../auth_check.php';
+    require_once __DIR__ . '/activity_log_helper.php';
 
     $edit_client_message = '';
     $edit_client_error = '';
@@ -58,6 +59,8 @@
             if (mysqli_stmt_execute($update_query)) {
 
                 mysqli_stmt_close($update_query);
+                $clientName = trim($first_name . ' ' . $last_name);
+                log_activity($conn, "Updated customer {$clientName} (#{$client_id})");
                 redirectClientWithDialog('success', 'Customer Updated', 'Customer updated successfully.');
 
             } else {

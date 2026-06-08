@@ -11,6 +11,7 @@ require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $update_work_order_message = '';
 $update_work_order_error = '';
@@ -66,6 +67,7 @@ function resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type) {
         if (!mysqli_stmt_execute($insert_query)) {
             throw new Exception('Failed to add unit type: ' . mysqli_stmt_error($insert_query));
         }
+        log_activity($conn, "Added unit type {$unit_type}");
         mysqli_stmt_close($insert_query);
     }
 
@@ -342,6 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
             }
 
             refresh_payment_summaries($conn, $work_order_id);
+            log_activity($conn, "Updated work order {$workOrderCode}", $work_order_id);
 
             // Commit transaction
             mysqli_commit($conn);

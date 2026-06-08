@@ -1,5 +1,10 @@
 <?php
 
+	if (!defined('MACPROTECH_PAGE_BUFFER_STARTED')) {
+		define('MACPROTECH_PAGE_BUFFER_STARTED', true);
+		ob_start();
+	}
+
 	include 'src/db/connection.php';
 	include 'auth_check.php';
 
@@ -26,23 +31,70 @@
 	<meta charset="utf-8">
 	<title>MACPROTECH</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+	<link rel="apple-touch-icon" sizes="180x180" href="src/images/apple-touch-icon.png?v=<?= filemtime(__DIR__ . '/src/images/apple-touch-icon.png'); ?>">
+	<link rel="icon" type="image/png" sizes="192x192" href="src/images/favicon-192x192.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-192x192.png'); ?>">
+	<link rel="icon" type="image/png" sizes="32x32" href="src/images/favicon-32x32.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-32x32.png'); ?>">
+	<link rel="icon" type="image/png" sizes="16x16" href="src/images/favicon-16x16.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-16x16.png'); ?>">
+	<link rel="shortcut icon" href="src/images/favicon.ico?v=<?= filemtime(__DIR__ . '/src/images/favicon.ico'); ?>">
 	<!--<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval';">-->
 	<script>
 		(function () {
 			try {
-				if (localStorage.getItem('macprotechSidebarCollapsed') === 'true') {
-					document.documentElement.classList.add('sidebar-collapsed');
+				document.documentElement.classList.toggle(
+					'sidebar-collapsed',
+					localStorage.getItem('macprotechSidebarCollapsed') === 'true'
+				);
+				if (sessionStorage.getItem('macproPageNavigating') === 'true') {
+					const skeletonDelay = 360;
+					const startedAt = Number(sessionStorage.getItem('macproPageNavigationStartedAt')) || Date.now();
+					const remainingDelay = Math.max(0, skeletonDelay - (Date.now() - startedAt));
+					document.documentElement.dataset.macproSkeleton = sessionStorage.getItem('macproPageSkeletonLayout') || 'table';
+					if (remainingDelay === 0) {
+						document.documentElement.classList.add('macpro-page-boot-loading');
+					} else {
+						window.setTimeout(function () {
+							if (sessionStorage.getItem('macproPageNavigating') === 'true') {
+								document.documentElement.classList.add('macpro-page-boot-loading');
+							}
+						}, remainingDelay);
+					}
 				}
 			} catch (error) {}
 		})();
 	</script>
 	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css?v=<?= filemtime(__DIR__ . '/src/styles/style-improved.css'); ?>">
 	<script defer src="src/scripts/dialogs.js"></script>
+	<script defer src="src/scripts/page-skeleton.js?v=<?= filemtime(__DIR__ . '/src/scripts/page-skeleton.js'); ?>"></script>
 	<script defer src="src/scripts/notifications.js"></script>
 	<script defer src="src/scripts/transition-tabs.js?v=<?= filemtime(__DIR__ . '/src/scripts/transition-tabs.js'); ?>"></script>
 </head>
 
 <body>
+	<div class="macpro-page-skeleton" id="macproPageSkeleton" role="status" aria-live="polite" aria-label="Loading page" aria-hidden="true">
+		<div class="macpro-page-skeleton-inner">
+			<div class="macpro-page-skeleton-head">
+				<span class="macpro-page-skeleton-title"></span>
+				<span class="macpro-page-skeleton-action"></span>
+			</div>
+			<div class="macpro-page-skeleton-metrics">
+				<span></span>
+				<span></span>
+				<span></span>
+				<span></span>
+			</div>
+			<div class="macpro-page-skeleton-panel">
+				<span class="macpro-page-skeleton-line is-wide"></span>
+				<span class="macpro-page-skeleton-line"></span>
+				<span class="macpro-page-skeleton-line is-short"></span>
+				<div class="macpro-page-skeleton-table">
+					<span></span><span></span><span></span><span></span>
+					<span></span><span></span><span></span><span></span>
+					<span></span><span></span><span></span><span></span>
+					<span></span><span></span><span></span><span></span>
+				</div>
+			</div>
+		</div>
+	</div>
 	<?php
 	$dialog_flash = $_SESSION['dialog_flash'] ?? null;
 	unset($_SESSION['dialog_flash']);

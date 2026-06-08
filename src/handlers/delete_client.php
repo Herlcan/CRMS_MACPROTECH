@@ -2,6 +2,7 @@
 
     include '../db/connection.php';
     include '../../auth_check.php';
+    require_once __DIR__ . '/activity_log_helper.php';
 
     function clientDeleteTableExists(mysqli $conn, string $table): bool {
         $table = mysqli_real_escape_string($conn, $table);
@@ -65,7 +66,7 @@
         }
 
         try {
-            $verify_query = mysqli_prepare($conn, "SELECT id FROM client WHERE id = ? LIMIT 1");
+            $verify_query = mysqli_prepare($conn, "SELECT id, first_name, last_name FROM client WHERE id = ? LIMIT 1");
             if (!$verify_query) {
                 throw new Exception('Database error: ' . mysqli_error($conn));
             }
@@ -74,10 +75,14 @@
             mysqli_stmt_execute($verify_query);
             $verify_result = mysqli_stmt_get_result($verify_query);
 
-            if (mysqli_num_rows($verify_result) === 0) {
+            $client = mysqli_fetch_assoc($verify_result);
+
+            if (!$client) {
                 mysqli_stmt_close($verify_query);
                 throw new Exception('Customer record not found.');
             }
+
+            $clientName = trim($client['first_name'] . ' ' . $client['last_name']);
 
             mysqli_stmt_close($verify_query);
 
@@ -274,6 +279,7 @@
             }
 
             mysqli_stmt_close($delete_query);
+            log_activity($conn, "Deleted customer {$clientName} (#{$client_id})");
 
             if (!mysqli_commit($conn)) {
                 throw new Exception('Failed to complete customer deletion.');

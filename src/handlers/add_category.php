@@ -3,6 +3,7 @@
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/category_schema.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $add_category_message = '';
 $add_category_error = '';
@@ -59,10 +60,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
 
             if (mysqli_stmt_execute($add_query)) {
 
+                log_activity($conn, "Added item category {$category_name}");
                 mysqli_stmt_close($add_query);
                 mysqli_stmt_close($check_query);
-                    $redirect = isset($_POST['redirect']) ? $_POST['redirect'] : 'item-category.php';
-                    header("Location: ../../" . basename($redirect));
+                $redirect = isset($_POST['redirect']) ? $_POST['redirect'] : 'item-category.php';
+                header("Location: ../../" . basename($redirect));
+                exit();
+            } else {
                 $add_category_error = 'Failed to add category. Please try again.';
                 mysqli_stmt_close($add_query);
                 mysqli_stmt_close($check_query);

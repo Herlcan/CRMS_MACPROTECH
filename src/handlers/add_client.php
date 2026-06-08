@@ -3,6 +3,7 @@
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $add_client_message = '';
 $add_client_error = '';
@@ -60,8 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_client'])) {
 
         if (mysqli_stmt_execute($add_query)) {
 
+            $client_id = mysqli_insert_id($conn);
             mysqli_stmt_close($add_query);
             $clientName = trim($first_name . ' ' . $last_name);
+            log_activity($conn, "Added customer {$clientName} (#{$client_id})");
             notify_users_by_roles(
                 $conn,
                 ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],

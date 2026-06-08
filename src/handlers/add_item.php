@@ -7,6 +7,7 @@ include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/category_schema.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $add_item_error = '';
 
@@ -71,6 +72,7 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
     }
 
     $category_id = mysqli_insert_id($conn);
+    log_activity($conn, "Added item category {$category_name}");
     mysqli_stmt_close($insert_query);
 
     return (int) $category_id;
@@ -204,6 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
                 redirectItemWithDialog('error', 'Product Item Not Created', 'Failed to generate product code.');
             }
 
+            log_activity($conn, "Added product item {$code} ({$brand_name} {$model})");
             mysqli_commit($conn);
 
             mysqli_stmt_close($add_query);

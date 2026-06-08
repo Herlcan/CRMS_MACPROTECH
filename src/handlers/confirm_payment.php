@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 include '../db/connection.php';
 include 'payment_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 $transactionStarted = false;
@@ -98,6 +99,11 @@ try {
     );
 
     $summary = refresh_payment_summary($conn, $paymentId, $discountAmount, $paymentMethod, $referenceNumber, $notes);
+    log_activity(
+        $conn,
+        'Recorded payment of Php ' . number_format($paymentAmount, 2) . " for {$payment['code']}",
+        (int) $payment['work_order_id']
+    );
     $repairStatus = null;
 
     if (
@@ -130,18 +136,7 @@ try {
 
         if ($releasedRows > 0) {
             $repairStatus = 'Released';
-            $logStmt = mysqli_prepare($conn, "
-                INSERT INTO activity_logs (user_id, work_order_id, action)
-                VALUES (?, ?, ?)
-            ");
-
-            if ($logStmt) {
-                $userId = (int) $_SESSION['user_id'];
-                $action = 'Released work order after full payment';
-                mysqli_stmt_bind_param($logStmt, "iis", $userId, $workOrderId, $action);
-                mysqli_stmt_execute($logStmt);
-                mysqli_stmt_close($logStmt);
-            }
+            log_activity($conn, 'Released work order after full payment', $workOrderId);
         }
     }
 
