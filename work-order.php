@@ -1,6 +1,9 @@
 <?php
 	include 'header.php';
 	include 'sidebar.php'; 
+	require_once __DIR__ . '/src/handlers/work_order_schema.php';
+
+	ensure_work_order_priority_column($conn);
 ?>
 
 	<div class="mobile-menu-overlay"></div>
@@ -27,6 +30,8 @@
 								<label>Show 
 									<form method="GET" style="display: inline;">
 										<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
+										<input type="hidden" name="filter" value="<?= isset($_GET['filter']) ? htmlspecialchars($_GET['filter']) : '' ?>">
+										<input type="hidden" name="priority_filter" value="<?= isset($_GET['priority_filter']) ? htmlspecialchars($_GET['priority_filter']) : '' ?>">
 										<select name="limit" aria-controls="DataTables_Table_0" class="custom-select custom-select-sm form-control form-control-sm" onchange="this.form.submit();">
 											<option value="10" <?= (isset($_GET['limit']) && $_GET['limit'] == '10') ? 'selected' : '' ?>>10</option>
 											<option value="25" <?= (isset($_GET['limit']) && $_GET['limit'] == '25') ? 'selected' : '' ?>>25</option>
@@ -38,13 +43,13 @@
 							</div>
 						</div>
 						<div class="col-sm-12 col-md-6" style="display: flex; align-items: center;">
-							<form method="GET" class="form-inline">
+							<form method="GET" class="form-inline" style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
 
 								<!-- Preserve search + limit -->
 								<input type="hidden" name="search" value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>">
 								<input type="hidden" name="limit" value="<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>">
 
-								<select name="filter" class="form-control form-control-sm" onchange="this.form.submit()" style=" max-height: 40px;">
+								<select name="filter" class="form-control form-control-sm" onchange="this.form.submit()" style="max-height: 40px; width: auto; min-width: 150px;">
 									<option value="">All Status</option>
 									<option value="Pending" <?= (isset($_GET['filter']) && $_GET['filter']=='Pending')?'selected':'' ?>>Pending</option>
 									<option value="Diagnosing" <?= (isset($_GET['filter']) && $_GET['filter']=='Diagnosing')?'selected':'' ?>>Diagnosing</option>
@@ -55,12 +60,21 @@
 									<option value="Cancelled" <?= (isset($_GET['filter']) && $_GET['filter']=='Cancelled')?'selected':'' ?>>Cancelled</option>
 								</select>
 
+								<select name="priority_filter" class="form-control form-control-sm" onchange="this.form.submit()" style="max-height: 40px; width: auto; min-width: 140px;">
+									<option value="">All Priority</option>
+									<option value="Rush" <?= (isset($_GET['priority_filter']) && $_GET['priority_filter']=='Rush')?'selected':'' ?>>Rush</option>
+									<option value="In Que" <?= (isset($_GET['priority_filter']) && $_GET['priority_filter']=='In Que')?'selected':'' ?>>In Que</option>
+								</select>
+
 							</form>
 						</div>
 						<div class="col-sm-12 col-md-6" style="margin-left: auto;">
 							<div id="DataTables_Table_0_filter" class="dataTables_filter">
 								<label>Search:
 									<form method="GET">
+										<input type="hidden" name="limit" value="<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>">
+										<input type="hidden" name="filter" value="<?= isset($_GET['filter']) ? htmlspecialchars($_GET['filter']) : '' ?>">
+										<input type="hidden" name="priority_filter" value="<?= isset($_GET['priority_filter']) ? htmlspecialchars($_GET['priority_filter']) : '' ?>">
 										<input type="search" name="search" class="form-control form-control-sm" placeholder="Search clients..." value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" autocomplete="off">
 									</form>
 								</label>
@@ -78,8 +92,9 @@
 									<th style="width: 20%; text-align: center;">Diagnoses</th>
 									<th style="width: 10%; text-align: center;">Amount</th>
 									<th style="width: 11%; text-align: center;">Completion Date</th>
-									<th style="width: 10%; text-align: center;">Status</th>
-									<th class="datatable-nosort" style="width: 8%; text-align: center;">Action</th>
+									<th style="width: 8%; text-align: center;">Priority</th>
+									<th style="width: 9%; text-align: center;">Status</th>
+									<th class="datatable-nosort" style="width: 7%; text-align: center;">Action</th>
 								</tr>
 							</thead>
 							<?php
@@ -123,6 +138,15 @@
 									}
 								}
 
+								if (!empty($_GET['priority_filter'])) {
+									$allowed_priorities = ['Rush', 'In Que'];
+
+									if (in_array($_GET['priority_filter'], $allowed_priorities, true)) {
+										$p = mysqli_real_escape_string($conn, $_GET['priority_filter']);
+										$where .= " AND priority='$p'";
+									}
+								}
+
 								// Technician restriction
 								if ($_SESSION["role"] == "Technician") {
 
@@ -143,10 +167,20 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT * FROM work_order WHERE $where ORDER BY code DESC LIMIT $limit OFFSET $offset");
+								$active_priority_sort = "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END";
+								$result = mysqli_query($conn, "SELECT * FROM work_order WHERE $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
+								$pagination_params = [
+									'limit' => isset($_GET['limit']) ? (string) $_GET['limit'] : '10',
+									'search' => isset($_GET['search']) ? (string) $_GET['search'] : '',
+									'filter' => isset($_GET['filter']) ? (string) $_GET['filter'] : '',
+									'priority_filter' => isset($_GET['priority_filter']) ? (string) $_GET['priority_filter'] : ''
+								];
+								$pagination_url = function ($page) use ($pagination_params) {
+									return '?' . http_build_query(array_merge($pagination_params, ['page' => $page]));
+								};
 								
 								function canEditStatus($conn) {
 
@@ -174,7 +208,7 @@
 								<?php } ?>
 								<?php if ($total_records == 0): ?>
 								<tr>
-									<td colspan="7" style="text-align: center;">No work orders found</td>
+									<td colspan="10" style="text-align: center;">No work orders found</td>
 								</tr>
 								<?php endif; ?>
 							</tbody>
@@ -194,7 +228,7 @@
 								<ul class="pagination justify-content-end">
 									<!-- Previous Button -->
 									<li class="paginate_button page-item previous <?= ($current_page <= 1) ? 'disabled' : '' ?>">
-										<a href="?page=<?= max(1, $current_page - 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
+										<a href="<?= htmlspecialchars($pagination_url(max(1, $current_page - 1)), ENT_QUOTES, 'UTF-8') ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-left">
 												<img src="src/images/angle-double-small-left.png" width="20px" style="border: none">
 											</i> 
@@ -207,7 +241,7 @@
 										$end_page = min($total_pages, $current_page + 2);
 										
 										if ($start_page > 1) {
-											echo '<li class="paginate_button page-item"><a href="?page=1&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">1</a></li>';
+											echo '<li class="paginate_button page-item"><a href="' . htmlspecialchars($pagination_url(1), ENT_QUOTES, 'UTF-8') . '" class="page-link">1</a></li>';
 											if ($start_page > 2) {
 												echo '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
 											}
@@ -215,20 +249,20 @@
 										
 										for ($i = $start_page; $i <= $end_page; $i++) {
 											$active = ($i == $current_page) ? 'active' : '';
-											echo '<li class="paginate_button page-item ' . $active . '"><a href="?page=' . $i . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">' . $i . '</a></li>';
+											echo '<li class="paginate_button page-item ' . $active . '"><a href="' . htmlspecialchars($pagination_url($i), ENT_QUOTES, 'UTF-8') . '" class="page-link">' . $i . '</a></li>';
 										}
 										
 										if ($end_page < $total_pages) {
 											if ($end_page < $total_pages - 1) {
 												echo '<li class="paginate_button page-item disabled"><span class="page-link">...</span></li>';
 											}
-											echo '<li class="paginate_button page-item"><a href="?page=' . $total_pages . '&limit=' . (isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10') . '&search=' . (isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '') . '" class="page-link">' . $total_pages . '</a></li>';
+											echo '<li class="paginate_button page-item"><a href="' . htmlspecialchars($pagination_url($total_pages), ENT_QUOTES, 'UTF-8') . '" class="page-link">' . $total_pages . '</a></li>';
 										}
 									?>
 
 									<!-- Next Button -->
 									<li class="paginate_button page-item next <?= ($current_page >= $total_pages) ? 'disabled' : '' ?>">
-										<a href="?page=<?= min($total_pages, $current_page + 1) ?>&limit=<?= isset($_GET['limit']) ? htmlspecialchars($_GET['limit']) : '10' ?>&search=<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
+										<a href="<?= htmlspecialchars($pagination_url(min($total_pages, $current_page + 1)), ENT_QUOTES, 'UTF-8') ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-right">
 												<img src="src/images/angle-double-small-right.png" width="20px" style="border: none">
 											</i>
@@ -1236,14 +1270,21 @@ function viewWorkOrder(id) {
 										// Update dataset old value
 										element.dataset.old = newStatus;
 
-										// Refresh only this row
-										refreshRow(workOrderId);
+										const statusAffectsQueueOrder = ['Repaired', 'Released', 'Cancelled'].includes(newStatus);
 
-										MacproDialog.success({
+										const successDialog = MacproDialog.success({
 											title: 'Status Updated',
 											message: 'Work order status updated successfully.',
 											autoClose: 1500
 										});
+
+										if (statusAffectsQueueOrder) {
+											successDialog.then(function () {
+												location.reload();
+											});
+										} else {
+											refreshRow(workOrderId);
+										}
 
 									} else {
 										element.value = oldStatus;

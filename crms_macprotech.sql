@@ -295,6 +295,7 @@ CREATE TABLE `work_order` (
   `prob_find` text NOT NULL,
   `diagnostic_fee` int(11) NOT NULL,
   `work_order_cost` int(11) NOT NULL,
+  `priority` varchar(20) NOT NULL DEFAULT 'In Que',
   `completion_date` date DEFAULT NULL,
   `status` varchar(50) NOT NULL,
   `technician_id` int(11) DEFAULT NULL,

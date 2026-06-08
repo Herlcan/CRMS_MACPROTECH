@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
+require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/item_schema.php';
 
@@ -64,6 +65,7 @@ try {
     }
 
     ensure_work_order_assignments_table($conn);
+    ensure_work_order_priority_column($conn);
     ensure_ordered_parts_table($conn);
 
     // Fetch work order with technician and customer names.

@@ -2213,6 +2213,15 @@ html.sidebar-transitioning .left-side-bar {
 	max-height: none;
 }
 
+.dashboard-trend-card {
+	max-height: none;
+}
+
+.dashboard-trend-card #monthlyChart {
+	flex: 1 1 auto;
+	max-height: none;
+}
+
 .dashboard-donut-layout {
 	display: grid;
 	grid-template-columns: minmax(210px, 0.9fr) minmax(220px, 1.1fr);
@@ -2449,6 +2458,11 @@ canvas#monthlyChart {
 	font-weight: 800;
 	font-size: 16px;
 	flex-shrink: 0;
+}
+
+.attention-item > span:not(.attention-count) {
+	flex: 1;
+	text-align: right;
 }
 
 .attention-item strong,

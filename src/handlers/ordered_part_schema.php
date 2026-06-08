@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/category_schema.php';
+
 function ordered_part_column_exists(mysqli $conn, string $table, string $column): bool
 {
     $query = mysqli_prepare($conn, "
@@ -58,6 +60,55 @@ function ensure_ordered_parts_table(mysqli $conn): void
     }
 }
 
+function resolve_ordered_part_category(mysqli $conn, string $category, string $otherCategory): string
+{
+    if ($category !== '__other__') {
+        return $category;
+    }
+
+    $categoryName = trim($otherCategory);
+
+    if ($categoryName === '') {
+        throw new Exception('Please enter an ordered part category.');
+    }
+
+    if (strlen($categoryName) > 50) {
+        throw new Exception('Ordered part category must be 50 characters or fewer.');
+    }
+
+    ensure_item_category_name_column($conn);
+
+    $check = mysqli_prepare($conn, "SELECT category_name FROM item_category WHERE LOWER(category_name) = LOWER(?) LIMIT 1");
+    if (!$check) {
+        throw new Exception('Database error: ' . mysqli_error($conn));
+    }
+
+    mysqli_stmt_bind_param($check, "s", $categoryName);
+    mysqli_stmt_execute($check);
+    $result = mysqli_stmt_get_result($check);
+    $existingCategory = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($check);
+
+    if ($existingCategory) {
+        return (string) $existingCategory['category_name'];
+    }
+
+    $insert = mysqli_prepare($conn, "INSERT INTO item_category (category_name) VALUES (?)");
+    if (!$insert) {
+        throw new Exception('Database error: ' . mysqli_error($conn));
+    }
+
+    mysqli_stmt_bind_param($insert, "s", $categoryName);
+    if (!mysqli_stmt_execute($insert)) {
+        $error = mysqli_stmt_error($insert);
+        mysqli_stmt_close($insert);
+        throw new Exception('Failed to add ordered part category: ' . $error);
+    }
+    mysqli_stmt_close($insert);
+
+    return $categoryName;
+}
+
 function save_ordered_parts_from_post(mysqli $conn, int $workOrderId): float
 {
     ensure_ordered_parts_table($conn);
@@ -69,6 +120,7 @@ function save_ordered_parts_from_post(mysqli $conn, int $workOrderId): float
     $names = $_POST['ordered_part_name'];
     $brands = isset($_POST['ordered_part_brand']) && is_array($_POST['ordered_part_brand']) ? $_POST['ordered_part_brand'] : [];
     $categories = isset($_POST['ordered_part_category']) && is_array($_POST['ordered_part_category']) ? $_POST['ordered_part_category'] : [];
+    $otherCategories = isset($_POST['ordered_part_other_category']) && is_array($_POST['ordered_part_other_category']) ? $_POST['ordered_part_other_category'] : [];
     $descriptions = isset($_POST['ordered_part_description']) && is_array($_POST['ordered_part_description']) ? $_POST['ordered_part_description'] : [];
     $quantities = isset($_POST['ordered_part_quantity']) && is_array($_POST['ordered_part_quantity']) ? $_POST['ordered_part_quantity'] : [];
     $prices = isset($_POST['ordered_part_price']) && is_array($_POST['ordered_part_price']) ? $_POST['ordered_part_price'] : [];
@@ -85,6 +137,8 @@ function save_ordered_parts_from_post(mysqli $conn, int $workOrderId): float
         if ($partName === '') {
             continue;
         }
+
+        $category = resolve_ordered_part_category($conn, $category, isset($otherCategories[$i]) ? (string) $otherCategories[$i] : '');
 
         $insert = mysqli_prepare($conn, "
             INSERT INTO ordered_parts

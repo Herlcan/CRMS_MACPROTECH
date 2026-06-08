@@ -289,7 +289,7 @@
 						<?= dashboard_trend_markup((float) $revenue_period['current'], (float) $revenue_period['previous']) ?>
 					</div>
 					<div class="stat-icon teal">
-						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+						<span aria-hidden="true" style="font-size: 22px; font-weight: 800; line-height: 1;">&#8369;</span>
 					</div>
 				</div>
 				<canvas class="stat-spark stat-spark-teal" id="spark-rev" height="50"></canvas>
@@ -341,7 +341,7 @@
 				</div>
 			</div>
 
-			<div class="card-box dashboard-chart-card">
+			<div class="card-box dashboard-chart-card dashboard-trend-card">
 				<div class="dashboard-card-heading">
 					<div>
 						<h5>6-Month Trend</h5>

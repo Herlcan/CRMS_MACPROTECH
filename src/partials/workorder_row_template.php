@@ -9,6 +9,16 @@
 	<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost'] + $wo['diagnostic_fee']) ?></td>
 			
 	<td style="text-align: center;"><?= htmlspecialchars($wo['completion_date'] ?? '—')?></td>
+
+	<td style="text-align: center;">
+		<?php
+			$priority = $wo['priority'] ?? 'In Que';
+			$priority_class = ($priority === 'Rush') ? 'bg-danger' : 'bg-info';
+		?>
+		<span class="badge <?= $priority_class ?>" style="width: 100%;">
+			<?= htmlspecialchars($priority) ?>
+		</span>
+	</td>
 	
 	<td style="text-align: center;">
 	<?php

@@ -7,6 +7,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
+require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 
@@ -83,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
     $prob_find = trim($_POST['prob_find']);
     $diagnostic_fee = trim($_POST['diagnostic_fee']);
     $work_order_cost = trim($_POST['work_order_cost']);
+    $priority = normalize_work_order_priority($_POST['priority'] ?? 'In Que');
     $status = trim($_POST['status']);
     $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
     $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
@@ -92,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
     } else {
         ensure_notifications_table($conn);
         ensure_work_order_assignments_table($conn);
+        ensure_work_order_priority_column($conn);
         ensure_ordered_parts_table($conn);
         ensure_items_inventory_columns($conn);
         ensure_inventory_transaction_table($conn);
@@ -127,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                 "UPDATE work_order SET
                 unit_type = ?, brand = ?, model = ?, specs_acce = ?, 
                 request_date = ?, prob_find = ?, diagnostic_fee = ?, 
-                work_order_cost = ?, status = ?, technician_id = ?, notes = ?
+                work_order_cost = ?, priority = ?, status = ?, technician_id = ?, notes = ?
                 WHERE id = ?"
             );
 
@@ -137,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
 
             mysqli_stmt_bind_param(
                 $update_query,
-                "sssssssssisi",
+                "ssssssssssisi",
                 $unit_type,
                 $brand,
                 $model,
@@ -146,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                 $prob_find,
                 $diagnostic_fee,
                 $work_order_cost,
+                $priority,
                 $status,
                 $technician_id,
                 $notes,

@@ -7,6 +7,9 @@
 	include 'header.php';
 	include 'sidebar.php'; 
 	include 'src/db/connection.php';
+	require_once __DIR__ . '/src/handlers/work_order_schema.php';
+
+	ensure_work_order_priority_column($conn);
 
 	function payment_display_date($value, $format = 'M d, Y') {
 		if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
@@ -104,19 +107,20 @@
 								
 								<div class="form-group">
 									<label class="form-label">Specifications/Accessories</label>
-									<textarea class="form-control" style="height: 151px;" placeholder="Input Specifications/Accessories" name="specs_acce" required autocomplete="off"></textarea>
+									<textarea class="form-control" style="height: 155px;" placeholder="Input Specifications/Accessories" name="specs_acce" required autocomplete="off"></textarea>
 								</div>
-							</div>
-							
-							<div style="width: 55%; padding-left: 5%;">
+
 								<div class="form-group">
 									<label class="form-label">Date</label>
 									<input type="date" class="form-control" name="request_date" required autocomplete="off">
 								</div>
+							</div>
+
+							<div style="width: 55%; padding-left: 5%; display: flex; flex-direction: column;">
 								
-								<div class="form-group">
+								<div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
 									<label class="form-label">Problems/Findings</label>
-									<textarea class="form-control" style="height: 150px;" placeholder="Input Problems/Findings" name="prob_find" required autocomplete="off"></textarea>
+									<textarea class="form-control" style="flex: 1; min-height: 250px;" placeholder="Input Problems/Findings" name="prob_find" required autocomplete="off"></textarea>
 								</div>
 
 								<div class="form-group">
@@ -127,6 +131,14 @@
 								<div class="form-group">
 									<label class="form-label">Work Order Cost</label>
 									<input type="number" class="form-control" placeholder="Work Order Cost" name="work_order_cost" required autocomplete="off">
+								</div>
+
+								<div class="form-group">
+									<label class="form-label">Priority</label>
+									<select class="form-control" name="priority" required autocomplete="off">
+										<option value="In Que">In Que</option>
+										<option value="Rush">Rush</option>
+									</select>
 								</div>
 							</div>
 						</div>
@@ -183,12 +195,14 @@
 											<div style="width: 48%; padding-left: 3%;">
 												<div class="form-group">
 													<label class="form-label">Part Category</label>
-													<select class="form-control" name="ordered_part_category[]" autocomplete="off">
+													<select class="form-control" name="ordered_part_category[]" autocomplete="off" onchange="toggleOrderedPartOtherCategory(this)">
 														<option value="">-- Select Category --</option>
 														<?php foreach ($itemCategories as $category): ?>
 															<option value="<?= htmlspecialchars($category['category_name']) ?>"><?= htmlspecialchars($category['category_name']) ?></option>
 														<?php endforeach; ?>
+														<option value="__other__">Other</option>
 													</select>
+													<input type="text" class="form-control ordered-part-other-category" name="ordered_part_other_category[]" placeholder="Enter category" maxlength="50" autocomplete="off" style="display: none; margin-top: 10px;" disabled>
 												</div>
 											</div>
 											<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
@@ -303,16 +317,20 @@
 		const orderedPartCategories = <?= json_encode(array_column($itemCategories, 'category_name'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 
 		function renderOrderedPartCategoryOptions(selectedCategory = '') {
+			const isKnownCategory = orderedPartCategories.some(category => String(category) === String(selectedCategory || ''));
+			const shouldSelectOther = selectedCategory && !isKnownCategory;
 			return '<option value="">-- Select Category --</option>' + orderedPartCategories.map(category => {
 				const selected = String(category) === String(selectedCategory || '') ? ' selected' : '';
 				return `<option value="${escapeHtml(category)}"${selected}>${escapeHtml(category)}</option>`;
-			}).join('');
+			}).join('') + `<option value="__other__"${shouldSelectOther ? ' selected' : ''}>Other</option>`;
 		}
 
 		function orderedPartEntryTemplate(part = {}) {
 			const partName = part.part_name || '';
 			const brand = part.brand || '';
 			const category = part.category || '';
+			const isKnownCategory = orderedPartCategories.some(knownCategory => String(knownCategory) === String(category || ''));
+			const shouldShowOtherCategory = category && !isKnownCategory;
 			const description = part.description || '';
 			const quantity = part.quantity || 1;
 			const price = part.price || '';
@@ -328,9 +346,10 @@
 					<div style="width: 48%; padding-left: 3%;">
 						<div class="form-group">
 							<label class="form-label">Part Category</label>
-							<select class="form-control" name="ordered_part_category[]" autocomplete="off">
+							<select class="form-control" name="ordered_part_category[]" autocomplete="off" onchange="toggleOrderedPartOtherCategory(this)">
 								${renderOrderedPartCategoryOptions(category)}
 							</select>
+							<input type="text" class="form-control ordered-part-other-category" name="ordered_part_other_category[]" placeholder="Enter category" maxlength="50" value="${shouldShowOtherCategory ? escapeHtml(category) : ''}" autocomplete="off" style="display: ${shouldShowOtherCategory ? 'block' : 'none'}; margin-top: 10px;" ${shouldShowOtherCategory ? 'required' : 'disabled'}>
 						</div>
 					</div>
 					<div style="width: 5%; align-self: flex-end; margin-bottom: 12px;">
@@ -362,6 +381,20 @@
 					<textarea class="form-control" placeholder="Enter description" name="ordered_part_description[]" style="height: 50px;" autocomplete="off">${escapeHtml(description)}</textarea>
 				</div>
 			`;
+		}
+
+		function toggleOrderedPartOtherCategory(selectElement) {
+			const otherCategoryInput = selectElement.closest('.form-group').querySelector('.ordered-part-other-category');
+			const isOther = selectElement.value === '__other__';
+
+			otherCategoryInput.style.display = isOther ? 'block' : 'none';
+			otherCategoryInput.disabled = !isOther;
+			otherCategoryInput.required = isOther;
+
+			if (!isOther) {
+				otherCategoryInput.value = '';
+				otherCategoryInput.style.borderColor = '';
+			}
 		}
 		
 		document.addEventListener('DOMContentLoaded', function() {
@@ -1102,6 +1135,7 @@ function viewWorkOrder(id) {
 			document.querySelector('textarea[name="prob_find"]').value = workOrder.prob_find || '';
 			document.querySelector('input[name="diagnostic_fee"]').value = workOrder.diagnostic_fee || '';
 			document.querySelector('input[name="work_order_cost"]').value = workOrder.work_order_cost || '';
+			document.querySelector('select[name="priority"]').value = workOrder.priority || 'In Que';
 			document.querySelector('input[name="status"]').value = workOrder.status || 'Pending';
 			document.querySelector('select[name="technician_id"]').value = workOrder.technician_id || '';
 			document.querySelector('textarea[name="notes"]').value = workOrder.notes || '';
@@ -1498,7 +1532,8 @@ function viewWorkOrder(id) {
 										$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 										// Correct table + column names with LIMIT and OFFSET
-										$result = mysqli_query($conn, "SELECT * FROM work_order WHERE client_id=$client_id AND $where ORDER BY code DESC LIMIT $limit OFFSET $offset");
+										$active_priority_sort = "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END";
+										$result = mysqli_query($conn, "SELECT * FROM work_order WHERE client_id=$client_id AND $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
 										$records_shown = mysqli_num_rows($result);
 										$record_start = ($total_records > 0) ? $offset + 1 : 0;
 										$record_end = min($offset + $records_shown, $total_records);
