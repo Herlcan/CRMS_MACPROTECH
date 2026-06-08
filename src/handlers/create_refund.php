@@ -45,11 +45,15 @@ try {
         throw new Exception('Refund reason is required');
     }
 
+    mysqli_begin_transaction($conn);
+    $transactionStarted = true;
+
     $paymentQuery = mysqli_prepare($conn, "
         SELECT id, work_order_id, total_amount, discount_amount, amount_paid
         FROM payments
         WHERE id = ?
         LIMIT 1
+        FOR UPDATE
     ");
 
     if (!$paymentQuery) {
@@ -66,72 +70,49 @@ try {
         throw new Exception('Payment record not found');
     }
 
-    $amountPaid = (float) $payment['amount_paid'];
-    $totalRefunded = get_total_refunded($conn, $paymentId);
+    $totals = get_payment_ledger_totals($conn, $paymentId);
+    $amountPaid = (float) $totals['total_paid'];
+    $totalRefunded = (float) $totals['total_refunded'];
     $refundableBalance = max(0, $amountPaid - $totalRefunded);
 
     if ($refundAmount > $refundableBalance) {
         throw new Exception('Refund amount exceeds refundable balance');
     }
 
-    mysqli_begin_transaction($conn);
-    $transactionStarted = true;
-
-    $insertRefund = mysqli_prepare($conn, "
-        INSERT INTO refunds (payment_id, refund_amount, refund_method, reason, refunded_by)
-        VALUES (?, ?, ?, ?, ?)
-    ");
-
-    if (!$insertRefund) {
-        throw new Exception('Database error: ' . mysqli_error($conn));
-    }
-
     $userId = (int) $_SESSION['user_id'];
-    mysqli_stmt_bind_param($insertRefund, "idssi", $paymentId, $refundAmount, $refundMethod, $reason, $userId);
+    $transactionId = record_payment_transaction(
+        $conn,
+        $paymentId,
+        (int) $payment['work_order_id'],
+        'refund',
+        $refundAmount,
+        $refundMethod,
+        null,
+        null,
+        $reason,
+        $userId
+    );
 
-    if (!mysqli_stmt_execute($insertRefund)) {
-        throw new Exception('Failed to save refund: ' . mysqli_stmt_error($insertRefund));
-    }
-
-    mysqli_stmt_close($insertRefund);
-
-    $totalRefunded += $refundAmount;
-    $netTotal = max(0, (float) $payment['total_amount'] - (float) $payment['discount_amount']);
-    $computed = calculate_payment_status($netTotal, $amountPaid, $totalRefunded);
-    $paymentStatus = $computed['payment_status'];
-    $changeAmount = $computed['change_amount'];
-    $remainingBalance = $computed['remaining_balance'];
-
-    $updatePayment = mysqli_prepare($conn, "
-        UPDATE payments
-        SET payment_status = ?, status = ?, change_amount = ?, remaining_balance = ?
-        WHERE id = ?
-    ");
-
-    if (!$updatePayment) {
-        throw new Exception('Database error: ' . mysqli_error($conn));
-    }
-
-    mysqli_stmt_bind_param($updatePayment, "ssddi", $paymentStatus, $paymentStatus, $changeAmount, $remainingBalance, $paymentId);
-
-    if (!mysqli_stmt_execute($updatePayment)) {
-        throw new Exception('Failed to update payment after refund: ' . mysqli_stmt_error($updatePayment));
-    }
-
-    mysqli_stmt_close($updatePayment);
+    $summary = refresh_payment_summary($conn, $paymentId);
     mysqli_commit($conn);
     $transactionStarted = false;
 
     $response = [
         'success' => true,
         'message' => 'Refund saved successfully',
-        'payment_status' => $paymentStatus,
+        'transaction_id' => $transactionId,
+        'payment_status' => $summary['payment_status'],
         'refund_amount' => $refundAmount,
-        'total_refunded' => $totalRefunded,
-        'actual_paid' => $computed['actual_paid'],
-        'change_amount' => $changeAmount,
-        'remaining_balance' => $remainingBalance,
-        'refundable_balance' => $computed['refundable_balance']
+        'total_paid' => $summary['total_paid'],
+        'amount_paid' => $summary['amount_paid'],
+        'total_refunded' => $summary['total_refunded'],
+        'actual_paid' => $summary['actual_paid'],
+        'net_paid' => $summary['net_paid'],
+        'change_amount' => $summary['change_amount'],
+        'remaining_balance' => $summary['remaining_balance'],
+        'refundable_balance' => $summary['refundable_balance'],
+        'transaction_at' => date('Y-m-d H:i:s'),
+        'recorded_by_name' => trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? ''))
     ];
 } catch (Exception $e) {
     if ($transactionStarted && isset($conn)) {

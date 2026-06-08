@@ -1533,7 +1533,7 @@ function viewWorkOrder(id) {
 
 										// Correct table + column names with LIMIT and OFFSET
 										$active_priority_sort = "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END";
-										$result = mysqli_query($conn, "SELECT * FROM work_order WHERE client_id=$client_id AND $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
+										$result = mysqli_query($conn, "SELECT work_order.*, (SELECT p.total_amount FROM payments p WHERE p.work_order_id = work_order.id ORDER BY p.id DESC LIMIT 1) AS payment_total_amount FROM work_order WHERE client_id=$client_id AND $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
 										$records_shown = mysqli_num_rows($result);
 										$record_start = ($total_records > 0) ? $offset + 1 : 0;
 										$record_end = min($offset + $records_shown, $total_records);
@@ -1551,7 +1551,8 @@ function viewWorkOrder(id) {
 											
 											<td style="text-align: center;"><?= htmlspecialchars($wo['prob_find']) ?></td>
 											
-											<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost'] + $wo['diagnostic_fee']) ?></td>
+											<?php $row_total_amount = isset($wo['payment_total_amount']) && $wo['payment_total_amount'] !== null ? (float) $wo['payment_total_amount'] : ((float) $wo['work_order_cost'] + (float) $wo['diagnostic_fee']); ?>
+											<td style="text-align: center;"><?= 'Php ' . htmlspecialchars(number_format($row_total_amount, 2)) ?></td>
 											
 											<td style="text-align: center;"><?= htmlspecialchars(payment_display_date($wo['completion_date'], 'M d, Y') ?? '—')?></td>
 											

@@ -416,4 +416,21 @@
 			document.getElementById('clientIdField').value = '';
 		}
 	});
+
+	if (new URLSearchParams(window.location.search).get('open_add_client') === '1') {
+		window.addEventListener('load', function () {
+			const addClientToggle = document.getElementById('addClientToggle');
+			const firstNameInput = document.querySelector('input[name="first_name"]');
+
+			if (addClientToggle) {
+				addClientToggle.checked = true;
+			}
+
+			if (firstNameInput) {
+				window.setTimeout(function () {
+					firstNameInput.focus();
+				}, 100);
+			}
+		});
+	}
 </script>

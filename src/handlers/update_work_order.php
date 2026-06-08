@@ -6,6 +6,7 @@ ini_set('display_startup_errors', '1');
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/payment_schema.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
@@ -93,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
         $update_work_order_error = 'Invalid work order ID';
     } else {
         ensure_notifications_table($conn);
+        ensure_payment_detail_columns($conn);
         ensure_work_order_assignments_table($conn);
         ensure_work_order_priority_column($conn);
         ensure_ordered_parts_table($conn);
@@ -242,16 +244,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
                     if (!empty($product_id) && $quantity > 0) {
                         $product_id = (int) $product_id;
 
+                        $price_query = mysqli_prepare($conn, "SELECT average_price FROM items WHERE id = ?");
+                        if (!$price_query) {
+                            throw new Exception('Database error: ' . mysqli_error($conn));
+                        }
+                        mysqli_stmt_bind_param($price_query, "i", $product_id);
+                        mysqli_stmt_execute($price_query);
+                        $price_result = mysqli_stmt_get_result($price_query);
+                        $price_row = mysqli_fetch_assoc($price_result);
+                        $item_price = $price_row ? (float) $price_row['average_price'] : 0.0;
+                        mysqli_stmt_close($price_query);
+
                         $purchased_query = mysqli_prepare(
                             $conn,
-                            "INSERT INTO purchased_item (work_order_id, product_id, quantity, date) VALUES (?, ?, ?, ?)"
+                            "INSERT INTO purchased_item (work_order_id, product_id, quantity, unit_price, date) VALUES (?, ?, ?, ?, ?)"
                         );
 
                         if (!$purchased_query) {
                             throw new Exception('Database error: ' . mysqli_error($conn));
                         }
 
-                        mysqli_stmt_bind_param($purchased_query, "iiis", $work_order_id, $product_id, $quantity, $current_date);
+                        mysqli_stmt_bind_param($purchased_query, "iiids", $work_order_id, $product_id, $quantity, $item_price, $current_date);
                         if (!mysqli_stmt_execute($purchased_query)) {
                             throw new Exception('Failed to add purchased item');
                         }
@@ -327,6 +340,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
             } elseif ($technician_id) {
                 notify_work_order_updated($conn, $technician_id, $workOrderCode, 'Work order details were updated.');
             }
+
+            refresh_payment_summaries($conn, $work_order_id);
 
             // Commit transaction
             mysqli_commit($conn);

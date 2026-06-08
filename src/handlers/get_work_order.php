@@ -11,6 +11,7 @@ require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/item_schema.php';
+require_once __DIR__ . '/payment_schema.php';
 
 $response = [
     'success' => false,
@@ -67,6 +68,7 @@ try {
     ensure_work_order_assignments_table($conn);
     ensure_work_order_priority_column($conn);
     ensure_ordered_parts_table($conn);
+    ensure_payment_detail_columns($conn);
 
     // Fetch work order with technician and customer names.
     $query = mysqli_prepare($conn, "
@@ -95,6 +97,8 @@ try {
     if (!$work_order) {
         throw new Exception('Work order not found');
     }
+
+    refresh_payment_summaries($conn, $work_order_id);
 
     $cancelled_from_status = null;
     if (($work_order['status'] ?? '') === 'Cancelled') {
@@ -229,40 +233,8 @@ try {
     });
 
     // Fetch purchased parts (returns empty array if no parts exist)
-    $purchased_parts = [];
-    $purchased_query = mysqli_prepare($conn, "
-        SELECT pi.*, COALESCE(i.brand_name, 'Unknown Item') as product_name, COALESCE(i.average_price, 0) as product_price
-        FROM purchased_item pi
-        LEFT JOIN items i ON pi.product_id = i.id
-        WHERE pi.work_order_id = ?
-        ORDER BY pi.id ASC
-    ");
-    
-    if ($purchased_query) {
-        mysqli_stmt_bind_param($purchased_query, "i", $work_order_id);
-        if (mysqli_stmt_execute($purchased_query)) {
-            $purchased_result = mysqli_stmt_get_result($purchased_query);
-            $purchased_parts = mysqli_fetch_all($purchased_result, MYSQLI_ASSOC);
-        }
-        mysqli_stmt_close($purchased_query);
-    }
-
-    $ordered_parts = [];
-    $ordered_query = mysqli_prepare($conn, "
-        SELECT *
-        FROM ordered_parts
-        WHERE work_order_id = ?
-        ORDER BY id ASC
-    ");
-
-    if ($ordered_query) {
-        mysqli_stmt_bind_param($ordered_query, "i", $work_order_id);
-        if (mysqli_stmt_execute($ordered_query)) {
-            $ordered_result = mysqli_stmt_get_result($ordered_query);
-            $ordered_parts = mysqli_fetch_all($ordered_result, MYSQLI_ASSOC);
-        }
-        mysqli_stmt_close($ordered_query);
-    }
+    $purchased_parts = get_payment_purchased_parts($conn, $work_order_id);
+    $ordered_parts = get_payment_ordered_parts($conn, $work_order_id);
 
     // Fetch client provided parts (returns empty array if no parts exist)
     $client_parts = [];

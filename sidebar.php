@@ -34,7 +34,7 @@
 						<span class="mtext">Dashboard</span>
 					</a>
 				</li>
-				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk'): ?>
+				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk' || $_SESSION['role'] == 'Cashier/Front Desk Staff'): ?>
 				<li>
 					<a href="clients.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-user">
@@ -52,7 +52,7 @@
 						<span class="mtext">Work Orders</span>
 					</a>
 				</li>
-				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk' || $_SESSION['role'] == 'Technician'): ?>
+				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk' || $_SESSION['role'] == 'Cashier/Front Desk Staff' || $_SESSION['role'] == 'Technician'): ?>
 				<li>
 					<a href="items.php" class="dropdown-toggle no-arrow">
 						<span class="micon fa fa-cart-plus">
@@ -62,7 +62,7 @@
 					</a>
 				</li>
 				<?php endif; ?>
-				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk'): ?>
+				<?php if ($_SESSION['role'] == 'Administrator' || $_SESSION['role'] == 'Cashier/Front Desk' || $_SESSION['role'] == 'Cashier/Front Desk Staff'): ?>
 				<li>
 					<a href="payment.php" class="dropdown-toggle no-arrow">
 						<span class="micon dw dw-money">

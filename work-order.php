@@ -168,7 +168,7 @@
 
 								// Correct table + column names with LIMIT and OFFSET
 								$active_priority_sort = "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END";
-								$result = mysqli_query($conn, "SELECT * FROM work_order WHERE $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
+									$result = mysqli_query($conn, "SELECT work_order.*, (SELECT p.total_amount FROM payments p WHERE p.work_order_id = work_order.id ORDER BY p.id DESC LIMIT 1) AS payment_total_amount FROM work_order WHERE $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
@@ -1062,10 +1062,11 @@ function viewWorkOrder(id) {
 								return;
 							}
 
-							const wo = data.workOrder;
-							const purchased = data.purchasedParts || [];
-							const clientParts = data.clientParts || [];
-							const payments = data.payments || [];
+								const wo = data.workOrder;
+								const purchased = data.purchasedParts || [];
+								const clientParts = data.clientParts || [];
+								const orderedParts = data.orderedParts || [];
+								const payments = data.payments || [];
 
 							if (!wo) {
 								MacproDialog.error({
@@ -1100,12 +1101,17 @@ function viewWorkOrder(id) {
 							// Calculate and populate payment section
 							const diagnosticFee = parseFloat(wo.diagnostic_fee) || 0;
 							const workOrderCost = parseFloat(wo.work_order_cost) || 0;
-							const purchasedPartTotal = purchased.reduce((sum, part) => {
-								const quantity = parseFloat(part.quantity) || 0;
-								const price = parseFloat(part.product_price) || 0;
-								return sum + (quantity * price);
-							}, 0);
-							const grandTotal = diagnosticFee + workOrderCost + purchasedPartTotal;
+								const purchasedPartTotal = purchased.reduce((sum, part) => {
+									const quantity = parseFloat(part.quantity) || 0;
+									const price = parseFloat(part.product_price) || 0;
+									return sum + (quantity * price);
+								}, 0);
+								const orderedPartTotal = orderedParts.reduce((sum, part) => {
+									const quantity = parseFloat(part.quantity) || 0;
+									const price = parseFloat(part.price) || 0;
+									return sum + (quantity * price);
+								}, 0);
+								const grandTotal = diagnosticFee + workOrderCost + purchasedPartTotal + orderedPartTotal;
 
 							let paymentHtml = `
 								<div class="row">
@@ -1118,16 +1124,20 @@ function viewWorkOrder(id) {
 											<small style="color: #667eea; font-weight: 600;">Work Order Cost</small>
 											<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${workOrderCost.toFixed(2)}</p>
 										</div>
-										<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea;">
-											<small style="color: #667eea; font-weight: 600;">Purchased Parts</small>
-											<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${purchasedPartTotal.toFixed(2)}</p>
-										</div>
+											<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #667eea;">
+												<small style="color: #667eea; font-weight: 600;">Purchased Parts</small>
+												<p style="font-size: 1.25rem; font-weight: 700; color: #667eea; margin: 8px 0 0 0;">Php ${purchasedPartTotal.toFixed(2)}</p>
+											</div>
+											<div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #fd7e14; margin-top: 12px;">
+												<small style="color: #fd7e14; font-weight: 600;">Ordered Parts</small>
+												<p style="font-size: 1.25rem; font-weight: 700; color: #fd7e14; margin: 8px 0 0 0;">Php ${orderedPartTotal.toFixed(2)}</p>
+											</div>
 									</div>
 									<div class="col-md-8">
 										<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 8px; text-align: center; height: 100%;">
 											<small style="opacity: 0.9; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 8px; font-size: 0.9rem;">Total Amount Due</small>
 											<p style="font-size: 2.5rem; font-weight: 700; margin: 0;">Php ${grandTotal.toFixed(2)}</p>
-											<small style="opacity: 0.85; display: block; margin-top: 8px; font-size: 0.85rem;">(Diagnostic + Work Order + Parts)</small>
+												<small style="opacity: 0.85; display: block; margin-top: 8px; font-size: 0.85rem;">(Diagnostic + Work Order + Purchased/Ordered Parts)</small>
 										</div>
 									</div>
 								</div>
@@ -1161,7 +1171,7 @@ function viewWorkOrder(id) {
 
 
 							// Populate parts section
-							if (purchased.length > 0 || clientParts.length > 0) {
+								if (purchased.length > 0 || orderedParts.length > 0 || clientParts.length > 0) {
 								let partsHtml = '';
 
 								const partsEl = document.getElementById('vw_parts');
@@ -1173,8 +1183,8 @@ function viewWorkOrder(id) {
 								}
 
 
-								if (purchased.length > 0) {
-									partsHtml += `<div style="margin-bottom: 15px;">
+									if (purchased.length > 0) {
+										partsHtml += `<div style="margin-bottom: 15px;">
 										<small style="color: #6c757d; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 10px;">Purchased Parts</small>
 										<div style="background: #f8f9fa; padding: 12px; border-radius: 6px;">
 											<ul style="margin: 0; padding-left: 20px;">`;
@@ -1184,8 +1194,24 @@ function viewWorkOrder(id) {
 										const total = qty * price;
 										partsHtml += `<li style="margin-bottom: 8px; color: #555;">${escapeHtml(part.product_name || 'Item')} <strong>x${qty}</strong> @ Php ${price.toFixed(2)} = <span style="color: #28a745; font-weight: 700;">Php ${total.toFixed(2)}</span></li>`;
 									});
-									partsHtml += `</ul></div></div>`;
-								}
+										partsHtml += `</ul></div></div>`;
+									}
+
+									if (orderedParts.length > 0) {
+										partsHtml += `<div style="margin-bottom: 15px;">
+											<small style="color: #6c757d; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 10px;">Ordered Parts</small>
+											<div style="background: #fff7ed; border-left: 3px solid #fd7e14; padding: 12px; border-radius: 6px;">
+												<ul style="margin: 0; padding-left: 20px;">`;
+										orderedParts.forEach(part => {
+											const qty = parseFloat(part.quantity) || 0;
+											const price = parseFloat(part.price) || 0;
+											const total = qty * price;
+											const name = `${part.brand ? escapeHtml(part.brand) + ' ' : ''}${escapeHtml(part.part_name || 'Item')}`;
+											const category = part.category ? ` <small style="color: #6c757d;">(${escapeHtml(part.category)})</small>` : '';
+											partsHtml += `<li style="margin-bottom: 8px; color: #555;">${name}${category} <strong>x${qty}</strong> @ Php ${price.toFixed(2)} = <span style="color: #fd7e14; font-weight: 700;">Php ${total.toFixed(2)}</span>${part.description ? `<br><small>${escapeHtml(part.description)}</small>` : ''}</li>`;
+										});
+										partsHtml += `</ul></div></div>`;
+									}
 
 								if (clientParts.length > 0) {
 									partsHtml += `<div>

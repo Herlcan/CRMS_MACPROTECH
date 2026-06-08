@@ -149,7 +149,7 @@ try {
 
     if ($status === 'Released') {
         $paymentStmt = $conn->prepare("
-            SELECT COALESCE(payment_status, status) AS payment_status
+            SELECT COALESCE(payment_status, status) AS payment_status, COALESCE(remaining_balance, 0) AS remaining_balance
             FROM payments
             WHERE work_order_id = ?
             ORDER BY id DESC
@@ -162,12 +162,12 @@ try {
 
         $paymentStmt->bind_param("i", $id);
         $paymentStmt->execute();
-        $paymentStmt->bind_result($paymentStatus);
+        $paymentStmt->bind_result($paymentStatus, $remainingBalance);
         $paymentStmt->fetch();
         $paymentStmt->close();
 
-        if ($paymentStatus !== 'Paid') {
-            throw new Exception("Work order can only be {$status} when payment status is Paid.");
+        if (!in_array($paymentStatus, ['Paid', 'Partially Refunded'], true) || (float) $remainingBalance > 0.009) {
+            throw new Exception("Work order can only be {$status} when the payment balance is fully settled.");
         }
     }
 

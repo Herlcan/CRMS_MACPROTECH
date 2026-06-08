@@ -5,6 +5,7 @@
 	require_once 'src/handlers/payment_schema.php';
 
 	ensure_payment_detail_columns($conn);
+	refresh_payment_summaries($conn);
 
 	function payment_display_date($value, $format = 'M d, Y') {
 		if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
@@ -376,6 +377,8 @@
 									<option value="Paid" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Paid') ? 'selected' : '' ?>>Paid</option>
 									<option value="Partial" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Partial') ? 'selected' : '' ?>>Partial</option>
 									<option value="Unpaid" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Unpaid') ? 'selected' : '' ?>>Unpaid</option>
+									<option value="Partially Refunded" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Partially Refunded') ? 'selected' : '' ?>>Partially Refunded</option>
+									<option value="Refunded" <?= (isset($_GET['filter']) && $_GET['filter'] == 'Refunded') ? 'selected' : '' ?>>Refunded</option>
 								</select>
 							</form>
 						</div>
@@ -450,7 +453,7 @@
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
-									$allowed_payment_status = ['Paid', 'Partial', 'Unpaid'];
+									$allowed_payment_status = ['Paid', 'Partial', 'Unpaid', 'Partially Refunded', 'Refunded'];
 
 									if (in_array($_GET['filter'], $allowed_payment_status, true)) {
 										$f = mysqli_real_escape_string($conn, $_GET['filter']);
@@ -650,7 +653,7 @@
 					</div>
 
 					<div class="payment-section">
-						<div class="payment-section-title">Purchased Items Breakdown</div>
+						<div class="payment-section-title">Parts Breakdown</div>
 						<table class="payment-table">
 							<thead>
 								<tr>
@@ -686,7 +689,7 @@
 									<input type="text" class="form-control" name="reference_number" id="reference_number" autocomplete="off">
 								</div>
 								<div class="form-group">
-									<label class="form-label">Amount Paid</label>
+									<label class="form-label">Payment Amount</label>
 									<input type="number" class="form-control" name="amount_paid" id="amount_paid" min="0" step="0.01" autocomplete="off">
 								</div>
 								<div class="form-group">
@@ -709,7 +712,7 @@
 										<strong id="pm_net_total">&#8369;0.00</strong>
 									</div>
 									<div class="payment-computed-row">
-										<span>Paid</span>
+										<span>Total Paid</span>
 										<strong id="pm_amount_paid">&#8369;0.00</strong>
 									</div>
 									<div class="payment-computed-row">
@@ -717,7 +720,7 @@
 										<strong id="pm_refunded_amount">&#8369;0.00</strong>
 									</div>
 									<div class="payment-computed-row">
-										<span>Actual Paid</span>
+										<span>Net Paid</span>
 										<strong id="pm_actual_paid">&#8369;0.00</strong>
 									</div>
 									<div class="payment-computed-row">
@@ -738,7 +741,7 @@
 					</div>
 
 					<div class="payment-section" id="paymentHistorySection">
-						<div class="payment-section-title">Payment History</div>
+						<div class="payment-section-title">Transaction History</div>
 						<div class="payment-history-list" id="payment_history">
 							<div class="payment-history-entry">
 								<div>Loading...</div>
@@ -847,6 +850,23 @@
 			}).format(parsed);
 		}
 
+		function formatDateTimeForDisplay(value) {
+			if (!value || value === '0000-00-00' || value === '0000-00-00 00:00:00') return '—';
+
+			const normalized = String(value).trim().replace(' ', 'T');
+			const parsed = new Date(normalized);
+
+			if (Number.isNaN(parsed.getTime())) return String(value);
+
+			return new Intl.DateTimeFormat('en-PH', {
+				month: 'short',
+				day: '2-digit',
+				year: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit'
+			}).format(parsed);
+		}
+
 		function escapeHtml(value) {
 			if (value === null || value === undefined || value === '') return '—';
 			const map = {
@@ -936,6 +956,7 @@
 			const payment = data.payment || {};
 			const costs = data.costs || {};
 			const parts = data.purchasedParts || [];
+			const orderedParts = data.orderedParts || [];
 			const device = [payment.brand, payment.model].filter(Boolean).join(' ');
 			const computed = data.computed || {};
 			const paymentStatus = computed.payment_status || payment.payment_status || payment.status || 'Unpaid';
@@ -953,6 +974,7 @@
 			const diagnosticFee = Number(costs.diagnostic_fee) || 0;
 			const workOrderCost = Number(costs.work_order_cost) || 0;
 			const purchasedPartsTotal = Number(costs.purchased_parts_total) || 0;
+			const orderedPartsTotal = Number(costs.ordered_parts_total) || 0;
 			const grossTotal = Number(costs.gross_total) || 0;
 
 			document.getElementById('pm_cost_breakdown').innerHTML = `
@@ -969,13 +991,16 @@
 					<td class="text-right">${formatMoney(purchasedPartsTotal)}</td>
 				</tr>
 				<tr>
+					<td>Ordered Parts</td>
+					<td class="text-right">${formatMoney(orderedPartsTotal)}</td>
+				</tr>
+				<tr>
 					<td><strong>TOTAL</strong></td>
 					<td class="text-right"><strong>${formatMoney(grossTotal)}</strong></td>
 				</tr>
 			`;
 
-			if (parts.length) {
-				document.getElementById('pm_purchased_items').innerHTML = parts.map(part => {
+			const partsRows = parts.map(part => {
 					const qty = Number(part.quantity) || 0;
 					const price = Number(part.product_price) || 0;
 					const itemName = [part.product_name, part.product_model].filter(Boolean).join(' ');
@@ -987,21 +1012,37 @@
 							<td class="text-right">${formatMoney(qty * price)}</td>
 						</tr>
 					`;
-				}).join('');
+				}).concat(orderedParts.map(part => {
+					const qty = Number(part.quantity) || 0;
+					const price = Number(part.price) || 0;
+					const itemName = [part.brand, part.part_name].filter(Boolean).join(' ');
+					const category = part.category ? ' (' + part.category + ')' : '';
+					return `
+						<tr>
+							<td>${escapeHtml((itemName || 'Ordered Part') + category)}</td>
+							<td class="text-right">${qty}</td>
+							<td class="text-right">${formatMoney(price)}</td>
+							<td class="text-right">${formatMoney(qty * price)}</td>
+						</tr>
+					`;
+				}));
+
+			if (partsRows.length) {
+				document.getElementById('pm_purchased_items').innerHTML = partsRows.join('');
 			} else {
-				document.getElementById('pm_purchased_items').innerHTML = '<tr><td colspan="4" style="text-align:center;">No purchased items</td></tr>';
+				document.getElementById('pm_purchased_items').innerHTML = '<tr><td colspan="4" style="text-align:center;">No purchased or ordered parts</td></tr>';
 			}
 
 			document.getElementById('payment_method').value = payment.payment_method || 'Cash';
 			document.getElementById('reference_number').value = payment.reference_number || '';
-			document.getElementById('amount_paid').value = Number(payment.amount_paid) > 0 ? Number(payment.amount_paid).toFixed(2) : '';
+			document.getElementById('amount_paid').value = '';
 			document.getElementById('discount_amount').value = Number(payment.discount_amount) > 0 ? Number(payment.discount_amount).toFixed(2) : '0';
 			document.getElementById('payment_notes').value = payment.notes || '';
 
 			toggleReferenceNumber();
 			updatePaymentComputation();
 			renderPaymentHistory();
-			document.getElementById('refundPaymentBtn').disabled = !(getComputedPaymentValues().refundable > 0);
+			document.getElementById('refundPaymentBtn').disabled = !(getComputedPaymentValues(false, false).refundable > 0);
 			document.getElementById('printReceiptBtn').disabled = false;
 			document.getElementById('emailReceiptBtn').disabled = !payment.customer_email;
 		}
@@ -1018,14 +1059,18 @@
 			}
 		}
 
-		function getComputedPaymentValues() {
+		function getComputedPaymentValues(includePendingPayment = true, includeEditedDiscount = true) {
+			const payment = currentPaymentDetails ? (currentPaymentDetails.payment || {}) : {};
 			const costs = currentPaymentDetails ? (currentPaymentDetails.costs || {}) : {};
 			const computed = currentPaymentDetails ? (currentPaymentDetails.computed || {}) : {};
 			const total = Number(costs.gross_total) || 0;
-			const discountInput = Number(document.getElementById('discount_amount').value) || 0;
+			const savedDiscount = Number(payment.discount_amount) || 0;
+			const discountInput = includeEditedDiscount ? (Number(document.getElementById('discount_amount').value) || 0) : savedDiscount;
 			const discount = Math.min(Math.max(discountInput, 0), total);
-			const paid = Math.max(Number(document.getElementById('amount_paid').value) || 0, 0);
-			const refunded = Math.min(Math.max(Number(computed.total_refunded) || 0, 0), paid);
+			const savedPaid = Math.max(Number(payment.amount_paid || computed.total_paid) || 0, 0);
+			const transactionAmount = includePendingPayment ? Math.max(Number(document.getElementById('amount_paid').value) || 0, 0) : 0;
+			const paid = savedPaid + transactionAmount;
+			const refunded = Math.max(Number(computed.total_refunded) || 0, 0);
 			const netTotal = Math.max(total - discount, 0);
 			const actualPaid = Math.max(paid - refunded, 0);
 			const change = Math.max(actualPaid - netTotal, 0);
@@ -1043,7 +1088,7 @@
 				status = 'Partial';
 			}
 
-			return { total, discount, netTotal, paid, refunded, actualPaid, change, remaining, refundable, status };
+			return { total, discount, netTotal, savedPaid, transactionAmount, paid, refunded, actualPaid, change, remaining, refundable, status };
 		}
 
 		function updatePaymentComputation() {
@@ -1058,7 +1103,7 @@
 			document.getElementById('pm_remaining_balance').textContent = formatMoney(values.remaining);
 			document.getElementById('pm_payment_status').textContent = values.status;
 			document.getElementById('pm_payment_status').className = getStatusClass(values.status);
-			document.getElementById('refundPaymentBtn').disabled = !(values.refundable > 0);
+			document.getElementById('refundPaymentBtn').disabled = !(getComputedPaymentValues(false, false).refundable > 0);
 		}
 
 		function updateListRow(paymentId, status, total, paidDate) {
@@ -1097,35 +1142,28 @@
 		function renderPaymentHistory() {
 			if (!currentPaymentDetails) return;
 
-			const payment = currentPaymentDetails.payment || {};
-			const refunds = currentPaymentDetails.refunds || [];
-			const entries = [];
-			const amountPaid = Number(payment.amount_paid) || 0;
+			const transactions = currentPaymentDetails.transactions || [];
+			const entries = transactions.map(transaction => {
+				const type = String(transaction.transaction_type || '').toLowerCase();
+				const isRefund = type === 'refund';
+				const method = transaction.method ? ' via ' + transaction.method : '';
+				const reference = transaction.reference_number ? ' / Ref #: ' + transaction.reference_number : '';
+				const reason = transaction.reason || transaction.notes || (isRefund ? 'Refund recorded' : 'Payment received');
+				const recorder = transaction.recorded_by_name ? 'Recorded by ' + transaction.recorded_by_name : 'Recorded by unknown user';
 
-			if (amountPaid > 0) {
-				entries.push({
-					type: 'payment',
-					date: payment.date || payment.created_at || '',
-					title: '+ ' + formatMoney(amountPaid) + ' ' + (payment.payment_method || 'Payment'),
-					detail: payment.reference_number ? 'Ref #: ' + payment.reference_number : 'Payment received',
-					amountClass: 'inflow'
-				});
-			}
-
-			refunds.forEach(refund => {
-				entries.push({
-					type: 'refund',
-					date: refund.refunded_at || '',
-					title: '- ' + formatMoney(refund.refund_amount) + ' Refund',
-					detail: (refund.reason || 'Refund') + (refund.refund_method ? ' via ' + refund.refund_method : ''),
-					amountClass: 'outflow'
-				});
+				return {
+					type,
+					date: transaction.transaction_at || transaction.created_at || '',
+					title: (isRefund ? '- ' : '+ ') + formatMoney(transaction.amount) + ' ' + (isRefund ? 'Refund' : 'Payment'),
+					detail: reason + method + reference + ' - ' + recorder,
+					amountClass: isRefund ? 'outflow' : 'inflow'
+				};
 			});
 
 			if (!entries.length) {
 				document.getElementById('payment_history').innerHTML = `
 					<div class="payment-history-entry">
-						<div>No payment or refund history yet</div>
+						<div>No payment or refund transactions yet</div>
 					</div>
 				`;
 				return;
@@ -1138,7 +1176,7 @@
 						<small>${escapeHtml(entry.detail)}</small>
 					</div>
 					<div class="payment-history-amount ${entry.amountClass}">
-						${escapeHtml(entry.date || '—')}
+						${escapeHtml(formatDateTimeForDisplay(entry.date))}
 					</div>
 				</div>
 			`).join('');
@@ -1147,7 +1185,7 @@
 		function openRefundModal() {
 			if (!currentPaymentDetails) return;
 
-			const values = getComputedPaymentValues();
+			const values = getComputedPaymentValues(false, false);
 			if (values.refundable <= 0) {
 				showPaymentAlert('There is no refundable balance for this payment.', 'error');
 				return;
@@ -1190,10 +1228,12 @@
 					}
 
 					const paymentId = document.getElementById('payment_id').value;
+					const paymentNotes = document.getElementById('payment_notes').value;
 					currentPaymentDetails.payment = {
 						...currentPaymentDetails.payment,
 						payment_method: data.payment_method,
 						reference_number: data.reference_number,
+						total_amount: data.total_amount,
 						discount_amount: data.discount_amount,
 						amount_paid: data.amount_paid,
 						change_amount: data.change_amount,
@@ -1201,19 +1241,35 @@
 						payment_status: data.payment_status,
 						status: data.payment_status,
 						date: data.date,
-						notes: document.getElementById('payment_notes').value
+						notes: paymentNotes
 					};
 					currentPaymentDetails.computed = {
 						...(currentPaymentDetails.computed || {}),
+						total_paid: data.total_paid,
 						total_refunded: data.total_refunded,
 						actual_paid: data.actual_paid,
+						net_paid: data.net_paid,
+						net_total: data.net_total,
 						refundable_balance: data.refundable_balance
 					};
+					currentPaymentDetails.transactions = currentPaymentDetails.transactions || [];
+					currentPaymentDetails.transactions.push({
+						id: data.transaction_id,
+						transaction_type: 'payment',
+						amount: data.transaction_amount,
+						method: data.payment_method,
+						reference_number: data.reference_number,
+						notes: paymentNotes,
+						reason: '',
+						transaction_at: data.transaction_at,
+						recorded_by_name: data.recorded_by_name || 'Current user'
+					});
 					if (data.repair_status) {
 						currentPaymentDetails.payment.work_order_status = data.repair_status;
 						document.getElementById('pm_repair_status').textContent = data.repair_status;
 					}
 
+					document.getElementById('amount_paid').value = '';
 					updatePaymentComputation();
 					renderPaymentHistory();
 					updateListRow(paymentId, data.payment_status, data.total_amount, data.date);
@@ -1256,21 +1312,29 @@
 					const refundMethod = document.getElementById('refund_method').value;
 					const reason = document.getElementById('refund_reason').value;
 
-					currentPaymentDetails.refunds = currentPaymentDetails.refunds || [];
-					currentPaymentDetails.refunds.unshift({
-						refund_amount: refundAmount,
-						refund_method: refundMethod,
+					currentPaymentDetails.transactions = currentPaymentDetails.transactions || [];
+					currentPaymentDetails.transactions.push({
+						id: data.transaction_id,
+						transaction_type: 'refund',
+						amount: refundAmount,
+						method: refundMethod,
+						reference_number: '',
+						notes: '',
 						reason: reason,
-						refunded_at: new Date().toLocaleString('en-PH')
+						transaction_at: data.transaction_at,
+						recorded_by_name: data.recorded_by_name || 'Current user'
 					});
 					currentPaymentDetails.computed = {
 						...(currentPaymentDetails.computed || {}),
+						total_paid: data.total_paid,
 						total_refunded: data.total_refunded,
 						actual_paid: data.actual_paid,
+						net_paid: data.net_paid,
 						refundable_balance: data.refundable_balance
 					};
 					currentPaymentDetails.payment = {
 						...currentPaymentDetails.payment,
+						amount_paid: data.amount_paid,
 						payment_status: data.payment_status,
 						status: data.payment_status,
 						change_amount: data.change_amount,
@@ -1298,18 +1362,25 @@
 
 			const payment = currentPaymentDetails.payment || {};
 			const parts = currentPaymentDetails.purchasedParts || [];
-			const values = getComputedPaymentValues();
+			const orderedParts = currentPaymentDetails.orderedParts || [];
+			const values = getComputedPaymentValues(false, false);
 			const device = [payment.brand, payment.model].filter(Boolean).join(' ') || payment.unit_type || '—';
-			const ref = document.getElementById('reference_number').value;
-			const method = document.getElementById('payment_method').value;
-			const notes = document.getElementById('payment_notes').value;
+			const ref = payment.reference_number || '';
+			const method = payment.payment_method || 'Cash';
+			const notes = payment.notes || '';
 
-			const partsRows = parts.length ? parts.map(part => {
+			const partsRows = parts.map(part => {
 				const qty = Number(part.quantity) || 0;
 				const price = Number(part.product_price) || 0;
 				const itemName = [part.product_name, part.product_model].filter(Boolean).join(' ') || part.product_code || 'Item';
 				return `<tr><td>${escapeHtml(itemName)}</td><td style="text-align:right;">${qty}</td><td style="text-align:right;">${formatMoney(price)}</td><td style="text-align:right;">${formatMoney(qty * price)}</td></tr>`;
-			}).join('') : '<tr><td colspan="4" style="text-align:center;">No purchased items</td></tr>';
+			}).concat(orderedParts.map(part => {
+				const qty = Number(part.quantity) || 0;
+				const price = Number(part.price) || 0;
+				const itemName = [part.brand, part.part_name].filter(Boolean).join(' ') || 'Ordered Part';
+				const category = part.category ? ' (' + part.category + ')' : '';
+				return `<tr><td>${escapeHtml(itemName + category)}</td><td style="text-align:right;">${qty}</td><td style="text-align:right;">${formatMoney(price)}</td><td style="text-align:right;">${formatMoney(qty * price)}</td></tr>`;
+			})).join('') || '<tr><td colspan="4" style="text-align:center;">No purchased or ordered parts</td></tr>';
 
 			return `
 				<!doctype html>
@@ -1348,9 +1419,10 @@
 						<tr><td>Diagnostic Fee</td><td class="right">${formatMoney(currentPaymentDetails.costs.diagnostic_fee)}</td></tr>
 						<tr><td>Work Order Cost</td><td class="right">${formatMoney(currentPaymentDetails.costs.work_order_cost)}</td></tr>
 						<tr><td>Purchased Parts</td><td class="right">${formatMoney(currentPaymentDetails.costs.purchased_parts_total)}</td></tr>
+						<tr><td>Ordered Parts</td><td class="right">${formatMoney(currentPaymentDetails.costs.ordered_parts_total)}</td></tr>
 						<tr><td class="total">Total</td><td class="right total">${formatMoney(values.total)}</td></tr>
 					</table>
-					<h3>Purchased Items</h3>
+					<h3>Parts</h3>
 					<table>
 						<tr><th>Item</th><th class="right">Qty</th><th class="right">Price</th><th class="right">Subtotal</th></tr>
 						${partsRows}
@@ -1362,7 +1434,7 @@
 						<tr><td>Amount Due</td><td class="right">${formatMoney(values.netTotal)}</td></tr>
 						<tr><td>Paid</td><td class="right">${formatMoney(values.paid)}</td></tr>
 						<tr><td>Refunded</td><td class="right">${formatMoney(values.refunded)}</td></tr>
-						<tr><td>Actual Paid</td><td class="right">${formatMoney(values.actualPaid)}</td></tr>
+						<tr><td>Net Paid</td><td class="right">${formatMoney(values.actualPaid)}</td></tr>
 						<tr><td>Change</td><td class="right">${formatMoney(values.change)}</td></tr>
 						<tr><td>Remaining</td><td class="right">${formatMoney(values.remaining)}</td></tr>
 					</table>
@@ -1421,6 +1493,13 @@
 					button.disabled = false;
 					button.textContent = 'Email Receipt';
 				});
+		}
+
+		const autoOpenPaymentId = Number(new URLSearchParams(window.location.search).get('open_payment') || 0);
+		if (autoOpenPaymentId > 0) {
+			window.addEventListener('load', function () {
+				openPaymentModal(autoOpenPaymentId);
+			});
 		}
 	</script>
 </html>

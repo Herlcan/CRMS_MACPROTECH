@@ -5480,3 +5480,219 @@ a.btn-danger:hover,
 .macpro-dialog-success .macpro-dialog-btn-primary {
     background: var(--blue-700);
 }
+
+.role-stat-card {
+    min-height: 150px;
+    padding-bottom: 18px;
+}
+
+.dashboard-role-grid {
+    grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.85fr);
+    align-items: start;
+}
+
+.dashboard-table-card.is-scrollable {
+    overflow-x: auto;
+}
+
+.dashboard-table-note {
+    display: block;
+    margin-top: 4px;
+    color: var(--ink-600);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.dashboard-issue-cell {
+    max-width: 280px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-action-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1.5px solid var(--brand-blue);
+    border-radius: 8px;
+    background: var(--brand-white);
+    color: var(--brand-blue);
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all .2s ease;
+}
+
+.dashboard-action-link:hover {
+    background: var(--blue-50);
+    color: var(--blue-800);
+    box-shadow: 0 6px 14px rgba(var(--brand-blue-rgb), 0.16);
+    transform: translateY(-1px);
+}
+
+.dashboard-action-link.is-primary {
+    border-color: var(--red-700);
+    background: var(--red-700);
+    color: var(--brand-white);
+}
+
+.dashboard-action-link.is-primary:hover {
+    background: var(--red-800);
+    color: var(--brand-white);
+    box-shadow: 0 8px 18px rgba(var(--brand-red-rgb), 0.18);
+}
+
+.queue-priority {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 22px;
+    margin-left: 8px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--red-100);
+    color: var(--red-800);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.parts-tracker-list {
+    display: grid;
+    gap: 10px;
+}
+
+.parts-tracker-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--ink-200);
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--blue-50) 0%, var(--brand-white) 100%);
+    color: var(--ink-800);
+    text-decoration: none;
+    transition: all .2s ease;
+}
+
+.parts-tracker-item:hover {
+    border-color: var(--brand-blue);
+    background: var(--blue-50);
+    color: var(--brand-black);
+    box-shadow: 0 4px 12px rgba(var(--brand-blue-rgb), 0.14);
+    transform: translateY(-1px);
+}
+
+.parts-tracker-item strong {
+    display: block;
+    color: var(--brand-black);
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.parts-tracker-item small {
+    display: block;
+    margin-top: 4px;
+    color: var(--ink-600);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.parts-status-badge,
+.balance-due {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.part-status-ready {
+    background: var(--blue-100);
+    color: var(--blue-800);
+}
+
+.part-status-low {
+    background: var(--orange-100);
+    color: var(--orange-800);
+}
+
+.part-status-order {
+    background: var(--red-100);
+    color: var(--red-800);
+}
+
+.balance-due {
+    background: var(--ink-50);
+    color: var(--ink-700);
+}
+
+.balance-due.is-open {
+    background: var(--red-100);
+    color: var(--red-800);
+}
+
+.cashier-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.cashier-quick-actions .quick-action-btn.large {
+    aspect-ratio: 1 / 1;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.25;
+    text-align: center;
+}
+
+.cashier-quick-actions .quick-action-btn.large .qa-icon {
+    width: 40px;
+    height: 40px;
+}
+
+@media (max-width: 420px) {
+    .cashier-quick-actions .quick-action-btn.large {
+        padding: 10px;
+        font-size: 12px;
+    }
+
+    .cashier-quick-actions .quick-action-btn.large .qa-icon {
+        width: 34px;
+        height: 34px;
+    }
+}
+
+@media (max-width: 1199px) {
+    .dashboard-role-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-role-grid .dashboard-table {
+        min-width: 720px;
+    }
+
+    .parts-tracker-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .parts-status-badge {
+        align-self: flex-start;
+    }
+}

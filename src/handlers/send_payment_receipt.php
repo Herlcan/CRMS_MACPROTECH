@@ -105,27 +105,8 @@ try {
     $netTotal = max(0, $grossTotal - $discount);
     $computed = calculate_payment_status($netTotal, $amountPaid, $totalRefunded);
 
-    $parts = [];
-    $partsQuery = mysqli_prepare($conn, "
-        SELECT
-            pi.quantity,
-            COALESCE(i.product_code, '') AS product_code,
-            COALESCE(i.brand_name, 'Unknown Item') AS product_name,
-            COALESCE(i.model, '') AS product_model,
-            COALESCE(i.average_price, 0) AS product_price
-        FROM purchased_item pi
-        LEFT JOIN items i ON pi.product_id = i.id
-        WHERE pi.work_order_id = ?
-        ORDER BY pi.id ASC
-    ");
-
-    if ($partsQuery) {
-        mysqli_stmt_bind_param($partsQuery, "i", $workOrderId);
-        mysqli_stmt_execute($partsQuery);
-        $partsResult = mysqli_stmt_get_result($partsQuery);
-        $parts = mysqli_fetch_all($partsResult, MYSQLI_ASSOC);
-        mysqli_stmt_close($partsQuery);
-    }
+    $parts = get_payment_purchased_parts($conn, $workOrderId);
+    $orderedParts = get_payment_ordered_parts($conn, $workOrderId);
 
     $partsRows = '';
     if ($parts) {
@@ -144,8 +125,31 @@ try {
                 . '<td style="text-align:right;">' . money($qty * $price) . '</td>'
                 . '</tr>';
         }
-    } else {
-        $partsRows = '<tr><td colspan="4" style="text-align:center;color:#6b7280;">No purchased items</td></tr>';
+    }
+
+    if ($orderedParts) {
+        foreach ($orderedParts as $part) {
+            $qty = (float) $part['quantity'];
+            $price = (float) $part['price'];
+            $item = trim(($part['brand'] ?? '') . ' ' . ($part['part_name'] ?? ''));
+            if ($item === '') {
+                $item = 'Ordered Part';
+            }
+            if (!empty($part['category'])) {
+                $item .= ' (' . $part['category'] . ')';
+            }
+
+            $partsRows .= '<tr>'
+                . '<td>' . html_text($item) . '</td>'
+                . '<td style="text-align:right;">' . number_format($qty, 0) . '</td>'
+                . '<td style="text-align:right;">' . money($price) . '</td>'
+                . '<td style="text-align:right;">' . money($qty * $price) . '</td>'
+                . '</tr>';
+        }
+    }
+
+    if ($partsRows === '') {
+        $partsRows = '<tr><td colspan="4" style="text-align:center;color:#6b7280;">No purchased or ordered parts</td></tr>';
     }
 
     $device = trim(($payment['brand'] ?? '') . ' ' . ($payment['model'] ?? ''));
@@ -200,9 +204,10 @@ try {
                     ' . receipt_row('Diagnostic Fee', (float) $costs['diagnostic_fee']) . '
                     ' . receipt_row('Work Order Cost', (float) $costs['work_order_cost']) . '
                     ' . receipt_row('Purchased Parts', (float) $costs['purchased_parts_total']) . '
+                    ' . receipt_row('Ordered Parts', (float) $costs['ordered_parts_total']) . '
                     ' . receipt_row('Total', $grossTotal, true) . '
                 </table>
-                <h3>Purchased Items</h3>
+                <h3>Parts</h3>
                 <table>
                     <tr><th>Item</th><th class="right">Qty</th><th class="right">Price</th><th class="right">Subtotal</th></tr>
                     ' . $partsRows . '
@@ -214,7 +219,7 @@ try {
                     ' . receipt_row('Amount Due', $netTotal) . '
                     ' . receipt_row('Paid', $amountPaid) . '
                     ' . receipt_row('Refunded', $totalRefunded) . '
-                    ' . receipt_row('Actual Paid', (float) $computed['actual_paid']) . '
+                    ' . receipt_row('Net Paid', (float) $computed['actual_paid']) . '
                     ' . receipt_row('Change', (float) $computed['change_amount']) . '
                     ' . receipt_row('Remaining', (float) $computed['remaining_balance'], true) . '
                 </table>

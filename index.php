@@ -6,6 +6,9 @@
 	include 'header.php';
 	include 'sidebar.php';
 	include 'src/db/connection.php';
+	require_once __DIR__ . '/src/handlers/work_order_schema.php';
+	require_once __DIR__ . '/src/handlers/ordered_part_schema.php';
+	require_once __DIR__ . '/src/handlers/payment_schema.php';
 
 	function dashboard_scalar(mysqli $conn, string $sql, string $field = 'total', $fallback = 0)
 	{
@@ -111,9 +114,30 @@
 	}
 
 	$current_role = $_SESSION['role'] ?? '';
-	$can_manage_clients = in_array($current_role, ['Administrator', 'Cashier/Front Desk'], true);
-	$can_manage_payments = in_array($current_role, ['Administrator', 'Cashier/Front Desk'], true);
+	$front_desk_roles = ['Cashier/Front Desk', 'Cashier/Front Desk Staff'];
+	$can_manage_clients = in_array($current_role, array_merge(['Administrator'], $front_desk_roles), true);
+	$can_manage_payments = in_array($current_role, array_merge(['Administrator'], $front_desk_roles), true);
 	$can_view_reports = $current_role === 'Administrator';
+
+	ensure_payment_detail_columns($conn);
+	if ($current_role !== 'Technician') {
+		refresh_payment_summaries($conn);
+	}
+
+	if ($current_role === 'Technician') {
+		ensure_work_order_priority_column($conn);
+		ensure_ordered_parts_table($conn);
+		include __DIR__ . '/src/partials/dashboard_technician.php';
+		include 'footer.php';
+		return;
+	}
+
+	if (in_array($current_role, $front_desk_roles, true)) {
+		include __DIR__ . '/src/partials/dashboard_cashier.php';
+		include 'footer.php';
+		return;
+	}
+
 	$total_workorders = (int) dashboard_scalar($conn, "SELECT COUNT(*) AS total FROM work_order");
 	$total_technicians = (int) dashboard_scalar($conn, "SELECT COUNT(*) AS total FROM users WHERE role = 'Technician'");
 	$open_workorders = (int) dashboard_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE status NOT IN ('Released', 'Cancelled')");

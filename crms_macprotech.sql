@@ -184,6 +184,29 @@ CREATE TABLE `payments` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `payment_transaction`
+--
+
+CREATE TABLE `payment_transaction` (
+  `id` int(11) NOT NULL,
+  `payment_id` int(11) NOT NULL,
+  `work_order_id` int(11) NOT NULL,
+  `transaction_type` varchar(20) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `method` varchar(50) DEFAULT NULL,
+  `reference_number` varchar(100) DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `reason` text DEFAULT NULL,
+  `recorded_by` int(11) DEFAULT NULL,
+  `transaction_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `source_table` varchar(50) DEFAULT NULL,
+  `source_id` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `refunds`
 --
 
@@ -208,6 +231,7 @@ CREATE TABLE `purchased_item` (
   `work_order_id` int(11) NOT NULL,
   `product_id` varchar(50) NOT NULL,
   `quantity` int(11) NOT NULL,
+  `unit_price` decimal(10,2) DEFAULT NULL,
   `date` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -404,6 +428,18 @@ ALTER TABLE `payments`
   ADD KEY `date` (`date`);
 
 --
+-- Indexes for table `payment_transaction`
+--
+ALTER TABLE `payment_transaction`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_payment_transaction_source` (`source_table`,`source_id`),
+  ADD KEY `idx_payment_transaction_payment` (`payment_id`),
+  ADD KEY `idx_payment_transaction_work_order` (`work_order_id`),
+  ADD KEY `idx_payment_transaction_type` (`transaction_type`),
+  ADD KEY `idx_payment_transaction_recorded_by` (`recorded_by`),
+  ADD KEY `idx_payment_transaction_at` (`transaction_at`);
+
+--
 -- Indexes for table `refunds`
 --
 ALTER TABLE `refunds`
@@ -514,6 +550,12 @@ ALTER TABLE `ordered_parts`
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `payment_transaction`
+--
+ALTER TABLE `payment_transaction`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --

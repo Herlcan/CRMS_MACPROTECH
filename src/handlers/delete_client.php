@@ -168,6 +168,20 @@
                 'Failed to delete refund records'
             );
 
+            if (clientDeleteTableExists($conn, 'payment_transaction')) {
+                executeClientDeleteStatement(
+                    $conn,
+                    "DELETE pt
+                    FROM payment_transaction pt
+                    INNER JOIN payments p ON pt.payment_id = p.id
+                    INNER JOIN work_order wo ON p.work_order_id = wo.id
+                    WHERE wo.client_id = ?
+                    AND NOT $paidPaymentCondition",
+                    $client_id,
+                    'Failed to delete payment transaction records'
+                );
+            }
+
             executeClientDeleteStatement(
                 $conn,
                 "DELETE al

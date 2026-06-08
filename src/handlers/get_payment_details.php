@@ -66,58 +66,38 @@ try {
     }
 
     $workOrderId = (int) $payment['work_order_id'];
-    $purchasedParts = [];
-    $partsQuery = mysqli_prepare($conn, "
-        SELECT
-            pi.*,
-            COALESCE(i.product_code, '') AS product_code,
-            COALESCE(i.brand_name, 'Unknown Item') AS product_name,
-            COALESCE(i.model, '') AS product_model,
-            COALESCE(i.average_price, 0) AS product_price
-        FROM purchased_item pi
-        LEFT JOIN items i ON pi.product_id = i.id
-        WHERE pi.work_order_id = ?
-        ORDER BY pi.id ASC
-    ");
-
-    if ($partsQuery) {
-        mysqli_stmt_bind_param($partsQuery, "i", $workOrderId);
-        mysqli_stmt_execute($partsQuery);
-        $partsResult = mysqli_stmt_get_result($partsQuery);
-        $purchasedParts = mysqli_fetch_all($partsResult, MYSQLI_ASSOC);
-        mysqli_stmt_close($partsQuery);
-    }
+    $purchasedParts = get_payment_purchased_parts($conn, $workOrderId);
+    $orderedParts = get_payment_ordered_parts($conn, $workOrderId);
 
     $costs = get_payment_costs($conn, $workOrderId);
-    $totalRefunded = get_total_refunded($conn, $paymentId);
-    $netTotal = max(0, (float) $payment['total_amount'] - (float) ($payment['discount_amount'] ?? 0));
-    $computed = calculate_payment_status($netTotal, (float) ($payment['amount_paid'] ?? 0), $totalRefunded);
+    $totals = get_payment_ledger_totals($conn, $paymentId);
+    $totalPaid = (float) $totals['total_paid'];
+    $totalRefunded = (float) $totals['total_refunded'];
+    $grossTotal = (float) $costs['gross_total'];
+    $discountAmount = min(max((float) ($payment['discount_amount'] ?? 0), 0), $grossTotal);
+    $netTotal = max(0, $grossTotal - $discountAmount);
+    $computed = calculate_payment_status($netTotal, $totalPaid, $totalRefunded);
+    $computed['total_paid'] = $totalPaid;
+    $computed['net_paid'] = $computed['actual_paid'];
+    $computed['net_total'] = $netTotal;
+    $transactions = get_payment_transactions($conn, $paymentId);
 
-    $refunds = [];
-    $refundsQuery = mysqli_prepare($conn, "
-        SELECT
-            r.*,
-            CONCAT(u.first_name, ' ', u.last_name) AS refunded_by_name
-        FROM refunds r
-        LEFT JOIN users u ON r.refunded_by = u.id
-        WHERE r.payment_id = ?
-        ORDER BY r.refunded_at DESC, r.id DESC
-    ");
-
-    if ($refundsQuery) {
-        mysqli_stmt_bind_param($refundsQuery, "i", $paymentId);
-        mysqli_stmt_execute($refundsQuery);
-        $refundsResult = mysqli_stmt_get_result($refundsQuery);
-        $refunds = mysqli_fetch_all($refundsResult, MYSQLI_ASSOC);
-        mysqli_stmt_close($refundsQuery);
-    }
+    $payment['total_amount'] = $grossTotal;
+    $payment['discount_amount'] = $discountAmount;
+    $payment['amount_paid'] = $totalPaid;
+    $payment['change_amount'] = $computed['change_amount'];
+    $payment['remaining_balance'] = $computed['remaining_balance'];
+    $payment['payment_status'] = $computed['payment_status'];
+    $payment['status'] = $computed['payment_status'];
 
     $response = [
         'success' => true,
         'payment' => $payment,
         'costs' => $costs,
         'purchasedParts' => $purchasedParts,
-        'refunds' => $refunds,
+        'orderedParts' => $orderedParts,
+        'transactions' => $transactions,
+        'refunds' => [],
         'computed' => $computed
     ];
 } catch (Exception $e) {

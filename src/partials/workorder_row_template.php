@@ -6,7 +6,8 @@
 			
 	<td style="text-align: center;"><?= htmlspecialchars($wo['prob_find']) ?></td>
 			
-	<td style="text-align: center;"><?= 'Php'.' '.htmlspecialchars($wo['work_order_cost'] + $wo['diagnostic_fee']) ?></td>
+		<?php $row_total_amount = isset($wo['payment_total_amount']) && $wo['payment_total_amount'] !== null ? (float) $wo['payment_total_amount'] : ((float) $wo['work_order_cost'] + (float) $wo['diagnostic_fee']); ?>
+		<td style="text-align: center;"><?= 'Php ' . htmlspecialchars(number_format($row_total_amount, 2)) ?></td>
 			
 	<td style="text-align: center;"><?= htmlspecialchars($wo['completion_date'] ?? '—')?></td>
 

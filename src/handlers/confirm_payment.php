@@ -29,7 +29,7 @@ try {
     $paymentMethod = trim($_POST['payment_method'] ?? '');
     $referenceNumber = trim($_POST['reference_number'] ?? '');
     $notes = trim($_POST['notes'] ?? '');
-    $amountPaid = isset($_POST['amount_paid']) ? (float) $_POST['amount_paid'] : 0;
+    $paymentAmount = isset($_POST['amount_paid']) ? (float) $_POST['amount_paid'] : 0;
     $discountAmount = isset($_POST['discount_amount']) ? (float) $_POST['discount_amount'] : 0;
     $validMethods = ['Cash', 'GCash', 'Maya', 'Bank Transfer'];
     $digitalMethods = ['GCash', 'Maya', 'Bank Transfer'];
@@ -42,8 +42,8 @@ try {
         throw new Exception('Invalid payment method');
     }
 
-    if ($amountPaid < 0) {
-        throw new Exception('Amount paid cannot be negative');
+    if ($paymentAmount <= 0) {
+        throw new Exception('Payment amount must be greater than zero');
     }
 
     if ($discountAmount < 0) {
@@ -58,12 +58,16 @@ try {
         $referenceNumber = '';
     }
 
+    mysqli_begin_transaction($conn);
+    $transactionStarted = true;
+
     $paymentQuery = mysqli_prepare($conn, "
         SELECT p.id, p.work_order_id, p.amount_paid, p.date, wo.code
         FROM payments p
         INNER JOIN work_order wo ON wo.id = p.work_order_id
         WHERE p.id = ?
         LIMIT 1
+        FOR UPDATE
     ");
 
     if (!$paymentQuery) {
@@ -80,71 +84,66 @@ try {
         throw new Exception('Payment record not found');
     }
 
-    $costs = get_payment_costs($conn, (int) $payment['work_order_id']);
-    $grossTotal = (float) $costs['gross_total'];
-    $discountAmount = min($discountAmount, $grossTotal);
-    $netTotal = max(0, $grossTotal - $discountAmount);
-    $totalRefunded = get_total_refunded($conn, $paymentId);
-    $computed = calculate_payment_status($netTotal, $amountPaid, $totalRefunded);
-    $paymentStatus = $computed['payment_status'];
-    $changeAmount = $computed['change_amount'];
-    $remainingBalance = $computed['remaining_balance'];
-    $currentAmountPaid = (float) ($payment['amount_paid'] ?? 0);
-    $currentPaidDate = $payment['date'] ?? null;
-    $paidDate = $currentPaidDate;
-
-    if ($amountPaid <= 0) {
-        $paidDate = null;
-    } elseif (empty($currentPaidDate) || $currentPaidDate === '0000-00-00' || abs($currentAmountPaid - $amountPaid) > 0.009) {
-        $paidDate = date('Y-m-d');
-    }
-
-    mysqli_begin_transaction($conn);
-    $transactionStarted = true;
-
-    $updateQuery = mysqli_prepare($conn, "
-        UPDATE payments
-        SET
-            total_amount = ?,
-            discount_amount = ?,
-            payment_method = ?,
-            reference_number = ?,
-            amount_paid = ?,
-            change_amount = ?,
-            remaining_balance = ?,
-            payment_status = ?,
-            status = ?,
-            notes = ?,
-            date = ?
-        WHERE id = ?
-    ");
-
-    if (!$updateQuery) {
-        throw new Exception('Database error: ' . mysqli_error($conn));
-    }
-
-    mysqli_stmt_bind_param(
-        $updateQuery,
-        "ddssdddssssi",
-        $grossTotal,
-        $discountAmount,
+    $transactionId = record_payment_transaction(
+        $conn,
+        $paymentId,
+        (int) $payment['work_order_id'],
+        'payment',
+        $paymentAmount,
         $paymentMethod,
         $referenceNumber,
-        $amountPaid,
-        $changeAmount,
-        $remainingBalance,
-        $paymentStatus,
-        $paymentStatus,
         $notes,
-        $paidDate,
-        $paymentId
+        null,
+        (int) $_SESSION['user_id']
     );
 
-    if (!mysqli_stmt_execute($updateQuery)) {
-        throw new Exception('Failed to confirm payment: ' . mysqli_stmt_error($updateQuery));
-    }
+    $summary = refresh_payment_summary($conn, $paymentId, $discountAmount, $paymentMethod, $referenceNumber, $notes);
+    $repairStatus = null;
 
-    mysqli_stmt_close($updateQuery);
+    if (
+        in_array($summary['payment_status'], ['Paid', 'Partially Refunded'], true)
+        && (float) $summary['remaining_balance'] <= 0.009
+    ) {
+        $releaseStmt = mysqli_prepare($conn, "
+            UPDATE work_order
+            SET status = 'Released',
+                completion_date = COALESCE(completion_date, CURDATE())
+            WHERE id = ?
+            AND status IN ('Repaired', 'Ready for Release')
+        ");
+
+        if (!$releaseStmt) {
+            throw new Exception('Failed to prepare release update: ' . mysqli_error($conn));
+        }
+
+        $workOrderId = (int) $payment['work_order_id'];
+        mysqli_stmt_bind_param($releaseStmt, "i", $workOrderId);
+
+        if (!mysqli_stmt_execute($releaseStmt)) {
+            $error = mysqli_stmt_error($releaseStmt);
+            mysqli_stmt_close($releaseStmt);
+            throw new Exception('Failed to release work order: ' . $error);
+        }
+
+        $releasedRows = mysqli_stmt_affected_rows($releaseStmt);
+        mysqli_stmt_close($releaseStmt);
+
+        if ($releasedRows > 0) {
+            $repairStatus = 'Released';
+            $logStmt = mysqli_prepare($conn, "
+                INSERT INTO activity_logs (user_id, work_order_id, action)
+                VALUES (?, ?, ?)
+            ");
+
+            if ($logStmt) {
+                $userId = (int) $_SESSION['user_id'];
+                $action = 'Released work order after full payment';
+                mysqli_stmt_bind_param($logStmt, "iis", $userId, $workOrderId, $action);
+                mysqli_stmt_execute($logStmt);
+                mysqli_stmt_close($logStmt);
+            }
+        }
+    }
 
     mysqli_commit($conn);
     $transactionStarted = false;
@@ -153,28 +152,34 @@ try {
         $conn,
         ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
         'Payment Received',
-        "{$payment['code']} payment status is {$paymentStatus}.",
-        $paymentStatus === 'Paid' ? 'success' : 'info',
+        "{$payment['code']} payment status is {$summary['payment_status']}.",
+        $summary['payment_status'] === 'Paid' ? 'success' : 'info',
         'payment.php?search=' . urlencode((string) $payment['code'])
     );
 
     $response = [
         'success' => true,
         'message' => 'Payment saved successfully',
-        'payment_status' => $paymentStatus,
-        'total_amount' => $grossTotal,
-        'discount_amount' => $discountAmount,
-        'net_total' => $netTotal,
-        'amount_paid' => $amountPaid,
-        'actual_paid' => $computed['actual_paid'],
-        'total_refunded' => $totalRefunded,
-        'refundable_balance' => $computed['refundable_balance'],
-        'change_amount' => $changeAmount,
-        'remaining_balance' => $remainingBalance,
-        'payment_method' => $paymentMethod,
-        'reference_number' => $referenceNumber,
-        'date' => $paidDate,
-        'repair_status' => null
+        'transaction_id' => $transactionId,
+        'transaction_amount' => $paymentAmount,
+        'payment_status' => $summary['payment_status'],
+        'total_amount' => $summary['total_amount'],
+        'discount_amount' => $summary['discount_amount'],
+        'net_total' => $summary['net_total'],
+        'amount_paid' => $summary['amount_paid'],
+        'total_paid' => $summary['total_paid'],
+        'actual_paid' => $summary['actual_paid'],
+        'net_paid' => $summary['net_paid'],
+        'total_refunded' => $summary['total_refunded'],
+        'refundable_balance' => $summary['refundable_balance'],
+        'change_amount' => $summary['change_amount'],
+        'remaining_balance' => $summary['remaining_balance'],
+        'payment_method' => $summary['payment_method'],
+        'reference_number' => $summary['reference_number'],
+        'date' => $summary['date'],
+        'transaction_at' => date('Y-m-d H:i:s'),
+        'recorded_by_name' => trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')),
+        'repair_status' => $repairStatus
     ];
 } catch (Exception $e) {
     if ($transactionStarted && isset($conn)) {

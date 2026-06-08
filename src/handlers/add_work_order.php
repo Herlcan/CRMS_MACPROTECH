@@ -191,14 +191,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
                     $purchased_query = mysqli_prepare(
                         $conn,
-                        "INSERT INTO purchased_item (work_order_id, product_id, quantity, date) VALUES (?, ?, ?, ?)"
+                        "INSERT INTO purchased_item (work_order_id, product_id, quantity, unit_price, date) VALUES (?, ?, ?, ?, ?)"
                     );
 
                     if (!$purchased_query) {
                         throw new Exception('Database error: ' . mysqli_error($conn));
                     }
 
-                    mysqli_stmt_bind_param($purchased_query, "iiis", $id, $product_id, $quantity, $current_date);
+                    mysqli_stmt_bind_param($purchased_query, "iiids", $id, $product_id, $quantity, $item_price, $current_date);
                     if (!mysqli_stmt_execute($purchased_query)) {
                         throw new Exception('Failed to add purchased item');
                     } else {
@@ -280,7 +280,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         if (!mysqli_stmt_execute($payment_query)) {
             throw new Exception('Failed to create payment record: ' . mysqli_stmt_error($payment_query));
         }
+        $payment_id = mysqli_insert_id($conn);
         mysqli_stmt_close($payment_query);
+        refresh_payment_summary($conn, (int) $payment_id);
 
         if ($technician_id) {
             record_work_order_assignment($conn, $id, null, $technician_id, (int) $_SESSION['user_id'], 'Initial assignment');
