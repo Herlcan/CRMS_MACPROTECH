@@ -728,6 +728,9 @@
 		}
 
 		// View drawer functions (top-level so onclick handlers can call them)
+		let currentWorkOrderForReassign = null;
+		let currentTechniciansForReassign = [];
+		let currentCanReassign = false;
 
 		function openViewDrawer() {
 			const modal = document.getElementById('viewWorkOrderDrawer');
@@ -745,6 +748,7 @@
 		}
 
 		function closeViewDrawer() {
+			closeReassignModal(false);
 			const modal = document.getElementById('viewWorkOrderDrawer');
 			modal.classList.remove('show');
 			modal.style.display = 'none';
@@ -768,6 +772,10 @@
 			return String(text).replace(/[&<>"']/g, m => map[m]);
 		}
 
+		function getDisplayStatus(status) {
+			return status === 'Ready for Release' ? 'Repaired' : (status || 'Pending');
+		}
+
 		function getStatusBadgeClass(status) {
 			switch ((status || '').toLowerCase()) {
 				case 'pending':
@@ -788,6 +796,67 @@
 					return 'bg-cancelled';
 				default:
 					return 'bg-pending';
+			}
+		}
+
+		function canReassignStatus(status) {
+			return !['Completed', 'Repaired', 'Ready for Release', 'Released', 'Cancelled'].includes(status || '');
+		}
+
+		function openReassignModal() {
+			const modal = document.getElementById('reassignTechnicianModal');
+			const viewModal = document.getElementById('viewWorkOrderDrawer');
+
+			if (!modal) return;
+
+			if (viewModal) {
+				viewModal.style.pointerEvents = 'none';
+				viewModal.style.zIndex = '2000';
+			}
+
+			modal.classList.add('show');
+			modal.style.display = 'flex';
+			modal.style.zIndex = '2100';
+			modal.removeAttribute('aria-hidden');
+			modal.setAttribute('aria-modal', 'true');
+			document.body.style.overflow = 'hidden';
+
+			let backdrop = document.querySelector('.modal-backdrop');
+			if (!backdrop) {
+				backdrop = document.createElement('div');
+				backdrop.className = 'modal-backdrop fade show';
+				document.body.appendChild(backdrop);
+			}
+
+			const firstInput = modal.querySelector('select, textarea, button');
+			if (firstInput) {
+				window.setTimeout(() => firstInput.focus(), 0);
+			}
+		}
+
+		function closeReassignModal(restoreViewBackdrop = true) {
+			const modal = document.getElementById('reassignTechnicianModal');
+			if (!modal) return;
+
+			modal.classList.remove('show');
+			modal.style.display = 'none';
+			modal.style.zIndex = '';
+			modal.setAttribute('aria-hidden', 'true');
+			modal.removeAttribute('aria-modal');
+
+			const viewModal = document.getElementById('viewWorkOrderDrawer');
+			const viewIsOpen = viewModal && viewModal.classList.contains('show');
+			if (viewModal) {
+				viewModal.style.pointerEvents = '';
+				viewModal.style.zIndex = '';
+			}
+
+			if (!restoreViewBackdrop || !viewIsOpen) {
+				const backdrop = document.querySelector('.modal-backdrop');
+				if (backdrop && !viewIsOpen) {
+					backdrop.remove();
+					document.body.style.overflow = 'auto';
+				}
 			}
 		}
 
@@ -842,6 +911,78 @@
 			}).join('');
 		}
 
+		function updateReassignButton(wo, canReassign) {
+			const button = document.getElementById('reassignTechnicianBtn');
+			if (!button) return;
+
+			const allowed = canReassign && canReassignStatus(wo.status);
+			button.style.display = allowed ? 'inline-block' : 'none';
+			button.dataset.inProgress = wo.status === 'In Progress' ? '1' : '0';
+		}
+
+		function populateReassignTechnicians() {
+			const select = document.getElementById('reassign_new_technician_id');
+			if (!select || !currentWorkOrderForReassign) return;
+
+			const currentId = String(currentWorkOrderForReassign.technician_id || '');
+			select.innerHTML = '<option value="">-- Select Technician --</option>' + currentTechniciansForReassign
+				.filter(tech => String(tech.id) !== currentId)
+				.map(tech => {
+					const name = `${tech.last_name || ''}, ${tech.first_name || ''}`.trim().replace(/^, /, '');
+					return `<option value="${escapeHtml(tech.id)}">${escapeHtml(name || 'Unnamed Technician')}</option>`;
+				})
+				.join('');
+		}
+
+		function prepareReassignModal() {
+			if (!currentWorkOrderForReassign) {
+				MacproDialog.error({
+					title: 'Work Order Not Ready',
+					message: 'Please wait for the work order details to finish loading.'
+				});
+				return;
+			}
+
+			if (!currentCanReassign) {
+				MacproDialog.error({
+					title: 'Reassignment Not Allowed',
+					message: 'Your account is not allowed to reassign work orders.'
+				});
+				return;
+			}
+
+			if (!canReassignStatus(currentWorkOrderForReassign.status)) {
+				MacproDialog.error({
+					title: 'Reassignment Not Allowed',
+					message: 'Completed, released, or cancelled work orders cannot be reassigned.'
+				});
+				return;
+			}
+
+			const showModal = () => {
+				document.getElementById('reassign_work_order_id').value = currentWorkOrderForReassign.id || '';
+				document.getElementById('reassign_current_technician').textContent = currentWorkOrderForReassign.technician_name || 'Unassigned';
+				document.getElementById('reassign_reason_category').value = '';
+				document.getElementById('reassign_reason_details').value = '';
+				populateReassignTechnicians();
+				openReassignModal();
+			};
+
+			if (currentWorkOrderForReassign.status === 'In Progress') {
+				MacproDialog.confirm({
+					type: 'warning',
+					title: 'Reassign In-Progress Work?',
+					message: 'This technician has already started working on this repair. Continue reassignment?',
+					confirmLabel: 'Continue'
+				}).then(confirmed => {
+					if (confirmed) showModal();
+				});
+				return;
+			}
+
+			showModal();
+		}
+
 function viewWorkOrder(id) {
 			// Open drawer first, then fetch and render into modal
 			openViewDrawer();
@@ -862,6 +1003,9 @@ function viewWorkOrder(id) {
 				const clientParts = data.clientParts || [];
 				const orderedParts = data.orderedParts || [];
 				const payments = data.payments || [];
+				currentWorkOrderForReassign = wo;
+				currentTechniciansForReassign = data.technicians || [];
+				currentCanReassign = !!data.canReassign;
 
 				// Populate Header Section
 				document.getElementById('vw_code').textContent = wo.code || '—';
@@ -872,7 +1016,7 @@ function viewWorkOrder(id) {
 
 				// Update status badge
 				const statusBadge = document.querySelector('#vw_status .badge');
-				const displayStatus = wo.status === 'Ready for Release' ? 'Repaired' : (wo.status || 'Pending');
+				const displayStatus = getDisplayStatus(wo.status);
 				statusBadge.textContent = displayStatus;
 				statusBadge.removeAttribute('style');
 				statusBadge.className = 'badge ' + getStatusBadgeClass(displayStatus);
@@ -1002,6 +1146,7 @@ function viewWorkOrder(id) {
 
 				document.getElementById('wo_payment').innerHTML = paymentHtml;
 				document.getElementById('wo_payment_div').style.display = 'block';
+				updateReassignButton(wo, currentCanReassign);
 			})
 			.catch(err => {
 				console.error(err);
@@ -1012,6 +1157,58 @@ function viewWorkOrder(id) {
 			});
 
 		}
+
+		document.addEventListener('submit', function(e) {
+			if (!e.target || e.target.id !== 'reassignTechnicianForm') return;
+
+			e.preventDefault();
+
+			const reassignForm = e.target;
+			const submitBtn = document.getElementById('submitReassignBtn');
+			const formData = new FormData(reassignForm);
+			const workOrderId = formData.get('work_order_id');
+
+			if (submitBtn) {
+				submitBtn.disabled = true;
+				submitBtn.textContent = 'Reassigning...';
+			}
+
+			fetch('src/handlers/reassign_work_order.php', {
+				method: 'POST',
+				body: new URLSearchParams(formData)
+			})
+			.then(res => res.json())
+			.then(data => {
+				if (!data.success) {
+					MacproDialog.error({
+						title: 'Reassignment Failed',
+						message: data.message || 'Unable to reassign technician.'
+					});
+					return;
+				}
+
+				closeReassignModal();
+				viewWorkOrder(workOrderId);
+
+				MacproDialog.success({
+					title: 'Technician Reassigned',
+					message: data.message || 'Work order technician updated.',
+					autoClose: 1600
+				});
+			})
+			.catch(() => {
+				MacproDialog.error({
+					title: 'Reassignment Failed',
+					message: 'Request failed.'
+				});
+			})
+			.finally(() => {
+				if (submitBtn) {
+					submitBtn.disabled = false;
+					submitBtn.textContent = 'Reassign';
+				}
+			});
+		});
 
 		function confirmDeleteWorkOrder() {
 			if (!workOrderIdToDelete) {
@@ -1789,8 +1986,67 @@ function viewWorkOrder(id) {
 
 				<!-- Modal Footer -->
 				<div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 15px 30px;">
+					<button type="button" class="btn btn-primary" id="reassignTechnicianBtn" onclick="prepareReassignModal()" style="display: none; margin-right: auto;">Reassign Technician</button>
 					<button type="button" class="btn btn-secondary" onclick="closeViewDrawer()">Close</button>
 				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Reassign Technician Modal -->
+	<div class="modal fade" id="reassignTechnicianModal" tabindex="-1" role="dialog" aria-labelledby="reassignTechnicianLabel" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 760px; width: 95%;">
+			<div class="modal-content" style="border-radius: 8px; box-shadow: 0 5px 25px rgba(0,0,0,0.2);">
+				<div class="modal-header" style="background: #1e1e2d; color: white; border: none;">
+					<h5 class="modal-title" id="reassignTechnicianLabel" style="font-weight: 600; color: #fff;">Reassign Technician</h5>
+					<button type="button" class="close" onclick="closeReassignModal()" style="color: white; opacity: 0.9;" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<form id="reassignTechnicianForm">
+					<div class="modal-body" style="padding: 25px;">
+						<input type="hidden" name="work_order_id" id="reassign_work_order_id">
+
+						<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 18px;">
+							<small style="color: #6c757d; font-weight: 600; text-transform: uppercase;">Current Technician</small>
+							<p id="reassign_current_technician" style="color: #333; margin: 6px 0 0 0; font-weight: 600;">—</p>
+						</div>
+
+						<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: stretch;">
+							<div style="display: flex; flex-direction: column; gap: 14px;">
+								<div class="form-group" style="margin-bottom: 0;">
+									<label class="form-label" for="reassign_new_technician_id">New Technician</label>
+									<select class="form-control" name="new_technician_id" id="reassign_new_technician_id" required>
+										<option value="">-- Select Technician --</option>
+									</select>
+								</div>
+
+								<div class="form-group" style="margin-bottom: 0;">
+									<label class="form-label" for="reassign_reason_category">Reason</label>
+									<select class="form-control" name="reason_category" id="reassign_reason_category" required>
+										<option value="">-- Select Reason --</option>
+										<option value="Sick Leave">Sick Leave</option>
+										<option value="Workload Balancing">Workload Balancing</option>
+										<option value="Expertise Required">Expertise Required</option>
+										<option value="Scheduling Conflict">Scheduling Conflict</option>
+										<option value="Resigned">Technician Resigned</option>
+										<option value="Emergency Redistribution">Emergency Redistribution</option>
+										<option value="Other">Other</option>
+									</select>
+								</div>
+							</div>
+
+							<div class="form-group" style="display: flex; flex-direction: column; margin-bottom: 0;">
+								<label class="form-label" for="reassign_reason_details">Reason Details</label>
+								<textarea class="form-control" name="reason_details" id="reassign_reason_details" placeholder="Add details when needed, especially if you selected Other." style="min-height: 126px; height: 100%; resize: vertical;"></textarea>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 15px 25px;">
+						<button type="button" class="btn btn-secondary" onclick="closeReassignModal()">Cancel</button>
+						<button type="submit" class="btn btn-primary" id="submitReassignBtn">Reassign</button>
+					</div>
+				</form>
 			</div>
 		</div>
 	</div>

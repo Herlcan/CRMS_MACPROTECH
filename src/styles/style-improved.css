@@ -50,8 +50,13 @@
     --blue-800: #002a96;
     --blue-700: #0036bf;
     --blue-600: #0050ff;
+    --blue-500: #2563eb;
     --blue-100: #e6ecff;
     --blue-50: #f4f7ff;
+    --teal-800: #0f5f66;
+    --teal-700: #087f8c;
+    --teal-100: #dff7f8;
+    --teal-50: #f2fbfc;
     --red-900: #8f0306;
     --red-800: #b80307;
     --red-700: #e80409;
@@ -1360,6 +1365,25 @@ h6, .h6 {
     border: none;
     border-top: 1px solid var(--border-light);
     margin: var(--spacing-2) 0;
+}
+
+/* Keep last-row action menus from being clipped by table cards. */
+.card-box:has(.data-table .dropdown:hover),
+.card-box:has(.data-table .dropdown:focus-within) {
+    overflow: visible;
+    z-index: 20;
+}
+
+.data-table tr:has(.dropdown:hover),
+.data-table tr:has(.dropdown:focus-within),
+.data-table td:has(.dropdown:hover),
+.data-table td:has(.dropdown:focus-within) {
+    position: relative;
+    z-index: 25;
+}
+
+.data-table .dropdown-menu {
+    z-index: 3000;
 }
 
 /* Notifications */
@@ -4037,6 +4061,172 @@ table tbody tr:hover {
     margin: 0;
 }
 
+/* ================= SETTINGS ================= */
+.settings-page-header .row {
+    gap: var(--spacing-4) 0;
+}
+
+.settings-header-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--spacing-3);
+    flex-wrap: wrap;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+    gap: var(--spacing-5);
+    align-items: start;
+}
+
+.settings-side-column {
+    display: grid;
+    gap: var(--spacing-5);
+    min-width: 0;
+}
+
+.settings-panel {
+    padding: var(--spacing-6);
+    overflow: visible;
+}
+
+.settings-panel-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-5);
+}
+
+.settings-panel-heading h5 {
+    margin: 2px 0 0;
+    color: var(--ink-950);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.settings-kicker {
+    display: block;
+    color: var(--blue-800);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.settings-status-pill {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    max-width: 180px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(var(--brand-blue-rgb), 0.08);
+    color: var(--blue-900);
+    font-size: 12px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.settings-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--spacing-4);
+}
+
+.settings-account-grid {
+    gap: var(--spacing-3);
+}
+
+.settings-span-2 {
+    grid-column: 1 / -1;
+}
+
+.settings-panel fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+
+.settings-section-divider {
+    height: 1px;
+    margin: var(--spacing-5) 0;
+    background: rgba(var(--brand-blue-rgb), 0.12);
+}
+
+.settings-toggle {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4);
+    border: 1px solid rgba(var(--brand-blue-rgb), 0.12);
+    border-radius: 8px;
+    background: rgba(var(--brand-white-rgb), 0.56);
+    color: var(--ink-900);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.settings-toggle input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--brand-blue);
+}
+
+.settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-5);
+    flex-wrap: wrap;
+}
+
+.settings-compact-alert {
+    margin-bottom: var(--spacing-5);
+}
+
+.settings-link-list {
+    display: grid;
+    gap: var(--spacing-3);
+}
+
+.settings-link-list a {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    min-height: 46px;
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 1px solid rgba(var(--brand-blue-rgb), 0.12);
+    border-radius: 8px;
+    background: rgba(var(--brand-white-rgb), 0.62);
+    color: var(--ink-900);
+    font-weight: 700;
+}
+
+.settings-link-list a:hover {
+    border-color: rgba(var(--brand-blue-rgb), 0.32);
+    background: rgba(var(--brand-white-rgb), 0.9);
+    color: var(--blue-800);
+}
+
+.settings-link-list i {
+    flex: 0 0 auto;
+    color: var(--blue-800);
+    font-size: 18px;
+}
+
+.settings-danger-link,
+.settings-danger-link i {
+    color: var(--red-800) !important;
+}
+
 /* ================= RESPONSIVE DESIGN ================= */
 
 /* Tablet (768px and down) */
@@ -4305,6 +4495,22 @@ table tbody tr:hover {
 
     .dashboard-table-card {
         overflow-x: auto;
+    }
+
+    .settings-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-header-actions {
+        justify-content: flex-start;
+    }
+
+    .settings-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .settings-span-2 {
+        grid-column: auto;
     }
 }
 
@@ -5808,6 +6014,35 @@ a.btn-danger:hover,
 .bg-admin,
 .bg-staff {
     background: var(--ink-800) !important;
+    color: var(--brand-white) !important;
+}
+
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 150px;
+    padding: 6px 12px;
+    white-space: nowrap;
+}
+
+.role-administrator {
+    background: var(--blue-500) !important;
+    color: var(--brand-white) !important;
+}
+
+.role-technician {
+    background: var(--ink-800) !important;
+    color: var(--brand-white) !important;
+}
+
+.role-cashier {
+    background: var(--teal-700) !important;
+    color: var(--brand-white) !important;
+}
+
+.role-default {
+    background: var(--ink-600) !important;
     color: var(--brand-white) !important;
 }
 

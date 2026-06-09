@@ -3,9 +3,11 @@
 	include 'sidebar.php';
 	include 'src/db/connection.php';
 	require_once 'src/handlers/payment_schema.php';
+	require_once 'src/handlers/settings_helpers.php';
 
 	ensure_payment_detail_columns($conn);
 	refresh_payment_summaries($conn);
+	$payment_app_settings = get_app_settings($conn);
 
 	function payment_display_date($value, $format = 'M d, Y') {
 		if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
@@ -17,6 +19,32 @@
 		} catch (Exception $e) {
 			return $value;
 		}
+	}
+
+	function payment_status_badge_class($status) {
+		$normalized_status = strtolower(trim((string) $status));
+
+		if ($normalized_status === 'paid') {
+			return 'payment-status-badge payment-status-paid';
+		}
+
+		if ($normalized_status === 'partial') {
+			return 'payment-status-badge payment-status-partial';
+		}
+
+		if ($normalized_status === 'unpaid') {
+			return 'payment-status-badge payment-status-unpaid';
+		}
+
+		if ($normalized_status === 'partially refunded') {
+			return 'payment-status-badge payment-status-partially-refunded';
+		}
+
+		if ($normalized_status === 'refunded') {
+			return 'payment-status-badge payment-status-refunded';
+		}
+
+		return 'payment-status-badge payment-status-pending';
 	}
 ?>
 
@@ -197,37 +225,38 @@
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			min-width: 74px;
+			min-width: 84px;
 			padding: 6px 10px;
 			border-radius: 999px;
 			font-weight: 700;
 			font-size: 12px;
+			white-space: nowrap;
 		}
 
 		.payment-status-paid {
-			background: #dcfce7;
-			color: #15803d;
+			background: var(--blue-700);
+			color: var(--brand-white);
 		}
 
 		.payment-status-partial {
-			background: #dbeafe;
-			color: #1d4ed8;
+			background: var(--blue-100);
+			color: var(--blue-800);
 		}
 
 		.payment-status-unpaid,
 		.payment-status-pending {
-			background: #fef3c7;
-			color: #92400e;
+			background: var(--ink-100);
+			color: var(--ink-800);
 		}
 
 		.payment-status-partially-refunded {
-			background: #ede9fe;
-			color: #6d28d9;
+			background: var(--teal-100);
+			color: var(--teal-800);
 		}
 
 		.payment-status-refunded {
-			background: #fee2e2;
-			color: #991b1b;
+			background: var(--teal-700);
+			color: var(--brand-white);
 		}
 
 		.payment-history-list {
@@ -488,21 +517,12 @@
 									<td style="text-align: center;"><?= htmlspecialchars($row['work_order_code'] ?? '—') ?></td>
 									<td style="text-align: center;"><?= htmlspecialchars(payment_display_date($row['created_at'], 'M d, Y h:i A')) ?></td>
 									<td style="text-align: center;" id="payment-total-<?= (int) $row['id'] ?>">Php <?= htmlspecialchars(number_format((float) $row['total_amount'], 2)) ?></td>
-									<td>
+									<td style="text-align: center;">
 										<?php
 											$display_status = !empty($row['payment_status']) ? $row['payment_status'] : (($row['status'] ?? '') === 'Pending' ? 'Unpaid' : $row['status']);
-											$status = strtolower($display_status);
-											$status_class = '';
-
-											if ($status == 'paid') {
-												$status_class = 'bg-admin';
-											} elseif ($status == 'partial') {
-												$status_class = 'bg-info';
-											} elseif ($status == 'pending' || $status == 'unpaid') {
-												$status_class = 'bg-staff';
-											}
+											$status_class = payment_status_badge_class($display_status);
 										?>
-										<span class="badge <?= $status_class ?>" id="payment-status-<?= (int) $row['id'] ?>" style="display: grid; align-items: center; justify-content: center;">
+										<span class="badge <?= htmlspecialchars($status_class) ?>" id="payment-status-<?= (int) $row['id'] ?>">
 											<?= htmlspecialchars($display_status) ?>
 										</span>
 									</td>
@@ -816,6 +836,7 @@
 	</div>
 
 	<script>
+		const paymentSettings = <?= json_encode(app_settings_public_payload($payment_app_settings), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 		let currentPaymentDetails = null;
 		const digitalPaymentMethods = ['GCash', 'Maya', 'Bank Transfer'];
 
@@ -1113,10 +1134,7 @@
 
 			if (statusEl) {
 				statusEl.textContent = status;
-				statusEl.className = 'badge ' + (status === 'Paid' ? 'bg-admin' : (status === 'Partial' ? 'bg-info' : (status.includes('Refunded') ? 'bg-warning' : 'bg-staff')));
-				statusEl.style.display = 'grid';
-				statusEl.style.alignItems = 'center';
-				statusEl.style.justifyContent = 'center';
+				statusEl.className = 'badge ' + getStatusClass(status);
 			}
 
 			if (totalEl) {
@@ -1368,6 +1386,16 @@
 			const ref = payment.reference_number || '';
 			const method = payment.payment_method || 'Cash';
 			const notes = payment.notes || '';
+			const businessName = paymentSettings.businessName || 'MACPROTECH Computer Repair Services';
+			const receiptContactLines = [
+				paymentSettings.businessAddress,
+				paymentSettings.businessPhone,
+				paymentSettings.businessEmail,
+				paymentSettings.businessHours
+			].filter(value => String(value || '').trim() !== '');
+			const receiptContactHtml = receiptContactLines.map(value => `<div>${escapeHtml(value)}</div>`).join('');
+			const servicePolicy = String(paymentSettings.servicePolicy || '').trim();
+			const receiptFooter = String(paymentSettings.receiptFooter || '').trim();
 
 			const partsRows = parts.map(part => {
 				const qty = Number(part.quantity) || 0;
@@ -1389,20 +1417,27 @@
 					<meta charset="utf-8">
 					<title>Payment Receipt</title>
 					<style>
-						body { font-family: Arial, sans-serif; color: #111827; margin: 32px; }
-						h2, h3 { margin: 0 0 12px; }
-						.receipt-header { border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 20px; }
-						.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-bottom: 20px; }
-						table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-						th, td { border-bottom: 1px solid #e5e7eb; padding: 9px; }
+						@page { size: 5.5in 8.5in; margin: 0.25in; }
+						* { box-sizing: border-box; }
+						body { font-family: Arial, sans-serif; color: #111827; margin: 0; font-size: 11px; line-height: 1.35; }
+						h2, h3 { margin: 0 0 8px; }
+						h2 { font-size: 18px; }
+						h3 { font-size: 13px; margin-top: 12px; }
+						.receipt-header { border-bottom: 2px solid #111827; padding-bottom: 10px; margin-bottom: 12px; }
+						.receipt-contact { color: #4b5563; margin-top: 4px; }
+						.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 14px; margin-bottom: 12px; }
+						table { width: 100%; border-collapse: collapse; margin-bottom: 12px; page-break-inside: avoid; }
+						th, td { border-bottom: 1px solid #e5e7eb; padding: 5px 4px; vertical-align: top; }
 						th { text-align: left; background: #f8fafc; }
 						.right { text-align: right; }
 						.total { font-weight: 700; }
+						p { margin: 8px 0 0; }
 					</style>
 				</head>
 				<body>
 					<div class="receipt-header">
-						<h2>MACPROTECH Payment Receipt</h2>
+						<h2>${escapeHtml(businessName)} Payment Receipt</h2>
+						${receiptContactHtml ? `<div class="receipt-contact">${receiptContactHtml}</div>` : ''}
 						<div>Payment Code: ${escapeHtml(payment.payment_code)}</div>
 						<div>Date: ${escapeHtml(new Date().toLocaleDateString('en-PH'))}</div>
 					</div>
@@ -1439,6 +1474,8 @@
 						<tr><td>Remaining</td><td class="right">${formatMoney(values.remaining)}</td></tr>
 					</table>
 					${notes ? '<p><strong>Notes:</strong> ' + escapeHtml(notes) + '</p>' : ''}
+					${servicePolicy ? '<p><strong>Policy:</strong> ' + escapeHtml(servicePolicy) + '</p>' : ''}
+					${receiptFooter ? '<p>' + escapeHtml(receiptFooter) + '</p>' : ''}
 				</body>
 				</html>
 			`;
@@ -1448,7 +1485,7 @@
 			const receiptHtml = buildReceiptHtml();
 			if (!receiptHtml) return;
 
-			const receiptWindow = window.open('', '_blank', 'width=820,height=900');
+			const receiptWindow = window.open('', '_blank', 'width=560,height=760');
 			if (!receiptWindow) {
 				showPaymentAlert('Please allow pop-ups to print the receipt', 'error');
 				return;

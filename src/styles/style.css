@@ -604,6 +604,25 @@ p {
     margin: 5px 0;
 }
 
+/* Keep last-row action menus from being clipped by table cards. */
+.card-box:has(.data-table .dropdown:hover),
+.card-box:has(.data-table .dropdown:focus-within) {
+    overflow: visible;
+    z-index: 20;
+}
+
+.data-table tr:has(.dropdown:hover),
+.data-table tr:has(.dropdown:focus-within),
+.data-table td:has(.dropdown:hover),
+.data-table td:has(.dropdown:focus-within) {
+    position: relative;
+    z-index: 25;
+}
+
+.data-table .dropdown-menu {
+    z-index: 3000;
+}
+
 /* ================= SIDEBAR ================= */
 .left-side-bar {
     width: 260px;

@@ -109,6 +109,7 @@
 	$transaction_record_start = 0;
 	$transaction_record_end = 0;
 	$current_average_cost = 0.0;
+	$current_average_price = 0.0;
 
 	if (!empty($_GET['transaction_limit'])) {
 		$transaction_limit_input = (int) $_GET['transaction_limit'];
@@ -122,6 +123,7 @@
 	if ($item && $page_error === '') {
 		$inventory_summary = calculate_inventory_weighted_average($conn, $item_id);
 		$current_average_cost = (float) $inventory_summary['average_cost'];
+		$current_average_price = calculate_inventory_average_price($current_average_cost, (float) ($item['markup_percentage'] ?? 0));
 
 		$summary_query = mysqli_prepare(
 			$conn,
@@ -219,7 +221,7 @@
 							</div>
 							<div class="form-group">
 								<label class="form-label">Average Price</label>
-								<input type="number" class="form-control" name="average_price" id="addStockAveragePrice" step="0.01" min="0" required autocomplete="off">
+								<input type="number" class="form-control" name="average_price" id="addStockAveragePrice" step="0.01" min="0" required readonly autocomplete="off">
 							</div>
 						</div>
 					</div>
@@ -321,8 +323,8 @@
 									<div style="font-size: 26px; font-weight: 700; color: #111827;"><?= htmlspecialchars((string) $total_stock_out) ?></div>
 								</div>
 								<div style="border: 1px solid #eef2f7; border-radius: 8px; padding: 16px 14px; background: #f8fafc; min-height: 106px; display: flex; flex-direction: column; justify-content: center;">
-									<div style="font-size: 12px; color: #6c757d; font-weight: 600; margin-bottom: 8px;">Avg Cost</div>
-										<div style="font-size: 18px; font-weight: 700; color: #111827;"><?= "Php " . number_format($current_average_cost, 2) ?></div>
+									<div style="font-size: 12px; color: #6c757d; font-weight: 600; margin-bottom: 8px;">Average Price</div>
+										<div style="font-size: 18px; font-weight: 700; color: #111827;"><?= "Php " . number_format($current_average_price, 2) ?></div>
 									</div>
 								</div>
 							</div>

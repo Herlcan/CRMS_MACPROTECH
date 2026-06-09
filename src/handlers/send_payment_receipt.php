@@ -10,6 +10,7 @@ header('Content-Type: application/json');
 require_once '../db/connection.php';
 require_once 'config.php';
 require_once 'payment_schema.php';
+require_once 'settings_helpers.php';
 
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/Exception.php';
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/PHPMailer.php';
@@ -48,6 +49,22 @@ try {
 
     ensure_payment_detail_columns($conn);
     ensure_items_inventory_columns($conn);
+    $appSettings = get_app_settings($conn);
+    $businessName = trim((string) ($appSettings['business_name'] ?? '')) ?: 'MACPROTECH Computer Repair Services';
+    $businessContact = array_filter([
+        trim((string) ($appSettings['business_address'] ?? '')),
+        trim((string) ($appSettings['business_phone'] ?? '')),
+        trim((string) ($appSettings['business_email'] ?? '')),
+        trim((string) ($appSettings['business_hours'] ?? '')),
+    ]);
+    $businessContactHtml = '';
+
+    foreach ($businessContact as $line) {
+        $businessContactHtml .= '<div>' . html_text($line) . '</div>';
+    }
+
+    $servicePolicy = trim((string) ($appSettings['service_policy'] ?? ''));
+    $receiptFooter = trim((string) ($appSettings['receipt_footer'] ?? ''));
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
@@ -172,6 +189,7 @@ try {
                 .wrap { max-width: 760px; margin: 0 auto; }
                 .header { border-bottom: 2px solid #111827; padding-bottom: 16px; margin-bottom: 18px; }
                 h2, h3 { margin: 0 0 12px; }
+                .contact { color: #4b5563; margin: 4px 0 10px; }
                 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; margin-bottom: 18px; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
                 th, td { border-bottom: 1px solid #e5e7eb; padding: 9px; }
@@ -184,7 +202,8 @@ try {
         <body>
             <div class="wrap">
                 <div class="header">
-                    <h2>MACPROTECH Payment Receipt</h2>
+                    <h2>' . html_text($businessName) . ' Payment Receipt</h2>
+                    ' . ($businessContactHtml ? '<div class="contact">' . $businessContactHtml . '</div>' : '') . '
                     <div>Payment Code: ' . html_text($payment['payment_code']) . '</div>
                     <div>Date: ' . html_text(date('F j, Y')) . '</div>
                 </div>
@@ -223,7 +242,8 @@ try {
                     ' . receipt_row('Change', (float) $computed['change_amount']) . '
                     ' . receipt_row('Remaining', (float) $computed['remaining_balance'], true) . '
                 </table>
-                <p class="muted">Thank you for trusting Macprotech Computer Repair Services.</p>
+                ' . ($servicePolicy !== '' ? '<p><strong>Policy:</strong> ' . html_text($servicePolicy) . '</p>' : '') . '
+                ' . ($receiptFooter !== '' ? '<p class="muted">' . html_text($receiptFooter) . '</p>' : '') . '
             </div>
         </body>
         </html>
@@ -238,12 +258,12 @@ try {
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
     $mail->Port = (int) SMTP_PORT;
 
-    $mail->setFrom(SMTP_USER, 'Macprotech Computer Repair');
+    $mail->setFrom(SMTP_USER, $businessName);
     $mail->addAddress($payment['customer_email'], $payment['customer_name'] ?: 'Customer');
     $mail->isHTML(true);
-    $mail->Subject = 'MACPROTECH Payment Receipt - ' . ($payment['payment_code'] ?: 'Payment');
+    $mail->Subject = $businessName . ' Payment Receipt - ' . ($payment['payment_code'] ?: 'Payment');
     $mail->Body = $body;
-    $mail->AltBody = "MACPROTECH Payment Receipt\n"
+    $mail->AltBody = $businessName . " Payment Receipt\n"
         . "Payment Code: " . ($payment['payment_code'] ?? '') . "\n"
         . "Work Order: " . ($payment['work_order_code'] ?? '') . "\n"
         . "Total: " . money($grossTotal) . "\n"

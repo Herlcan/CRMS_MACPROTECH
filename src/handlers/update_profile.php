@@ -18,7 +18,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 	$last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
 	$contact_num = mysqli_real_escape_string($conn, $_POST['contact_num']);
 	$email = mysqli_real_escape_string($conn, $_POST['email']);
-	$new_password = ($_POST['new_password']);
+	$new_password = ($_POST['new_password'] ?? '');
+	$redirect_to = basename((string) ($_POST['redirect_to'] ?? 'index.php'));
+	$allowed_redirects = ['index.php', 'settings.php'];
+
+	if (!in_array($redirect_to, $allowed_redirects, true)) {
+		$redirect_to = 'index.php';
+	}
 
 	// Validation
 	if (empty($username) || empty($first_name) || empty($last_name) || empty($email)) {
@@ -30,16 +36,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 	} elseif (!empty($new_password) && strlen($new_password) < 8) {
 		$update_error = 'Password must be at least 8 characters long.';
 	} else {
-		// Check if username already exists (for other users)
+		// Check if username or email already exists (for other users)
 		$check_query = mysqli_prepare($conn,
-			"SELECT id FROM users WHERE username = ? AND id != ?"
+			"SELECT username, email FROM users WHERE (username = ? OR email = ?) AND id != ? LIMIT 1"
 		);
-		mysqli_stmt_bind_param($check_query, "si", $username, $user_id);
+		mysqli_stmt_bind_param($check_query, "ssi", $username, $email, $user_id);
 		mysqli_stmt_execute($check_query);
 		$check_result = mysqli_stmt_get_result($check_query);
 		
 		if (mysqli_num_rows($check_result) > 0) {
-			$update_error = 'Username already taken. Please choose a different username.';
+			$existing_user = mysqli_fetch_assoc($check_result);
+			if (strcasecmp((string) $existing_user['username'], $username) === 0) {
+				$update_error = 'Username already taken. Please choose a different username.';
+			} else {
+				$update_error = 'Email already used by another account.';
+			}
 		} else {
 			// Prepare password update if provided
 			if (!empty($new_password)) {
@@ -71,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 				$user['contact_num'] = $contact_num;
 				$user['email'] = $email;
 
-                header("Location: index.php");
+                header("Location: {$redirect_to}");
                 exit();
 			} else {
 				$update_error = 'Failed to update profile. Please try again.';

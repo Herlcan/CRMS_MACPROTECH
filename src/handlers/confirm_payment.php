@@ -9,6 +9,7 @@ include '../db/connection.php';
 include 'payment_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/settings_helpers.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 $transactionStarted = false;
@@ -21,6 +22,7 @@ try {
 
     ensure_payment_detail_columns($conn);
     ensure_notifications_table($conn);
+    $appSettings = get_app_settings($conn);
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
@@ -107,6 +109,8 @@ try {
     $repairStatus = null;
 
     if (
+        app_setting_enabled($appSettings, 'auto_release_paid_work_orders')
+        &&
         in_array($summary['payment_status'], ['Paid', 'Partially Refunded'], true)
         && (float) $summary['remaining_balance'] <= 0.009
     ) {

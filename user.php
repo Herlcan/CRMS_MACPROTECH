@@ -2,6 +2,24 @@
 	include 'src/db/connection.php';
 	include 'header.php';
 	include 'sidebar.php'; 
+
+	function user_role_badge_class($role) {
+		$normalized_role = strtolower(trim((string) $role));
+
+		if ($normalized_role === 'administrator') {
+			return 'role-badge role-administrator';
+		}
+
+		if ($normalized_role === 'technician') {
+			return 'role-badge role-technician';
+		}
+
+		if ($normalized_role === 'cashier/front desk' || $normalized_role === 'cashier/front desk staff') {
+			return 'role-badge role-cashier';
+		}
+
+		return 'role-badge role-default';
+	}
 ?>
 
 	<!-- EDIT USER MODAL (Pure CSS) -->
@@ -216,19 +234,7 @@
 									<td style="text-align: center;"><?= htmlspecialchars($row['contact_num']) ?></td>
 									<td style="text-align: center;"><?= htmlspecialchars($row['email']) ?></td>
 									<td style="text-align: center;">
-										<?php
-											$role = strtolower($row['role']);
-											$role_class = '';
-
-											if ($role == 'administrator') {
-												$role_class = 'bg-admin';
-											} elseif ($role == 'technician') {
-												$role_class = 'bg-staff';
-											} elseif ($role == 'cashier/front desk') {
-												$role_class = 'bg-staff';
-											}
-										?>
-										<span class="badge <?= $role_class ?>" style="display: grid; align-items: center; justify-content: center;">
+										<span class="badge <?= htmlspecialchars(user_role_badge_class($row['role'])) ?>">
 											<?= htmlspecialchars($row['role']) ?>
 										</span>
 									</td>

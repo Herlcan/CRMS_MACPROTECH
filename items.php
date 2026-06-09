@@ -28,8 +28,6 @@
 		return $text;
 	}
 
-	$active_tab = 'product_inventory';
-
 	function inventory_url(array $overrides = []) {
 		$params = array_merge($_GET, $overrides);
 		unset($params['tab'], $params['filter']);
@@ -40,10 +38,6 @@
 			}
 		}
 		return '?' . http_build_query($params);
-	}
-
-	function inventory_tab_url($tab) {
-		return inventory_url(['tab' => $tab, 'page' => 1]);
 	}
 ?>
 
@@ -294,15 +288,6 @@
 				</div>
 				<!-- Simple Datatable start -->
 				<div class="card-box mb-30">
-					<div class="tabs macpro-transition-tabs" data-transition-tabs="inventory">
-						<input type="radio" id="inventory-tab-product" name="inventory-tab" <?= $active_tab === 'product_inventory' ? 'checked' : '' ?>>
-
-						<div class="tab-header" role="tablist" aria-label="Inventory sections">
-							<label for="inventory-tab-product" role="tab" tabindex="0" aria-selected="<?= $active_tab === 'product_inventory' ? 'true' : 'false' ?>" data-tab-href="<?= htmlspecialchars(inventory_tab_url('product_inventory')) ?>">Product Inventory</label>
-						</div>
-
-						<div class="tab-body">
-							<div class="tab-panel">
 					<div class="row mb-20">
 						<div class="col-sm-12 col-md-6">
 							<div class="dataTables_length" id="DataTables_Table_0_length">
@@ -520,9 +505,6 @@
 										</a>
 									</li>
 								</ul>
-							</div>
-						</div>
-					</div>
 							</div>
 						</div>
 					</div>

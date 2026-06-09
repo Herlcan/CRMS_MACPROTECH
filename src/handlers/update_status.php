@@ -10,6 +10,7 @@ require_once '../../auth_check.php';
 require_once 'config.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/settings_helpers.php';
 
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/Exception.php';
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/PHPMailer.php';
@@ -43,9 +44,23 @@ function canEditStatus(mysqli $conn): bool
  */
 function sendCompletionEmail(string $email, string $name, string $workCode): void
 {
+    global $conn;
+
     $mail = new PHPMailer(true);
 
     try {
+        $appSettings = isset($conn) ? get_app_settings($conn) : app_settings_defaults();
+        $businessName = trim((string) ($appSettings['business_name'] ?? '')) ?: 'MACPROTECH Computer Repair Services';
+        $businessHours = trim((string) ($appSettings['business_hours'] ?? ''));
+        $receiptFooter = trim((string) ($appSettings['receipt_footer'] ?? ''));
+        $safeName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+        $safeWorkCode = htmlspecialchars($workCode, ENT_QUOTES, 'UTF-8');
+        $hoursLine = $businessHours !== ''
+            ? '<p>Pickup hours: ' . htmlspecialchars($businessHours, ENT_QUOTES, 'UTF-8') . '</p>'
+            : '<p>Please visit our shop during business hours.</p>';
+        $footerLine = $receiptFooter !== ''
+            ? '<p>' . htmlspecialchars($receiptFooter, ENT_QUOTES, 'UTF-8') . '</p>'
+            : '<p>Thank you for trusting Macprotech Computer Repair Services.</p>';
 
         $mail->isSMTP();
         $mail->Host = SMTP_HOST;
@@ -55,7 +70,7 @@ function sendCompletionEmail(string $email, string $name, string $workCode): voi
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port = (int) SMTP_PORT;
 
-        $mail->setFrom(SMTP_USER, 'Macprotech Computer Repair');
+        $mail->setFrom(SMTP_USER, $businessName);
         $mail->addAddress($email, $name);
 
         $mail->isHTML(true);
@@ -63,13 +78,13 @@ function sendCompletionEmail(string $email, string $name, string $workCode): voi
 
         $mail->Body = "
             <h2>Repair Completed</h2>
-            <p>Dear <strong>{$name}</strong>,</p>
+            <p>Dear <strong>{$safeName}</strong>,</p>
             <p>Your device with Work Order Code 
-            <strong>{$workCode}</strong> has been successfully repaired 
+            <strong>{$safeWorkCode}</strong> has been successfully repaired
             and is now ready for pickup.</p>
-            <p>Please visit our shop during business hours.</p>
+            {$hoursLine}
             <br>
-            <p>Thank you for trusting Macprotech Computer Repair Services.</p>
+            {$footerLine}
         ";
 
         $mail->send();
