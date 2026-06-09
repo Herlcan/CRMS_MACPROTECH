@@ -11,6 +11,7 @@ require_once '../db/connection.php';
 require_once 'config.php';
 require_once 'payment_schema.php';
 require_once 'settings_helpers.php';
+require_once 'communication_helpers.php';
 
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/Exception.php';
 require_once __DIR__ . '/../../vendor/PHPMailer-master/src/PHPMailer.php';
@@ -86,6 +87,7 @@ try {
             wo.status AS work_order_status,
             CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
             c.email AS customer_email,
+            c.contact_num AS customer_contact,
             CONCAT(u.first_name, ' ', u.last_name) AS technician_name
         FROM payments p
         LEFT JOIN work_order wo ON p.work_order_id = wo.id
@@ -250,15 +252,7 @@ try {
     ';
 
     $mail = new PHPMailer(true);
-    $mail->isSMTP();
-    $mail->Host = SMTP_HOST;
-    $mail->SMTPAuth = true;
-    $mail->Username = SMTP_USER;
-    $mail->Password = SMTP_PASS;
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port = (int) SMTP_PORT;
-
-    $mail->setFrom(SMTP_USER, $businessName);
+    configure_app_mailer($mail, $appSettings, $businessName);
     $mail->addAddress($payment['customer_email'], $payment['customer_name'] ?: 'Customer');
     $mail->isHTML(true);
     $mail->Subject = $businessName . ' Payment Receipt - ' . ($payment['payment_code'] ?: 'Payment');
@@ -274,13 +268,32 @@ try {
 
     $mail->send();
 
+    $smsResult = send_receipt_email_sms(
+        $conn,
+        (string) ($payment['customer_contact'] ?? ''),
+        (string) ($payment['customer_name'] ?? 'Customer'),
+        (string) ($payment['work_order_code'] ?? ''),
+        (string) ($payment['payment_code'] ?? ''),
+        (string) ($payment['customer_email'] ?? ''),
+        $appSettings
+    );
+
+    $message = 'Receipt emailed successfully';
+    if ($smsResult['attempted'] ?? false) {
+        $message .= ($smsResult['success'] ?? false)
+            ? ' and SMS notification sent'
+            : ', but the SMS notification failed';
+    } elseif (app_setting_enabled($appSettings, 'sms_enabled') && app_setting_enabled($appSettings, 'sms_receipt_notifications_enabled')) {
+        $message .= ', but SMS notification was skipped: ' . ($smsResult['message'] ?? 'SMS unavailable');
+    }
+
     $response = [
         'success' => true,
-        'message' => 'Receipt emailed successfully'
+        'message' => $message
     ];
 } catch (MailException $e) {
     error_log('Receipt email failed: ' . $e->getMessage());
-    $response = ['success' => false, 'message' => 'Failed to send receipt email. Please check SMTP settings.'];
+    $response = ['success' => false, 'message' => 'Failed to send receipt email. Please check email settings.'];
 } catch (Exception $e) {
     $response = ['success' => false, 'message' => $e->getMessage()];
 }

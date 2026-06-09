@@ -1245,97 +1245,115 @@ function viewWorkOrder(id) {
 							};
 							return String(text).replace(/[&<>"']/g, m => map[m]);
 						}
-						document.addEventListener('change', function (e) {
+							if (!window.macproPendingStatusUpdates) {
+								window.macproPendingStatusUpdates = new Set();
+							}
 
-							if (!e.target.classList.contains('status-select')) return;
+							if (!window.macproStatusSelectListenerBound) {
+								window.macproStatusSelectListenerBound = true;
 
-							let element = e.target;
-							let wrapper = element.closest('.status-wrapper');
-							let loading = wrapper ? wrapper.querySelector('.status-loading') : null;
+								document.addEventListener('change', function (e) {
 
-							let workOrderId = element.dataset.id;
-							let oldStatus = element.dataset.old;
-							let newStatus = element.value;
+									if (!e.target.classList.contains('status-select')) return;
 
-							if (newStatus === oldStatus) return;
+									let element = e.target;
+									let wrapper = element.closest('.status-wrapper');
+									let loading = wrapper ? wrapper.querySelector('.status-loading') : null;
 
-							MacproDialog.confirm({
-								type: 'warning',
-								title: 'Update Status?',
-								message: 'Change status to ' + newStatus + '?',
-								confirmLabel: 'Update Status'
-							}).then((confirmed) => {
+									let workOrderId = element.dataset.id;
+									let oldStatus = element.dataset.old;
+									let newStatus = element.value;
 
-								if (!confirmed) {
-									element.value = oldStatus;
-									return;
-								}
+									if (newStatus === oldStatus) return;
 
-								// 🔒 Disable select
-								element.disabled = true;
+									if (window.macproPendingStatusUpdates.has(workOrderId)) {
+										element.value = oldStatus;
+										return;
+									}
 
-								// 🔄 Show spinner if exists
-								if (loading) loading.style.display = 'flex';
+									window.macproPendingStatusUpdates.add(workOrderId);
+									element.disabled = true;
 
-								fetch('src/handlers/update_status.php', {
-									method: 'POST',
-									headers: {
-										'Content-Type': 'application/x-www-form-urlencoded'
-									},
-									body: `id=${workOrderId}&status=${encodeURIComponent(newStatus)}&update_status=1`
-								})
-								.then(res => res.json())
-								.then(data => {
+									MacproDialog.confirm({
+										type: 'warning',
+										title: 'Update Status?',
+										message: 'Change status to ' + newStatus + '?',
+										confirmLabel: 'Update Status'
+									}).then((confirmed) => {
 
-									// 🔓 Re-enable select
-									element.disabled = false;
-									if (loading) loading.style.display = 'none';
-
-									if (data.success) {
-
-										// Update dataset old value
-										element.dataset.old = newStatus;
-
-										const statusAffectsQueueOrder = ['Repaired', 'Released', 'Cancelled'].includes(newStatus);
-
-										const successDialog = MacproDialog.success({
-											title: 'Status Updated',
-											message: 'Work order status updated successfully.',
-											autoClose: 1500
-										});
-
-										if (statusAffectsQueueOrder) {
-											successDialog.then(function () {
-												location.reload();
-											});
-										} else {
-											refreshRow(workOrderId);
+										if (!confirmed) {
+											element.value = oldStatus;
+											return;
 										}
 
-									} else {
-										element.value = oldStatus;
+										if (loading) loading.style.display = 'flex';
 
-										MacproDialog.error({
-											title: 'Status Not Updated',
-											message: data.message || 'Something went wrong.'
+										return fetch('src/handlers/update_status.php', {
+											method: 'POST',
+											headers: {
+												'Content-Type': 'application/x-www-form-urlencoded'
+											},
+											body: `id=${workOrderId}&status=${encodeURIComponent(newStatus)}&update_status=1`
+										})
+										.then(res => res.json())
+										.then(data => {
+
+											if (data.success) {
+												const savedStatus = data.new_status || newStatus;
+
+												element.dataset.old = savedStatus;
+												element.value = savedStatus;
+
+												const statusAffectsQueueOrder = ['Repaired', 'Released', 'Cancelled'].includes(savedStatus);
+												const smsNotification = data.sms_notification || {};
+												let statusMessage = data.status_changed === false
+													? 'Work order status was already ' + savedStatus + '.'
+													: 'Work order status updated successfully.';
+
+												if (smsNotification.deduplicated) {
+													statusMessage += ' Duplicate SMS notification skipped.';
+												} else if (smsNotification.attempted) {
+													statusMessage += smsNotification.success ? ' SMS notification sent.' : ' SMS notification failed.';
+												}
+
+												MacproDialog.success({
+													title: 'Status Updated',
+													message: statusMessage
+												}).then(function () {
+													if (statusAffectsQueueOrder) {
+														location.reload();
+														return;
+													}
+
+													refreshRow(workOrderId);
+												});
+
+											} else {
+												element.value = oldStatus;
+
+												MacproDialog.error({
+													title: 'Status Not Updated',
+													message: data.message || 'Something went wrong.'
+												});
+											}
+										})
+										.catch(() => {
+
+											element.value = oldStatus;
+
+											MacproDialog.error({
+												title: 'Status Not Updated',
+												message: 'Request failed.'
+											});
 										});
-									}
-								})
-								.catch(() => {
 
-									element.disabled = false;
-									if (loading) loading.style.display = 'none';
-
-									element.value = oldStatus;
-
-									MacproDialog.error({
-										title: 'Status Not Updated',
-										message: 'Request failed.'
+									}).finally(() => {
+										window.macproPendingStatusUpdates.delete(workOrderId);
+										element.disabled = false;
+										if (loading) loading.style.display = 'none';
 									});
 								});
-
-							});
-						});
+							}
 
 
 						function refreshRow(id) {

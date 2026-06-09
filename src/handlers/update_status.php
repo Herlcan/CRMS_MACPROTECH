@@ -7,17 +7,10 @@ header('Content-Type: application/json');
 
 require_once '../db/connection.php';
 require_once '../../auth_check.php';
-require_once 'config.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/settings_helpers.php';
-
-require_once __DIR__ . '/../../vendor/PHPMailer-master/src/Exception.php';
-require_once __DIR__ . '/../../vendor/PHPMailer-master/src/PHPMailer.php';
-require_once __DIR__ . '/../../vendor/PHPMailer-master/src/SMTP.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+require_once __DIR__ . '/communication_helpers.php';
 
 /**
  * Check if logged-in user can edit work order status
@@ -39,58 +32,19 @@ function canEditStatus(mysqli $conn): bool
 }
 
 
-/**
- * Send completion email
- */
-function sendCompletionEmail(string $email, string $name, string $workCode): void
+function sendStatusUpdateSms(string $phone, string $name, string $workCode, string $status): array
 {
     global $conn;
 
-    $mail = new PHPMailer(true);
-
     try {
-        $appSettings = isset($conn) ? get_app_settings($conn) : app_settings_defaults();
-        $businessName = trim((string) ($appSettings['business_name'] ?? '')) ?: 'MACPROTECH Computer Repair Services';
-        $businessHours = trim((string) ($appSettings['business_hours'] ?? ''));
-        $receiptFooter = trim((string) ($appSettings['receipt_footer'] ?? ''));
-        $safeName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
-        $safeWorkCode = htmlspecialchars($workCode, ENT_QUOTES, 'UTF-8');
-        $hoursLine = $businessHours !== ''
-            ? '<p>Pickup hours: ' . htmlspecialchars($businessHours, ENT_QUOTES, 'UTF-8') . '</p>'
-            : '<p>Please visit our shop during business hours.</p>';
-        $footerLine = $receiptFooter !== ''
-            ? '<p>' . htmlspecialchars($receiptFooter, ENT_QUOTES, 'UTF-8') . '</p>'
-            : '<p>Thank you for trusting Macprotech Computer Repair Services.</p>';
-
-        $mail->isSMTP();
-        $mail->Host = SMTP_HOST;
-        $mail->SMTPAuth = true;
-        $mail->Username = SMTP_USER;
-        $mail->Password = SMTP_PASS;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = (int) SMTP_PORT;
-
-        $mail->setFrom(SMTP_USER, $businessName);
-        $mail->addAddress($email, $name);
-
-        $mail->isHTML(true);
-        $mail->Subject = "Your Device is Ready for Pickup";
-
-        $mail->Body = "
-            <h2>Repair Completed</h2>
-            <p>Dear <strong>{$safeName}</strong>,</p>
-            <p>Your device with Work Order Code 
-            <strong>{$safeWorkCode}</strong> has been successfully repaired
-            and is now ready for pickup.</p>
-            {$hoursLine}
-            <br>
-            {$footerLine}
-        ";
-
-        $mail->send();
-
-    } catch (Exception $e) {
-        error_log("Email send failed: " . $e->getMessage());
+        return send_work_order_status_sms($conn, $phone, $name, $workCode, $status);
+    } catch (Throwable $e) {
+        error_log("Status SMS failed: " . $e->getMessage());
+        return [
+            'attempted' => false,
+            'success' => false,
+            'message' => 'SMS notification failed.'
+        ];
     }
 }
 
@@ -146,16 +100,23 @@ try {
      * Get previous status + client info
      */
     $stmt = $conn->prepare("
-        SELECT w.status, w.code, w.technician_id, c.first_name, c.email
+        SELECT
+            w.status,
+            w.code,
+            w.technician_id,
+            CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
+            c.email,
+            c.contact_num
         FROM work_order w
         INNER JOIN client c ON w.client_id = c.id
         WHERE w.id = ?
         LIMIT 1
+        FOR UPDATE
     ");
 
     $stmt->bind_param("i", $id);
     $stmt->execute();
-    $stmt->bind_result($previousStatus, $workCode, $technicianId, $clientName, $clientEmail);
+    $stmt->bind_result($previousStatus, $workCode, $technicianId, $clientName, $clientEmail, $clientContact);
 
     if (!$stmt->fetch()) {
         throw new Exception("Work order not found.");
@@ -195,21 +156,28 @@ try {
             UPDATE work_order
             SET status = ?, completion_date = COALESCE(completion_date, CURDATE())
             WHERE id = ?
+            AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
         ");
     } else {
         $stmt = $conn->prepare("
             UPDATE work_order
             SET status = ?, completion_date = NULL
             WHERE id = ?
+            AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
         ");
     }
 
-    $stmt->bind_param("si", $status, $id);
+    if (!$stmt) {
+        throw new Exception("Failed to prepare work order update.");
+    }
+
+    $stmt->bind_param("sis", $status, $id, $status);
 
     if (!$stmt->execute()) {
         throw new Exception("Failed to update work order.");
     }
 
+    $affectedRows = $stmt->affected_rows;
     $stmt->close();
 
 
@@ -217,27 +185,39 @@ try {
      * Activity Log (Audit Trail)
      */
     $userId = $_SESSION['user_id'];
-    $previousDisplayStatus = $previousStatus === 'Ready for Release' ? 'Repaired' : $previousStatus;
-    $action = "Changed status from {$previousDisplayStatus} to {$status}";
-    log_activity($conn, $action, $id, (int) $userId);
+    $previousDisplayStatus = communication_display_status((string) $previousStatus);
+    $statusChanged = $affectedRows > 0;
 
-
-    /**
-     * Send email if changed to Repaired
-     */
-    if ($status === 'Repaired' && !in_array($previousStatus, ['Repaired', 'Ready for Release'], true)) {
-        sendCompletionEmail($clientEmail, $clientName, $workCode);
+    if ($statusChanged) {
+        $action = "Changed status from {$previousDisplayStatus} to {$status}";
+        log_activity($conn, $action, $id, (int) $userId);
     }
 
-    if ($technicianId) {
+    $statusSmsAllowed = should_send_work_order_status_sms($status);
+    $smsResult = [
+        'attempted' => false,
+        'success' => false,
+        'message' => $statusChanged && !$statusSmsAllowed
+            ? 'Released status SMS is skipped. Send the digital receipt email to notify the customer by SMS.'
+            : 'Status did not change.'
+    ];
+    $shouldSendSms = $statusChanged && $statusSmsAllowed;
+
+    if ($statusChanged && $technicianId) {
         notify_work_order_updated($conn, (int) $technicianId, $workCode, "Status changed to {$status}.");
     }
 
     $conn->commit();
 
+    if ($shouldSendSms) {
+        $smsResult = sendStatusUpdateSms((string) $clientContact, (string) $clientName, (string) $workCode, $status);
+    }
+
     echo json_encode([
         'success' => true,
-        'new_status' => $status
+        'new_status' => $status,
+        'status_changed' => $statusChanged,
+        'sms_notification' => $smsResult
     ]);
 
 } catch (Throwable $e) {

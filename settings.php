@@ -2,6 +2,7 @@
 	include 'src/db/connection.php';
 	include 'auth_check.php';
 	require_once 'src/handlers/settings_helpers.php';
+	require_once 'src/handlers/communication_helpers.php';
 	require_once 'src/handlers/activity_log_helper.php';
 
 	function settings_page_text($value, int $limit): string {
@@ -10,6 +11,11 @@
 	}
 
 	function settings_page_multiline($value, int $limit): string {
+		$value = trim((string) $value);
+		return substr($value, 0, $limit);
+	}
+
+	function settings_page_secret($value, int $limit): string {
 		$value = trim((string) $value);
 		return substr($value, 0, $limit);
 	}
@@ -44,6 +50,36 @@
 			$facebook_page = 'https://' . $facebook_page;
 		}
 
+		$mail_smtp_password = settings_page_secret($_POST['mail_smtp_password'] ?? '', 512);
+		if (isset($_POST['clear_mail_smtp_password'])) {
+			$mail_smtp_password = '';
+		} elseif ($mail_smtp_password === '') {
+			$mail_smtp_password = (string) ($app_settings['mail_smtp_password'] ?? '');
+		}
+
+		$httpsms_api_key = settings_page_secret($_POST['httpsms_api_key'] ?? '', 512);
+		if (isset($_POST['clear_httpsms_api_key'])) {
+			$httpsms_api_key = '';
+		} elseif ($httpsms_api_key === '') {
+			$httpsms_api_key = (string) ($app_settings['httpsms_api_key'] ?? '');
+		}
+
+		$mail_smtp_encryption = strtolower(settings_page_text($_POST['mail_smtp_encryption'] ?? 'tls', 20));
+		if (!in_array($mail_smtp_encryption, ['tls', 'ssl', 'none'], true)) {
+			$mail_smtp_encryption = 'tls';
+		}
+
+		$sms_default_country_code = settings_page_text($_POST['sms_default_country_code'] ?? '+63', 8);
+		$sms_default_country_code = '+' . preg_replace('/\D+/', '', $sms_default_country_code);
+		if ($sms_default_country_code === '+') {
+			$sms_default_country_code = '+63';
+		}
+
+		$httpsms_sender_number = settings_page_text($_POST['httpsms_sender_number'] ?? '', 30);
+		if ($httpsms_sender_number !== '') {
+			$httpsms_sender_number = normalize_sms_phone_number($httpsms_sender_number, $sms_default_country_code);
+		}
+
 		$incoming_settings = [
 			'business_name' => settings_page_text($_POST['business_name'] ?? '', 120),
 			'owner_name' => settings_page_text($_POST['owner_name'] ?? '', 120),
@@ -56,6 +92,20 @@
 			'receipt_footer' => settings_page_multiline($_POST['receipt_footer'] ?? '', 500),
 			'service_policy' => settings_page_multiline($_POST['service_policy'] ?? '', 700),
 			'auto_release_paid_work_orders' => isset($_POST['auto_release_paid_work_orders']) ? '1' : '0',
+			'mail_enabled' => isset($_POST['mail_enabled']) ? '1' : '0',
+			'mail_smtp_host' => settings_page_text($_POST['mail_smtp_host'] ?? '', 120),
+			'mail_smtp_port' => settings_page_text($_POST['mail_smtp_port'] ?? '587', 6),
+			'mail_smtp_username' => settings_page_text($_POST['mail_smtp_username'] ?? '', 190),
+			'mail_smtp_password' => $mail_smtp_password,
+			'mail_smtp_encryption' => $mail_smtp_encryption,
+			'mail_from_email' => settings_page_text($_POST['mail_from_email'] ?? '', 190),
+			'mail_from_name' => settings_page_text($_POST['mail_from_name'] ?? '', 120),
+			'sms_enabled' => isset($_POST['sms_enabled']) ? '1' : '0',
+			'sms_status_updates_enabled' => isset($_POST['sms_status_updates_enabled']) ? '1' : '0',
+			'sms_receipt_notifications_enabled' => isset($_POST['sms_receipt_notifications_enabled']) ? '1' : '0',
+			'httpsms_api_key' => $httpsms_api_key,
+			'httpsms_sender_number' => $httpsms_sender_number,
+			'sms_default_country_code' => $sms_default_country_code,
 		];
 
 		if ($incoming_settings['business_name'] === '') {
@@ -64,6 +114,20 @@
 			$settings_error = 'Business email is invalid.';
 		} elseif ($incoming_settings['facebook_page'] !== '' && !filter_var($incoming_settings['facebook_page'], FILTER_VALIDATE_URL)) {
 			$settings_error = 'Facebook page must be a valid URL.';
+		} elseif (!preg_match('/^\+\d{1,4}$/', $incoming_settings['sms_default_country_code'])) {
+			$settings_error = 'Default SMS country code is invalid.';
+		} elseif (app_setting_enabled($incoming_settings, 'mail_enabled') && $incoming_settings['mail_smtp_host'] === '') {
+			$settings_error = 'SMTP host is required when email delivery is enabled.';
+		} elseif (app_setting_enabled($incoming_settings, 'mail_enabled') && ((int) $incoming_settings['mail_smtp_port'] <= 0 || (int) $incoming_settings['mail_smtp_port'] > 65535)) {
+			$settings_error = 'SMTP port is invalid.';
+		} elseif (app_setting_enabled($incoming_settings, 'mail_enabled') && $incoming_settings['mail_smtp_username'] !== '' && $incoming_settings['mail_smtp_password'] === '') {
+			$settings_error = 'SMTP password or app password is required when SMTP username is set.';
+		} elseif ($incoming_settings['mail_from_email'] !== '' && !filter_var($incoming_settings['mail_from_email'], FILTER_VALIDATE_EMAIL)) {
+			$settings_error = 'Email from address is invalid.';
+		} elseif (app_setting_enabled($incoming_settings, 'sms_enabled') && $incoming_settings['httpsms_api_key'] === '') {
+			$settings_error = 'httpSMS API key is required when SMS delivery is enabled.';
+		} elseif (app_setting_enabled($incoming_settings, 'sms_enabled') && !is_valid_sms_phone_number($incoming_settings['httpsms_sender_number'])) {
+			$settings_error = 'httpSMS sender number is required and must include a valid country code.';
 		} else {
 			try {
 				save_app_settings($conn, $incoming_settings);
@@ -194,6 +258,86 @@
 								<label class="settings-toggle settings-span-2" for="autoReleasePaidWorkOrders">
 									<input id="autoReleasePaidWorkOrders" type="checkbox" name="auto_release_paid_work_orders" value="1" <?= app_setting_enabled($app_settings, 'auto_release_paid_work_orders') ? 'checked' : '' ?>>
 									<span>Auto-release repaired work orders after full payment</span>
+								</label>
+							</div>
+
+							<div class="settings-section-divider"></div>
+
+							<div class="settings-form-grid">
+								<div class="settings-section-label settings-span-2">Email Delivery</div>
+								<label class="settings-toggle settings-span-2" for="mailEnabled">
+									<input id="mailEnabled" type="checkbox" name="mail_enabled" value="1" <?= app_setting_enabled($app_settings, 'mail_enabled') ? 'checked' : '' ?>>
+									<span>Enable receipt email</span>
+								</label>
+								<div class="form-group">
+									<label class="form-label" for="mailSmtpHost">SMTP Host</label>
+									<input id="mailSmtpHost" class="form-control" type="text" name="mail_smtp_host" value="<?= settings_page_e($app_settings['mail_smtp_host']) ?>" autocomplete="off">
+								</div>
+								<div class="form-group">
+									<label class="form-label" for="mailSmtpPort">SMTP Port</label>
+									<input id="mailSmtpPort" class="form-control" type="number" min="1" max="65535" name="mail_smtp_port" value="<?= settings_page_e($app_settings['mail_smtp_port']) ?>" autocomplete="off">
+								</div>
+								<div class="form-group">
+									<label class="form-label" for="mailSmtpEncryption">Encryption</label>
+									<select id="mailSmtpEncryption" class="form-control" name="mail_smtp_encryption">
+										<option value="tls" <?= $app_settings['mail_smtp_encryption'] === 'tls' ? 'selected' : '' ?>>TLS</option>
+										<option value="ssl" <?= $app_settings['mail_smtp_encryption'] === 'ssl' ? 'selected' : '' ?>>SSL</option>
+										<option value="none" <?= $app_settings['mail_smtp_encryption'] === 'none' ? 'selected' : '' ?>>None</option>
+									</select>
+								</div>
+								<div class="form-group">
+									<label class="form-label" for="mailSmtpUsername">SMTP Username</label>
+									<input id="mailSmtpUsername" class="form-control" type="text" name="mail_smtp_username" value="<?= settings_page_e($app_settings['mail_smtp_username']) ?>" autocomplete="username">
+								</div>
+								<div class="form-group">
+									<label class="form-label" for="mailSmtpPassword">SMTP Password</label>
+									<input id="mailSmtpPassword" class="form-control" type="password" name="mail_smtp_password" value="" placeholder="<?= app_setting_has_secret($app_settings, 'mail_smtp_password') ? 'Saved - leave blank to keep' : 'SMTP password or app password' ?>" autocomplete="new-password">
+								</div>
+								<label class="settings-toggle" for="clearMailSmtpPassword">
+									<input id="clearMailSmtpPassword" type="checkbox" name="clear_mail_smtp_password" value="1">
+									<span>Clear saved password</span>
+								</label>
+								<div class="form-group">
+									<label class="form-label" for="mailFromEmail">From Email</label>
+									<input id="mailFromEmail" class="form-control" type="email" name="mail_from_email" value="<?= settings_page_e($app_settings['mail_from_email']) ?>" autocomplete="email">
+								</div>
+								<div class="form-group">
+									<label class="form-label" for="mailFromName">From Name</label>
+									<input id="mailFromName" class="form-control" type="text" name="mail_from_name" value="<?= settings_page_e($app_settings['mail_from_name']) ?>" autocomplete="organization">
+								</div>
+							</div>
+
+							<div class="settings-section-divider"></div>
+
+							<div class="settings-form-grid">
+								<div class="settings-section-label settings-span-2">SMS Delivery</div>
+								<label class="settings-toggle settings-span-2" for="smsEnabled">
+									<input id="smsEnabled" type="checkbox" name="sms_enabled" value="1" <?= app_setting_enabled($app_settings, 'sms_enabled') ? 'checked' : '' ?>>
+									<span>Enable httpSMS</span>
+								</label>
+								<div class="form-group">
+									<label class="form-label" for="httpsmsSenderNumber">httpSMS Sender Number</label>
+									<input id="httpsmsSenderNumber" class="form-control" type="text" name="httpsms_sender_number" value="<?= settings_page_e($app_settings['httpsms_sender_number']) ?>" placeholder="+639171234567" autocomplete="tel">
+								</div>
+								<div class="form-group">
+									<label class="form-label" for="smsDefaultCountryCode">Default Country Code</label>
+									<input id="smsDefaultCountryCode" class="form-control" type="text" name="sms_default_country_code" value="<?= settings_page_e($app_settings['sms_default_country_code']) ?>" placeholder="+63" autocomplete="off">
+								</div>
+								<div class="form-group">
+									<label class="form-label" for="httpsmsApiKey">httpSMS API Key</label>
+									<input id="httpsmsApiKey" class="form-control" type="password" name="httpsms_api_key" value="" placeholder="<?= app_setting_has_secret($app_settings, 'httpsms_api_key') ? 'Saved - leave blank to keep' : 'API key' ?>" autocomplete="new-password">
+								</div>
+								<label class="settings-toggle" for="clearHttpsmsApiKey">
+									<input id="clearHttpsmsApiKey" type="checkbox" name="clear_httpsms_api_key" value="1">
+									<span>Clear saved API key</span>
+								</label>
+								<label class="settings-toggle" for="smsStatusUpdatesEnabled">
+									<input id="smsStatusUpdatesEnabled" type="checkbox" name="sms_status_updates_enabled" value="1" <?= app_setting_enabled($app_settings, 'sms_status_updates_enabled') ? 'checked' : '' ?>>
+									<span>Repair status updates</span>
+								</label>
+								<label class="settings-toggle" for="smsReceiptNotificationsEnabled">
+									<input id="smsReceiptNotificationsEnabled" type="checkbox" name="sms_receipt_notifications_enabled" value="1" <?= app_setting_enabled($app_settings, 'sms_receipt_notifications_enabled') ? 'checked' : '' ?>>
+									<span>Receipt email alerts</span>
 								</label>
 							</div>
 						</fieldset>

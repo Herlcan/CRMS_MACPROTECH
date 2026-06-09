@@ -156,6 +156,14 @@ try {
         'payment.php?search=' . urlencode((string) $payment['code'])
     );
 
+    $statusSmsResult = [
+        'attempted' => false,
+        'success' => false,
+        'message' => $repairStatus === 'Released'
+            ? 'Released status SMS is skipped. Send the digital receipt email to notify the customer by SMS.'
+            : 'Repair status did not change.'
+    ];
+
     $response = [
         'success' => true,
         'message' => 'Payment saved successfully',
@@ -178,7 +186,8 @@ try {
         'date' => $summary['date'],
         'transaction_at' => date('Y-m-d H:i:s'),
         'recorded_by_name' => trim(($_SESSION['first_name'] ?? '') . ' ' . ($_SESSION['last_name'] ?? '')),
-        'repair_status' => $repairStatus
+        'repair_status' => $repairStatus,
+        'status_sms_notification' => $statusSmsResult
     ];
 } catch (Exception $e) {
     if ($transactionStarted && isset($conn)) {

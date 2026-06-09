@@ -12,6 +12,7 @@ require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/communication_helpers.php';
 
 $update_work_order_message = '';
 $update_work_order_error = '';
@@ -110,7 +111,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
         try {
             $existingTechnicianId = null;
             $workOrderCode = '';
-            $existingQuery = mysqli_prepare($conn, "SELECT technician_id, code FROM work_order WHERE id = ? LIMIT 1");
+            $existingStatus = '';
+            $customerName = '';
+            $customerContact = '';
+            $existingQuery = mysqli_prepare($conn, "
+                SELECT
+                    w.technician_id,
+                    w.code,
+                    w.status,
+                    CONCAT(c.first_name, ' ', c.last_name) AS customer_name,
+                    c.contact_num
+                FROM work_order w
+                LEFT JOIN client c ON w.client_id = c.id
+                WHERE w.id = ?
+                LIMIT 1
+                FOR UPDATE
+            ");
             if (!$existingQuery) {
                 throw new Exception('Database error: ' . mysqli_error($conn));
             }
@@ -126,6 +142,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
 
             $existingTechnicianId = !empty($existingRow['technician_id']) ? (int) $existingRow['technician_id'] : null;
             $workOrderCode = $existingRow['code'] ?: ('WO-' . sprintf('%04d', $work_order_id));
+            $existingStatus = (string) ($existingRow['status'] ?? '');
+            $customerName = (string) ($existingRow['customer_name'] ?? 'Customer');
+            $customerContact = (string) ($existingRow['contact_num'] ?? '');
 
             $unit_type = resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type);
 
@@ -348,6 +367,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order']))
 
             // Commit transaction
             mysqli_commit($conn);
+
+            if (communication_display_status($status) !== communication_display_status($existingStatus) && should_send_work_order_status_sms($status)) {
+                try {
+                    send_work_order_status_sms($conn, $customerContact, $customerName, $workOrderCode, $status);
+                } catch (Throwable $smsError) {
+                    error_log('Work order edit status SMS failed: ' . $smsError->getMessage());
+                }
+            }
 
             redirectWorkOrderWithDialog($client_id, 'success', 'Work Order Updated', 'Work order updated successfully.');
 
