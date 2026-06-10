@@ -40,6 +40,7 @@ function ensure_stock_out_transaction_table($conn) {
             item_id int(11) NOT NULL,
             work_order_id int(11) NOT NULL DEFAULT 0,
             quantity int(11) NOT NULL DEFAULT 0,
+            average_cost_snapshot decimal(10,2) DEFAULT NULL,
             stock_out_date date NOT NULL,
             PRIMARY KEY (id),
             KEY idx_stock_out_transaction_item (item_id),
@@ -50,6 +51,12 @@ function ensure_stock_out_transaction_table($conn) {
 
     if (!mysqli_query($conn, $sql)) {
         throw new Exception('Failed to prepare stock-out transaction table: ' . mysqli_error($conn));
+    }
+
+    if (!inventory_table_has_column($conn, 'stock_out_transaction', 'average_cost_snapshot')) {
+        if (!mysqli_query($conn, "ALTER TABLE stock_out_transaction ADD COLUMN average_cost_snapshot decimal(10,2) DEFAULT NULL AFTER quantity")) {
+            throw new Exception('Failed to prepare stock-out average cost snapshot column: ' . mysqli_error($conn));
+        }
     }
 }
 
@@ -195,18 +202,20 @@ function create_stock_in_transaction($conn, $item_id, $capital, $stock_in, $stoc
 
 function record_stock_out_transaction($conn, $item_id, $work_order_id, $quantity, $stock_out_date) {
     ensure_inventory_transaction_table($conn);
+    $average_summary = calculate_inventory_weighted_average($conn, (int) $item_id);
+    $average_cost_snapshot = (float) ($average_summary['average_cost'] ?? 0);
 
     $query = mysqli_prepare(
         $conn,
-        "INSERT INTO stock_out_transaction (item_id, work_order_id, quantity, stock_out_date)
-         VALUES (?, ?, ?, ?)"
+        "INSERT INTO stock_out_transaction (item_id, work_order_id, quantity, average_cost_snapshot, stock_out_date)
+         VALUES (?, ?, ?, ?, ?)"
     );
 
     if (!$query) {
         throw new Exception('Database error: ' . mysqli_error($conn));
     }
 
-    mysqli_stmt_bind_param($query, "iiis", $item_id, $work_order_id, $quantity, $stock_out_date);
+    mysqli_stmt_bind_param($query, "iiids", $item_id, $work_order_id, $quantity, $average_cost_snapshot, $stock_out_date);
 
     if (!mysqli_stmt_execute($query)) {
         $error = mysqli_stmt_error($query);

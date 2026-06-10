@@ -120,6 +120,9 @@
 			window.MACPRO_DIALOG_FLASH = <?= json_encode($dialog_flash, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 		</script>
 	<?php endif; ?>
+	<script>
+		window.MACPRO_CSRF_TOKEN = <?= json_encode(csrf_token(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+	</script>
 
 	<div class="header">
 		<div class="header-left">
@@ -205,6 +208,7 @@
 
 				<!-- Profile Form -->
 				<form method="POST" class="profile-form">
+					<?= csrf_input() ?>
 					<div class="form-group">
 						<label class="form-label">Username</label>
 						<input type="text" class="form-control profile-input" name="username" value="<?= htmlspecialchars($user['username']); ?>" autocomplete="off">

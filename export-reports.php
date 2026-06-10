@@ -16,6 +16,7 @@ require_once __DIR__ . '/src/handlers/work_order_schema.php';
 require_once __DIR__ . '/src/handlers/payment_schema.php';
 require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
 require_once __DIR__ . '/src/handlers/ordered_part_schema.php';
+require_once __DIR__ . '/src/handlers/activity_log_helper.php';
 
 function export_report_safe_date($date): string
 {
@@ -231,6 +232,8 @@ if ($dateFrom !== '' && $dateTo !== '' && $dateFrom > $dateTo) {
 $filename = export_report_filename($type, $scope, $dateFrom, $dateTo);
 $paymentStatusSql = export_report_payment_status_sql();
 $paymentBalanceSql = export_report_payment_balance_sql($paymentStatusSql);
+$rangeLabel = ($dateFrom !== '' || $dateTo !== '') ? (($dateFrom !== '' ? $dateFrom : 'start') . ' to ' . ($dateTo !== '' ? $dateTo : 'today')) : 'all time';
+log_activity($conn, "Exported {$type} {$scope} report ({$rangeLabel})");
 
 if ($type === 'work_orders') {
     $where = ['1'];

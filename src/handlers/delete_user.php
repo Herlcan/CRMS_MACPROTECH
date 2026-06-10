@@ -1,7 +1,8 @@
 <?php
-session_start();
 include '../db/connection.php';
+include '../../auth_check.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 function redirectUserWithDialog($type, $title, $message) {
     $_SESSION['dialog_flash'] = [
@@ -13,13 +14,17 @@ function redirectUserWithDialog($type, $title, $message) {
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+
+    if (!verify_csrf_token()) {
+        redirectUserWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
 
     if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
         redirectUserWithDialog('error', 'Unauthorized', 'You are not allowed to delete users.');
     }
 
-    $user_id = intval($_GET['id']);
+    $user_id = intval($_POST['id']);
     $logged_in_user_id = $_SESSION['user_id'];
 
     // Get role of user being deleted

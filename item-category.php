@@ -1,6 +1,16 @@
 <?php
 	include 'header.php';
+	if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+		$_SESSION['dialog_flash'] = [
+			'type' => 'error',
+			'title' => 'Permission Required',
+			'message' => 'Only authorized staff can manage categories.'
+		];
+		header('Location: index.php');
+		exit();
+	}
 	include 'sidebar.php'; 
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 ?>
 	<!-- EDIT CATEGORY MODAL (Pure CSS) -->
 	<input type="checkbox" id="editCategoryToggle" class="edit-client-toggle">
@@ -18,6 +28,7 @@
 			<div class="css-modal-body">
 				<!-- Form -->
 				<form method="POST" action="src/handlers/edit_category.php">
+					<?= csrf_input() ?>
 
 					<input type="hidden" name="id" id="categoryIdField" value="">
 					
@@ -85,6 +96,7 @@
 						<div class="col-md-4 col-sm-12">
 							<div class="pd-20 ">
 								<form method="POST" action="src/handlers/add_category.php">
+									<?= csrf_input() ?>
 									<div class="form-group">
 										<label>Category Name</label>
 										<input class="form-control" type="text" placeholder="input category name" name="category_name" autocomplete="off">
@@ -104,7 +116,9 @@
 									</tr>
 								</thead>
 								<?php
-								$where = "1";
+								$where_clauses = ["1=1"];
+								$where_types = "";
+								$where_params = [];
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -121,22 +135,34 @@
 
 								// Secure search
 								if (!empty($_GET['search'])) {
-								    $s = mysqli_real_escape_string($conn, $_GET['search']);
-								    $where .= " AND (LOWER(category_name) LIKE '%$s%')";
+								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
+								    $where_clauses[] = "LOWER(category_name) LIKE ?";
+									$where_types .= "s";
+									$where_params[] = $s;
 								}
 
 								// Get total count for pagination info
-								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM item_category WHERE $where");
+								$where = implode(' AND ', $where_clauses);
+								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM item_category WHERE $where");
+								db_bind_params($count_query, $where_types, $where_params);
+								mysqli_stmt_execute($count_query);
+								$count_result = mysqli_stmt_get_result($count_query);
 								$count_row = mysqli_fetch_assoc($count_result);
-								$total_records = $count_row['total'];
+								$total_records = (int) $count_row['total'];
+								mysqli_stmt_close($count_query);
 
 								// Calculate offset
 								$offset = ($current_page - 1) * $limit;
-								$total_pages = ceil($total_records / $limit);
+								$total_pages = max(1, (int) ceil($total_records / $limit));
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT * FROM item_category WHERE $where ORDER BY category_name ASC LIMIT $limit OFFSET $offset");
+								$list_query = mysqli_prepare($conn, "SELECT * FROM item_category WHERE $where ORDER BY category_name ASC LIMIT ? OFFSET ?");
+								$list_types = $where_types . "ii";
+								$list_params = array_merge($where_params, [$limit, $offset]);
+								db_bind_params($list_query, $list_types, $list_params);
+								mysqli_stmt_execute($list_query);
+								$result = mysqli_stmt_get_result($list_query);
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);

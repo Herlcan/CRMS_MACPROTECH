@@ -8,6 +8,8 @@ require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/category_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
+require_once __DIR__ . '/upload_helpers.php';
 
 $edit_item_error = '';
 
@@ -79,6 +81,13 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
+    if (!verify_csrf_token()) {
+        redirectItemWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
+
+    require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+        redirectItemWithDialog('error', 'Permission Required', 'Only authorized staff can update product items.');
+    });
 
     $item_id      = (int) $_POST['id'];
     $brand_name   = trim($_POST['brand_name']);
@@ -102,37 +111,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
 
         // Handle image upload if provided
         if (!empty($_FILES['image']['name'])) {
-
-            if ($_FILES['image']['error'] !== 0) {
-                redirectItemWithDialog('error', 'Product Item Not Updated', 'Image upload error.');
-            }
-
-            $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-            $max_size = 10 * 1024 * 1024; // 10MB
-
-            $file_tmp  = $_FILES['image']['tmp_name'];
-            $file_size = $_FILES['image']['size'];
-
-            // Validate type
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $file_type = finfo_file($finfo, $file_tmp);
-            finfo_close($finfo);
-
-            if (!in_array($file_type, $allowed_types)) {
-                redirectItemWithDialog('error', 'Product Item Not Updated', 'Invalid image type. Only JPG, PNG, GIF, WEBP allowed.');
-            }
-
-            // Validate size
-            if ($file_size > $max_size) {
-                redirectItemWithDialog('error', 'Product Item Not Updated', 'Image file too large. Maximum size is 10MB.');
-            }
-
-            // Generate unique filename
-            $image_name_to_save = "item_" . time() . "_" . rand(1000, 9999) . "." . pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-            $upload_path = __DIR__ . "/../../src/uploads/" . $image_name_to_save;
-
-            if (!move_uploaded_file($file_tmp, $upload_path)) {
-                redirectItemWithDialog('error', 'Product Item Not Updated', 'Failed to upload image.');
+            try {
+                $image_name_to_save = save_uploaded_image($_FILES['image'], __DIR__ . '/../uploads', 'item');
+            } catch (Exception $e) {
+                redirectItemWithDialog('error', 'Product Item Not Updated', $e->getMessage());
             }
         }
 

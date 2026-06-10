@@ -1,6 +1,15 @@
 
 <?php
 	include 'header.php';
+	if (!user_has_role('Administrator')) {
+		$_SESSION['dialog_flash'] = [
+			'type' => 'error',
+			'title' => 'Permission Required',
+			'message' => 'Only administrators can access user groups.'
+		];
+		header('Location: index.php');
+		exit();
+	}
 	include 'sidebar.php';
 ?>
 

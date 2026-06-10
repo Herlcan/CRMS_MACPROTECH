@@ -4,6 +4,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $add_client_message = '';
 $add_client_error = '';
@@ -21,6 +22,13 @@ if (!function_exists('redirectClientWithDialog')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_client'])) {
+    if (!verify_csrf_token()) {
+        redirectClientWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
+
+    require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+        redirectClientWithDialog('error', 'Permission Required', 'Only authorized staff can create customers.');
+    });
 
     $first_name = trim($_POST['first_name']);
     $last_name  = trim($_POST['last_name']);

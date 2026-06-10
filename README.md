@@ -395,7 +395,7 @@ Settings include:
 - Email enable/disable, SMTP host, port, username, password, encryption, from email, and from name.
 - SMS enable/disable, sender number, default country code, httpSMS API key, status SMS toggle, and receipt SMS toggle.
 
-`MACPROTECH_APP_KEY` is used for encrypted settings. It can be provided as an environment variable or via `src/handlers/config.php`.
+Encrypted settings use an application key. For normal installs, the system creates `src/handlers/config.local.php` automatically the first time an SMTP password or httpSMS API key is saved in Settings. Keep this file with the deployment backup so saved SMTP and SMS secrets remain decryptable.
 
 ---
 
@@ -528,45 +528,195 @@ Many handlers call schema helper functions before use. These helpers add missing
 
 ## Installation
 
-1. Place the project in the web server document root, for example:
+These steps assume XAMPP, Apache, PHP, and MySQL/MariaDB. Adjust paths if you use a different web server.
 
-   ```bash
-   /opt/lampp/htdocs/MACPROTECH/
-   ```
+### 1. Copy The Project
 
-2. Create a MySQL/MariaDB database named:
+Place the project inside the web server document root.
 
-   ```text
-   crms_macprotech
-   ```
+Linux/XAMPP example:
 
-3. Import:
+```bash
+/opt/lampp/htdocs/MACPROTECH/
+```
 
-   ```text
-   crms_macprotech.sql
-   ```
+Windows/XAMPP example:
 
-4. Configure the database connection in:
+```text
+C:\xampp\htdocs\MACPROTECH\
+```
 
-   ```text
-   src/db/connection.php
-   ```
+### 2. Start Apache And MySQL
 
-5. Make sure image uploads can be written:
+Start both Apache and MySQL from the XAMPP control panel.
 
-   ```text
-   src/uploads/
-   ```
+Linux/XAMPP terminal example:
 
-6. Configure `MACPROTECH_APP_KEY` for encrypted settings, either through the environment or `src/handlers/config.php`.
+```bash
+sudo /opt/lampp/lampp start
+```
 
-7. Open the system in the browser:
+### 3. Create The Database
 
-   ```text
-   http://localhost/MACPROTECH/
-   ```
+Open phpMyAdmin or MySQL and create a database named:
+
+```text
+crms_macprotech
+```
+
+### 4. Import The Database Dump
+
+Import the schema dump:
+
+```text
+crms_macprotech.sql
+```
+
+Using phpMyAdmin:
+
+1. Select the `crms_macprotech` database.
+2. Open the Import tab.
+3. Choose `crms_macprotech.sql`.
+4. Click Import.
+
+Using MySQL CLI:
+
+```bash
+mysql -u root -p crms_macprotech < crms_macprotech.sql
+```
+
+For an existing database that was installed before the security update, back up the database first, then run:
+
+```text
+database/security_integrity_migration.sql
+```
+
+This migration adds login-attempt tracking, inventory cost snapshots, and core foreign keys. If foreign keys fail, check for orphan records before rerunning the migration.
+
+### 5. Configure The Database Connection
+
+Open:
+
+```text
+src/db/connection.php
+```
+
+Confirm the credentials match your local database:
+
+```php
+$conn = mysqli_connect("localhost", "root", "", "crms_macprotech");
+```
+
+Default XAMPP usually uses:
+
+- Host: `localhost`
+- Username: `root`
+- Password: empty
+- Database: `crms_macprotech`
+
+### 6. Application Key
+
+No command-line key setup is required for normal installation.
+
+The system automatically creates:
+
+```text
+src/handlers/config.local.php
+```
+
+This file stores the local application key used to encrypt Settings secrets such as the SMTP password and httpSMS API key. It is created the first time an administrator saves one of those secrets in Settings.
+
+Important:
+
+- Do not delete `src/handlers/config.local.php` after email or SMS secrets are saved.
+- Include `src/handlers/config.local.php` when backing up or moving the system.
+- If the file is deleted or replaced, re-enter the SMTP password and httpSMS API key in Settings.
+
+Advanced production installs may still provide `MACPROTECH_APP_KEY` through the web server environment. If both are present, the environment value is used.
+
+### 7. Check Writable Folders
+
+Inventory item images are stored in:
+
+```text
+src/uploads/
+```
+
+Make sure Apache/PHP can write to that folder.
+
+Linux/XAMPP example:
+
+```bash
+sudo chown -R daemon:daemon /opt/lampp/htdocs/MACPROTECH/src/uploads
+sudo chmod 755 /opt/lampp/htdocs/MACPROTECH/src/uploads
+```
+
+The folder includes `.htaccess` protection to block uploaded scripts from executing.
+
+Apache/PHP should also be able to create this file when Settings secrets are saved:
+
+```text
+src/handlers/config.local.php
+```
+
+### 8. Open The System
+
+Open:
+
+```text
+http://localhost/MACPROTECH/
+```
+
+Administrator login page:
+
+```text
+http://localhost/MACPROTECH/admin-login.php
+```
+
+Staff/technician login page:
+
+```text
+http://localhost/MACPROTECH/login.php
+```
 
 The SQL dump includes an initial administrator record named `Admin`. Use the project-provided password or reset it in the database if needed.
+
+### 9. Configure Shop Settings
+
+After logging in as administrator, open Settings from the header profile menu.
+
+Configure:
+
+- Business name, contact details, address, receipt footer, and service policy.
+- SMTP settings if receipt email is enabled.
+- httpSMS API key and sender number if SMS delivery is enabled.
+- Automatic release behavior after full payment.
+
+### 10. Verify The Main Workflow
+
+Before using the system in production, test these flows:
+
+- Log in and log out.
+- Create a customer.
+- Create a work order.
+- Add inventory and attach purchased parts.
+- Update repair status.
+- Record payment and print/send receipt.
+- Create a refund.
+- Export a report as administrator.
+
+### Troubleshooting
+
+If a page is blank, check the Apache/PHP error log first.
+
+Common issues:
+
+- Apache or MySQL is not running.
+- Database name or credentials in `src/db/connection.php` are incorrect.
+- `src/handlers/config.local.php` is missing after encrypted settings were saved.
+- Apache/PHP cannot write to `src/handlers/` when saving SMTP or SMS secrets for the first time.
+- PHP extensions such as `mysqli`, `openssl`, `curl`, or `fileinfo` are disabled.
+- `src/uploads/` is not writable by Apache/PHP.
 
 ---
 
@@ -633,7 +783,8 @@ These pages should be reviewed before treating them as active production workflo
 - Administrator-only areas include reports, exports, user management, customer deletion, and settings updates.
 - Many handlers use prepared statements and transactions for critical writes.
 - Some list/search/filter pages still build SQL strings manually with escaping. Keep validation strict if extending those endpoints.
-- SMTP password and httpSMS API key are encrypted with `MACPROTECH_APP_KEY` before storage in `app_settings`.
+- SMTP password and httpSMS API key are encrypted before storage in `app_settings`.
+- Normal installs use an auto-generated local key in `src/handlers/config.local.php`; advanced installs may provide `MACPROTECH_APP_KEY` through the web server environment.
 
 ---
 

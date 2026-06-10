@@ -398,6 +398,7 @@
 				</div>
 				<form id="reassignTechnicianForm">
 					<div class="modal-body" style="padding: 25px;">
+						<?= csrf_input() ?>
 						<input type="hidden" name="work_order_id" id="reassign_work_order_id">
 
 						<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 18px;">
@@ -1337,7 +1338,7 @@ function viewWorkOrder(id) {
 											headers: {
 												'Content-Type': 'application/x-www-form-urlencoded'
 											},
-											body: `id=${workOrderId}&status=${encodeURIComponent(newStatus)}&update_status=1`
+											body: `id=${workOrderId}&status=${encodeURIComponent(newStatus)}&update_status=1&csrf_token=${encodeURIComponent(window.MACPRO_CSRF_TOKEN || '')}`
 										})
 										.then(res => res.json())
 										.then(data => {

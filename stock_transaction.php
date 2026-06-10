@@ -2,6 +2,7 @@
 	include 'header.php';
 	include 'sidebar.php';
 	require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	$item_id = isset($_GET['item_id']) ? (int) $_GET['item_id'] : 0;
 	$item = null;
@@ -38,6 +39,8 @@
 
 		return 'stock_transaction.php?' . http_build_query($params);
 	}
+
+	$canManageInventory = user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff']);
 
 	try {
 		ensure_inventory_transaction_table($conn);
@@ -100,7 +103,9 @@
 	$product_name = $item ? trim($item['brand_name'] . ' ' . $item['model']) : '';
 	$total_stock_in = 0;
 	$total_stock_out = 0;
-	$transaction_where = "item_id = " . (int) $item_id;
+	$transaction_where_clauses = ["item_id = ?"];
+	$transaction_where_types = "i";
+	$transaction_where_params = [$item_id];
 	$transaction_search = trim($_GET['transaction_search'] ?? '');
 	$transaction_limit = 10;
 	$transaction_current_page = 1;
@@ -143,20 +148,29 @@
 		}
 
 		if ($transaction_search !== '') {
-			$escaped_transaction_search = mysqli_real_escape_string($conn, strtolower($transaction_search));
-			$transaction_where .= " AND (
-				LOWER(CAST(capital AS CHAR)) LIKE '%$escaped_transaction_search%'
-				OR LOWER(CAST(stock_in AS CHAR)) LIKE '%$escaped_transaction_search%'
-				OR LOWER(stock_in_date) LIKE '%$escaped_transaction_search%'
+			$escaped_transaction_search = '%' . strtolower($transaction_search) . '%';
+			$transaction_where_clauses[] = "(
+				LOWER(CAST(capital AS CHAR)) LIKE ?
+				OR LOWER(CAST(stock_in AS CHAR)) LIKE ?
+				OR LOWER(stock_in_date) LIKE ?
 			)";
+			$transaction_where_types .= "sss";
+			$transaction_where_params[] = $escaped_transaction_search;
+			$transaction_where_params[] = $escaped_transaction_search;
+			$transaction_where_params[] = $escaped_transaction_search;
 		}
 
-		$transaction_count_result = mysqli_query(
+		$transaction_where = implode(' AND ', $transaction_where_clauses);
+		$transaction_count_query = mysqli_prepare(
 			$conn,
 			"SELECT COUNT(*) AS total FROM stock_in_transaction WHERE $transaction_where"
 		);
+		db_bind_params($transaction_count_query, $transaction_where_types, $transaction_where_params);
+		mysqli_stmt_execute($transaction_count_query);
+		$transaction_count_result = mysqli_stmt_get_result($transaction_count_query);
 		$transaction_count_row = mysqli_fetch_assoc($transaction_count_result);
 		$transaction_total_records = (int) ($transaction_count_row['total'] ?? 0);
+		mysqli_stmt_close($transaction_count_query);
 
 		$transaction_offset = ($transaction_current_page - 1) * $transaction_limit;
 		$transaction_total_pages = max(1, (int) ceil($transaction_total_records / $transaction_limit));
@@ -168,20 +182,26 @@
 
 		$transaction_offset = min($transaction_offset, $transaction_total_records);
 
-		$transaction_result = mysqli_query(
+		$transaction_query = mysqli_prepare(
 			$conn,
 			"SELECT *
 			 FROM stock_in_transaction
 			 WHERE $transaction_where
 			 ORDER BY stock_in_date DESC, id DESC
-			 LIMIT $transaction_limit OFFSET $transaction_offset"
+			 LIMIT ? OFFSET ?"
 		);
+		$transaction_list_types = $transaction_where_types . "ii";
+		$transaction_list_params = array_merge($transaction_where_params, [$transaction_limit, $transaction_offset]);
+		db_bind_params($transaction_query, $transaction_list_types, $transaction_list_params);
+		mysqli_stmt_execute($transaction_query);
+		$transaction_result = mysqli_stmt_get_result($transaction_query);
 
 		if ($transaction_result) {
 			while ($row = mysqli_fetch_assoc($transaction_result)) {
 				$transactions[] = $row;
 			}
 		}
+		mysqli_stmt_close($transaction_query);
 
 		$transaction_records_shown = count($transactions);
 		$transaction_record_start = ($transaction_total_records > 0) ? $transaction_offset + 1 : 0;
@@ -200,6 +220,7 @@
 			</div>
 			<div class="css-modal-body">
 				<form method="POST" action="src/handlers/add_inventory_transaction.php">
+					<?= csrf_input() ?>
 					<input type="hidden" name="item_id" value="<?= htmlspecialchars((string) $item_id) ?>">
 					<input type="hidden" id="addStockCurrentQuantity" value="<?= htmlspecialchars((string) $current_stock) ?>">
 					<input type="hidden" id="addStockCurrentAverageCost" value="<?= htmlspecialchars((string) $current_average_cost) ?>">
@@ -243,6 +264,7 @@
 			</div>
 			<div class="css-modal-body">
 				<form method="POST" action="src/handlers/edit_inventory_transaction.php">
+					<?= csrf_input() ?>
 					<input type="hidden" name="id" id="editTransactionId" value="">
 					<input type="hidden" name="item_id" value="<?= htmlspecialchars((string) $item_id) ?>">
 					<div class="row">
@@ -329,9 +351,11 @@
 								</div>
 							</div>
 							<div class="col-md-6 col-sm-12 text-right" style="margin-left: auto; display: flex; justify-content: flex-end; align-items: center;">
-								<div style="display: flex; justify-content: flex-end; margin-top: 14px;">
-									<button type="button" class="btn btn-primary" onclick="openAddInventoryStock()">Add Stock</button>
-								</div>
+								<?php if ($canManageInventory): ?>
+									<div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+										<button type="button" class="btn btn-primary" onclick="openAddInventoryStock()">Add Stock</button>
+									</div>
+								<?php endif; ?>
 							</div>
 						</div>
 					</div>
@@ -386,7 +410,9 @@
 											<th style="text-align: center;">Capital</th>
 											<th style="text-align: center;">Stock-In</th>
 											<th style="text-align: center;">Stock-In Date</th>
-											<th class="datatable-nosort" style="text-align: center;">Action</th>
+											<?php if ($canManageInventory): ?>
+												<th class="datatable-nosort" style="text-align: center;">Action</th>
+											<?php endif; ?>
 										</tr>
 									</thead>
 									<tbody>
@@ -403,28 +429,36 @@
 												<td style="text-align: center;"><?= "Php " . number_format((float) $transaction['capital'], 2) ?></td>
 												<td style="text-align: center;"><?= htmlspecialchars($transaction['stock_in']) ?></td>
 												<td style="text-align: center;"><?= htmlspecialchars($transaction['stock_in_date']) ?></td>
-												<td style="text-align: center;">
-													<div class="dropdown">
-														<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
-															<img src="src/images/menu-dots.png" width="25px" style="border: none">
-														</a>
-														<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-															<a class="dropdown-item" href="#" onclick='editInventoryTransaction(<?= htmlspecialchars(json_encode($edit_payload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES) ?>); return false;'><i class="dw dw-edit2"></i> Edit</a>
-															<a class="dropdown-item text-danger"
-															   href="src/handlers/delete_inventory_transaction.php?id=<?= (int) $transaction['id'] ?>&item_id=<?= (int) $item_id ?>"
-															   data-macpro-confirm
-															   data-macpro-confirm-title="Delete Inventory Transaction?"
-															   data-macpro-confirm-message="This inventory transaction record will be permanently deleted."
-															   data-macpro-confirm-label="Delete Transaction"
-															   data-macpro-confirm-variant="danger"><i class="dw dw-delete-3"></i> Delete</a>
+												<?php if ($canManageInventory): ?>
+													<td style="text-align: center;">
+														<div class="dropdown">
+															<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
+																<img src="src/images/menu-dots.png" width="25px" style="border: none">
+															</a>
+															<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
+																<a class="dropdown-item" href="#" onclick='editInventoryTransaction(<?= htmlspecialchars(json_encode($edit_payload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES) ?>); return false;'><i class="dw dw-edit2"></i> Edit</a>
+																<form method="POST" action="src/handlers/delete_inventory_transaction.php" style="margin: 0;">
+																	<?= csrf_input() ?>
+																	<input type="hidden" name="id" value="<?= (int) $transaction['id'] ?>">
+																	<input type="hidden" name="item_id" value="<?= (int) $item_id ?>">
+																	<button type="submit"
+																		class="dropdown-item text-danger"
+																		style="border: 0; background: transparent; width: 100%; text-align: left;"
+																		data-macpro-confirm
+																		data-macpro-confirm-title="Delete Inventory Transaction?"
+																		data-macpro-confirm-message="This inventory transaction record will be permanently deleted."
+																		data-macpro-confirm-label="Delete Transaction"
+																		data-macpro-confirm-variant="danger"><i class="dw dw-delete-3"></i> Delete</button>
+																</form>
+															</div>
 														</div>
-													</div>
-												</td>
+													</td>
+												<?php endif; ?>
 											</tr>
 										<?php endforeach; ?>
 										<?php if (empty($transactions)): ?>
 											<tr>
-													<td colspan="4" style="text-align: center;">No stock-in transactions found</td>
+													<td colspan="<?= $canManageInventory ? '4' : '3' ?>" style="text-align: center;">No stock-in transactions found</td>
 											</tr>
 										<?php endif; ?>
 									</tbody>

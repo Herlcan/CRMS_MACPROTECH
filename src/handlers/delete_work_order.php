@@ -10,12 +10,22 @@ include '../../auth_check.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
+    }
+
+    if (!verify_csrf_token()) {
+        throw new Exception('Your form session expired. Please try again.');
+    }
+
+    if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        http_response_code(403);
+        throw new Exception('You are not allowed to delete work orders.');
     }
 
     if (!isset($_POST['id']) || empty($_POST['id'])) {

@@ -10,8 +10,9 @@ require_once '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
-function current_user_role(mysqli $conn): string
+function reassign_current_user_role(mysqli $conn): string
 {
     if (empty($_SESSION['user_id'])) {
         return '';
@@ -29,7 +30,7 @@ function current_user_role(mysqli $conn): string
 
 function can_reassign_work_order(mysqli $conn): bool
 {
-    return in_array(current_user_role($conn), ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], true);
+    return in_array(reassign_current_user_role($conn), ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], true);
 }
 
 function user_full_name(?string $firstName, ?string $lastName): string
@@ -40,6 +41,12 @@ function user_full_name(?string $firstName, ?string $lastName): string
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request.']);
+    exit;
+}
+
+if (!verify_csrf_token()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Your form session expired. Please try again.']);
     exit;
 }
 

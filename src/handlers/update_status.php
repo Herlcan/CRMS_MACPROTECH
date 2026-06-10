@@ -12,6 +12,7 @@ require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/settings_helpers.php';
 require_once __DIR__ . '/communication_helpers.php';
 require_once __DIR__ . '/work_order_schema.php';
+require_once __DIR__ . '/security_helpers.php';
 
 /**
  * Check if logged-in user can edit work order status
@@ -55,6 +56,12 @@ function sendStatusUpdateSms(string $phone, string $name, string $workCode, stri
  */
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['update_status'])) {
     echo json_encode(['success' => false, 'message' => 'Invalid request.']);
+    exit;
+}
+
+if (!verify_csrf_token()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Your form session expired. Please try again.']);
     exit;
 }
 
@@ -125,6 +132,10 @@ try {
     }
 
     $stmt->close();
+
+    if (user_has_role('Technician') && (int) $technicianId !== (int) $_SESSION['user_id']) {
+        throw new Exception("You can only update work orders assigned to you.");
+    }
 
     if ($status === 'Released') {
         $paymentStmt = $conn->prepare("

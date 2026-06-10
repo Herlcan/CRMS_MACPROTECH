@@ -5,6 +5,15 @@
 
 
 	include 'header.php';
+	if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+		$_SESSION['dialog_flash'] = [
+			'type' => 'error',
+			'title' => 'Permission Required',
+			'message' => 'Only authorized staff can view customer records.'
+		];
+		header('Location: index.php');
+		exit();
+	}
 	include 'sidebar.php'; 
 	include 'src/db/connection.php';
 	require_once __DIR__ . '/src/handlers/work_order_schema.php';
@@ -28,9 +37,12 @@
 	$row = null;
 
 	if ($client_id > 0) {
-		$query = "SELECT * FROM client WHERE id = $client_id";
-		$result = mysqli_query($conn, $query);
+		$query = mysqli_prepare($conn, "SELECT * FROM client WHERE id = ? LIMIT 1");
+		mysqli_stmt_bind_param($query, "i", $client_id);
+		mysqli_stmt_execute($query);
+		$result = mysqli_stmt_get_result($query);
 		$row = mysqli_fetch_assoc($result);
+		mysqli_stmt_close($query);
 	}
 
 	if (!$row) {
@@ -79,6 +91,7 @@
 			<div class="css-modal-body">
 				<!-- Form -->
 				<form method="POST" action="src/handlers/add_work_order.php" id="workOrderForm">
+					<?= csrf_input() ?>
 					<!-- STEP 1: WORK ORDER DETAILS -->
 					<div id="step1Form" class="form-step" style="display: block;">
 						<div class="row">
@@ -1280,7 +1293,7 @@ function viewWorkOrder(id) {
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
 				},
-				body: 'id=' + encodeURIComponent(workOrderIdToDelete)
+				body: 'id=' + encodeURIComponent(workOrderIdToDelete) + '&csrf_token=' + encodeURIComponent(window.MACPRO_CSRF_TOKEN || '')
 			})
 			.then(response => {
 				if (!response.ok) {
@@ -2057,6 +2070,7 @@ function viewWorkOrder(id) {
 				</div>
 				<form id="reassignTechnicianForm">
 					<div class="modal-body" style="padding: 25px;">
+						<?= csrf_input() ?>
 						<input type="hidden" name="work_order_id" id="reassign_work_order_id">
 
 						<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 18px;">

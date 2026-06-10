@@ -7,6 +7,7 @@ include '../../auth_check.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 if (!function_exists('redirectStockRecordsWithDialog')) {
     function redirectStockRecordsWithDialog($item_id, $type, $title, $message) {
@@ -20,13 +21,21 @@ if (!function_exists('redirectStockRecordsWithDialog')) {
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET' || !isset($_GET['id'], $_GET['item_id'])) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['id'], $_POST['item_id'])) {
     header("Location: ../../items.php");
     exit();
 }
 
-$transaction_id = (int) $_GET['id'];
-$item_id = (int) $_GET['item_id'];
+$transaction_id = (int) $_POST['id'];
+$item_id = (int) $_POST['item_id'];
+
+if (!verify_csrf_token()) {
+    redirectStockRecordsWithDialog($item_id, 'error', 'Security Check Failed', 'Your form session expired. Please try again.');
+}
+
+require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () use ($item_id) {
+    redirectStockRecordsWithDialog($item_id, 'error', 'Permission Required', 'Only authorized staff can delete stock transactions.');
+});
 
 if ($transaction_id <= 0 || $item_id <= 0) {
     redirectStockRecordsWithDialog($item_id, 'error', 'Transaction Not Deleted', 'Invalid inventory transaction.');

@@ -35,6 +35,16 @@
 	}
 
 	if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_app_settings'])) {
+		if (!verify_csrf_token()) {
+			$_SESSION['dialog_flash'] = [
+				'type' => 'error',
+				'title' => 'Security Check Failed',
+				'message' => 'Your form session expired. Please try again.'
+			];
+			header('Location: settings.php');
+			exit();
+		}
+
 		if (!$can_manage_settings) {
 			$_SESSION['dialog_flash'] = [
 				'type' => 'error',
@@ -190,6 +200,7 @@
 
 				<div class="settings-grid">
 					<form method="POST" class="card-box settings-panel">
+						<?= csrf_input() ?>
 						<input type="hidden" name="save_app_settings" value="1">
 						<div class="settings-panel-heading">
 							<div>
@@ -353,6 +364,7 @@
 
 					<div class="settings-side-column">
 						<form method="POST" class="card-box settings-panel">
+							<?= csrf_input() ?>
 							<input type="hidden" name="redirect_to" value="settings.php">
 							<div class="settings-panel-heading">
 								<div>

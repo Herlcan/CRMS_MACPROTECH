@@ -7,13 +7,34 @@
     include '../../auth_check.php';
     require_once __DIR__ . '/category_schema.php';
     require_once __DIR__ . '/activity_log_helper.php';
+    require_once __DIR__ . '/security_helpers.php';
 
     $edit_category_message = '';
     $edit_category_error = '';
 
-    if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_category'])) {
+    if (!function_exists('redirectCategoryWithDialog')) {
+        function redirectCategoryWithDialog($type, $title, $message) {
+            $_SESSION['dialog_flash'] = [
+                'type' => $type,
+                'title' => $title,
+                'message' => $message
+            ];
+            $redirect = isset($_POST['redirect']) ? basename($_POST['redirect']) : 'item-category.php';
+            header("Location: ../../" . $redirect);
+            exit();
+        }
+    }
 
-        $category_id  = $_POST['id'];
+    if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_category'])) {
+        if (!verify_csrf_token()) {
+            redirectCategoryWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+        }
+
+        require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+            redirectCategoryWithDialog('error', 'Permission Required', 'Only authorized staff can update categories.');
+        });
+
+        $category_id  = (int) ($_POST['id'] ?? 0);
         $category_name = trim($_POST['category']);
 
         try {
@@ -31,7 +52,7 @@
         }
 
         if ($edit_category_error !== '') {
-            return;
+            redirectCategoryWithDialog('error', 'Category Not Updated', $edit_category_error);
         }
 
         // Check duplicate username or email
@@ -48,6 +69,7 @@
             $edit_category_error = 'Category already exists.';
 
             mysqli_stmt_close($check_query);
+            redirectCategoryWithDialog('error', 'Category Not Updated', $edit_category_error);
 
         } else {
 
@@ -77,6 +99,7 @@
             } else {
 
                 $edit_category_error = 'Failed to update category. Please try again.';
+                redirectCategoryWithDialog('error', 'Category Not Updated', $edit_category_error);
             }
         }
     }

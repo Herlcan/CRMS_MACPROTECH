@@ -3,6 +3,7 @@
     include '../db/connection.php';
     include '../../auth_check.php';
     require_once __DIR__ . '/activity_log_helper.php';
+    require_once __DIR__ . '/security_helpers.php';
 
     function clientDeleteTableExists(mysqli $conn, string $table): bool {
         $table = mysqli_real_escape_string($conn, $table);
@@ -53,8 +54,12 @@
         }
     }
 
-    if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
-        $client_id = intval($_GET['id']);
+    if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+        if (!verify_csrf_token()) {
+            redirectClientWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+        }
+
+        $client_id = intval($_POST['id']);
         $transactionStarted = false;
 
         if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'Administrator') {

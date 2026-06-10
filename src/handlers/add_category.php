@@ -4,11 +4,32 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/category_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $add_category_message = '';
 $add_category_error = '';
 
+if (!function_exists('redirectCategoryWithDialog')) {
+    function redirectCategoryWithDialog($type, $title, $message) {
+        $_SESSION['dialog_flash'] = [
+            'type' => $type,
+            'title' => $title,
+            'message' => $message
+        ];
+        $redirect = isset($_POST['redirect']) ? basename($_POST['redirect']) : 'item-category.php';
+        header("Location: ../../" . $redirect);
+        exit();
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
+    if (!verify_csrf_token()) {
+        redirectCategoryWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
+
+    require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+        redirectCategoryWithDialog('error', 'Permission Required', 'Only authorized staff can create categories.');
+    });
 
     $category_name = trim($_POST['category_name']);
 
@@ -72,6 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
                 mysqli_stmt_close($check_query);
             }
         }
+    }
+
+    if ($add_category_error !== '') {
+        redirectCategoryWithDialog('error', 'Category Not Created', $add_category_error);
     }
 }
 ?>

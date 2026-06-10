@@ -5,6 +5,7 @@ ini_set('display_errors', 1);
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $update_message = '';
 $update_error = '';
@@ -23,14 +24,23 @@ if (!function_exists('redirectUserWithDialog')) {
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_user'])) {
+    if (!verify_csrf_token()) {
+        redirectUserWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
+
+    require_role('Administrator', function () {
+        redirectUserWithDialog('error', 'Permission Required', 'Only administrators can update users.');
+    });
+
     $user_id = intval($_POST['user_id']);
-	$username = mysqli_real_escape_string($conn, $_POST['username']);
-	$first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
-	$last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
-	$contact_num = mysqli_real_escape_string($conn, $_POST['contact_num']);
-	$email = mysqli_real_escape_string($conn, $_POST['email']);
-    $role = mysqli_real_escape_string($conn, $_POST['role']);
-	$new_password = ($_POST['new_password']);
+	$username = trim($_POST['username'] ?? '');
+	$first_name = trim($_POST['first_name'] ?? '');
+	$last_name = trim($_POST['last_name'] ?? '');
+	$contact_num = trim($_POST['contact_num'] ?? '');
+	$email = trim($_POST['email'] ?? '');
+    $role = trim($_POST['role'] ?? '');
+	$new_password = ($_POST['new_password'] ?? '');
+    $allowed_roles = ['Administrator', 'Technician', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'];
 
 	// Validation
 	if (empty($username) || empty($first_name) || empty($last_name) || empty($email)) {
@@ -39,20 +49,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_user'])) {
 		$update_error = 'Username must be at least 3 characters long.';
 	} elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 		$update_error = 'Invalid email address.';
-	} elseif (!empty($new_password) && strlen($new_password) < 8) {
-		$update_error = 'Password must be at least 8 characters long.';
+	} elseif (!in_array($role, $allowed_roles, true)) {
+		$update_error = 'Invalid role selected.';
+	} elseif (!empty($new_password) && password_policy_message($new_password) !== '') {
+		$update_error = password_policy_message($new_password);
 	} else {
 		// Check if username already exists (for other users)
 		$check_query = mysqli_prepare($conn,
-			"SELECT id FROM users WHERE username = ? AND id != ?"
+			"SELECT username, email FROM users WHERE (username = ? OR email = ?) AND id != ? LIMIT 1"
 		);
-		mysqli_stmt_bind_param($check_query, "si", $username, $user_id);
+		mysqli_stmt_bind_param($check_query, "ssi", $username, $email, $user_id);
 		mysqli_stmt_execute($check_query);
 		$check_result = mysqli_stmt_get_result($check_query);
 		
 		if (mysqli_num_rows($check_result) > 0) {
-			$update_error = 'Username already taken. Please choose a different username.';
+			$existing_user = mysqli_fetch_assoc($check_result);
+			$update_error = strcasecmp((string) $existing_user['username'], $username) === 0
+				? 'Username already taken. Please choose a different username.'
+				: 'Email already used by another account.';
 		} else {
+			if ($role !== 'Administrator') {
+				$admin_count_query = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM users WHERE role = 'Administrator' AND id != ?");
+				mysqli_stmt_bind_param($admin_count_query, "i", $user_id);
+				mysqli_stmt_execute($admin_count_query);
+				$admin_count_result = mysqli_stmt_get_result($admin_count_query);
+				$admin_count = (int) (mysqli_fetch_assoc($admin_count_result)['total'] ?? 0);
+				mysqli_stmt_close($admin_count_query);
+
+				if ($admin_count === 0) {
+					$update_error = 'Cannot remove the last administrator role.';
+				}
+			}
+
+			if ($update_error !== '') {
+				redirectUserWithDialog('error', 'User Not Updated', $update_error);
+			}
+
 			// Prepare password update if provided
 			if (!empty($new_password)) {
 				$hashed_password = password_hash($new_password, PASSWORD_DEFAULT);

@@ -1,5 +1,7 @@
 /src/handlers/config.php
-src/uploads/
+/src/handlers/config.local.php
+src/uploads/*
+!src/uploads/.htaccess
 /test/sms_test.php
 AGENTS.md
 .codex/

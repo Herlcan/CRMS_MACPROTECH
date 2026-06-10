@@ -3,6 +3,7 @@
     include '../db/connection.php';
     include '../../auth_check.php';
     require_once __DIR__ . '/activity_log_helper.php';
+    require_once __DIR__ . '/security_helpers.php';
 
     $edit_client_message = '';
     $edit_client_error = '';
@@ -20,8 +21,15 @@
     }
 
     if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_client'])) {
+        if (!verify_csrf_token()) {
+            redirectClientWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+        }
 
-        $client_id  = $_POST['id'];
+        require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+            redirectClientWithDialog('error', 'Permission Required', 'Only authorized staff can update customers.');
+        });
+
+        $client_id  = (int) ($_POST['id'] ?? 0);
         $first_name = trim($_POST['first_name']);
         $last_name  = trim($_POST['last_name']);
         $email      = trim($_POST['email']);

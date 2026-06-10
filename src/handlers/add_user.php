@@ -6,6 +6,7 @@ ini_set('display_errors', 1);
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $add_user_message = '';
 $add_user_error = '';
@@ -23,6 +24,13 @@ if (!function_exists('redirectUserWithDialog')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
+    if (!verify_csrf_token()) {
+        redirectUserWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
+
+    require_role('Administrator', function () {
+        redirectUserWithDialog('error', 'Permission Required', 'Only administrators can create users.');
+    });
 
     $username   = trim($_POST['username']);
     $first_name = trim($_POST['first_name']);
@@ -31,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $contact    = trim($_POST['contact_num']);
     $role       = trim($_POST['role']);
     $password   = $_POST['password'];
+    $allowed_roles = ['Administrator', 'Technician', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'];
 
     // Validation
     if (empty($username) || empty($first_name) || empty($last_name) || empty($email) || empty($password) || empty($role) || empty($contact)) {
@@ -48,9 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
         $add_user_error = 'Invalid email address.';
 
-    } elseif (strlen($password) < 8) {
+    } elseif (!in_array($role, $allowed_roles, true)) {
 
-        $add_user_error = 'Password must be at least 8 characters long.';
+        $add_user_error = 'Invalid role selected.';
+
+    } elseif (password_policy_message($password) !== '') {
+
+        $add_user_error = password_policy_message($password);
 
     } else {
 

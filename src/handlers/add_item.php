@@ -8,6 +8,8 @@ require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/category_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
+require_once __DIR__ . '/upload_helpers.php';
 
 $add_item_error = '';
 
@@ -79,6 +81,13 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
+    if (!verify_csrf_token()) {
+        redirectItemWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
+
+    require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+        redirectItemWithDialog('error', 'Permission Required', 'Only authorized staff can create product items.');
+    });
 
     $brand_name = trim($_POST['brand_name']);
     $model = trim($_POST['model']);
@@ -93,49 +102,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
     $image_name_to_save = "none";
 
     if (!empty($_FILES['image']['name'])) {
-
-        if ($_FILES['image']['error'] !== 0) {
-            redirectItemWithDialog('error', 'Product Item Not Created', 'Image upload error.');
+        try {
+            $image_name_to_save = save_uploaded_image($_FILES['image'], __DIR__ . '/../uploads', 'item');
+        } catch (Exception $e) {
+            redirectItemWithDialog('error', 'Product Item Not Created', $e->getMessage());
         }
-
-        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $max_size = 10 * 1024 * 1024; // 5MB
-
-        $file_tmp  = $_FILES['image']['tmp_name'];
-        $file_size = $_FILES['image']['size'];
-
-        // 🔐 Use finfo (recommended)
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $file_type = finfo_file($finfo, $file_tmp);
-        finfo_close($finfo);
-
-        // Validate type
-        if (!in_array($file_type, $allowed_types)) {
-            redirectItemWithDialog('error', 'Product Item Not Created', 'Invalid image type. Only JPG, PNG, GIF, WEBP allowed.');
-        }
-
-        // Validate size
-        if ($file_size > $max_size) {
-            redirectItemWithDialog('error', 'Product Item Not Created', 'Image is too large. Maximum size is 10MB.');
-        }
-
-        // Generate safe unique filename
-        $extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-        $new_name = "IMG_" . time() . "_" . bin2hex(random_bytes(5)) . "." . $extension;
-
-        $upload_dir = "../uploads/";
-        $upload_path = $upload_dir . $new_name;
-
-        // Ensure upload folder exists
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-
-        if (!move_uploaded_file($file_tmp, $upload_path)) {
-            redirectItemWithDialog('error', 'Product Item Not Created', 'Failed to upload image.');
-        }
-
-        $image_name_to_save = $new_name;
     }
 
     if (empty($add_item_error)) {

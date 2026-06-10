@@ -113,6 +113,7 @@
 			const formData = new FormData();
 			formData.append('id', link.dataset.notificationId);
 			formData.append('action', 'read');
+			formData.append('csrf_token', window.MACPRO_CSRF_TOKEN || '');
 			fetch('src/handlers/mark_notification_read.php', { method: 'POST', body: formData })
 				.finally(function () {
 					window.location.href = link.href;
@@ -128,6 +129,7 @@
 		const formData = new FormData();
 		formData.append('id', actionButton.dataset.notificationId);
 		formData.append('action', actionButton.dataset.notificationAction);
+		formData.append('csrf_token', window.MACPRO_CSRF_TOKEN || '');
 		fetch('src/handlers/mark_notification_read.php', { method: 'POST', body: formData })
 			.then(function () {
 				window.location.reload();
@@ -139,6 +141,7 @@
 		markAllButton.addEventListener('click', function () {
 			const formData = new FormData();
 			formData.append('action', 'read_all');
+			formData.append('csrf_token', window.MACPRO_CSRF_TOKEN || '');
 			fetch('src/handlers/mark_notification_read.php', { method: 'POST', body: formData })
 				.then(function () {
 					window.location.reload();

@@ -1,7 +1,17 @@
 <?php
 	include 'src/db/connection.php';
 	include 'header.php';
+	if (!user_has_role('Administrator')) {
+		$_SESSION['dialog_flash'] = [
+			'type' => 'error',
+			'title' => 'Permission Required',
+			'message' => 'Only administrators can manage users.'
+		];
+		header('Location: index.php');
+		exit();
+	}
 	include 'sidebar.php'; 
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	function user_role_badge_class($role) {
 		$normalized_role = strtolower(trim((string) $role));
@@ -56,6 +66,7 @@
 
 				<!-- Profile Form -->
 				<form method="POST" action="src/handlers/edit_user.php" class="profile-form">
+					<?= csrf_input() ?>
 					<input type="hidden" name="user_id" id="userIdField" value="">
 					<div class="form-group">
 						<label class="form-label">Username</label>
@@ -174,7 +185,9 @@
 								</tr>
 							</thead>
 							<?php
-								$where = "1";
+								$where_clauses = ["1=1"];
+								$where_types = "";
+								$where_params = [];
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -191,28 +204,36 @@
 
 								// Secure search
 								if (!empty($_GET['search'])) {
-								    $s = mysqli_real_escape_string($conn, $_GET['search']);
-								    $where .= " AND (LOWER(first_name) LIKE '%$s%' OR LOWER(last_name) LIKE '%$s%' OR LOWER(username) LIKE '%$s%')";
-								}
-
-								// Secure filter
-								if (!empty($_GET['filter'])) {
-								    $f = mysqli_real_escape_string($conn, $_GET['filter']);
-								    $where .= " AND status='$f'";
+								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
+								    $where_clauses[] = "(LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR LOWER(username) LIKE ?)";
+									$where_types .= "sss";
+									$where_params[] = $s;
+									$where_params[] = $s;
+									$where_params[] = $s;
 								}
 
 								// Get total count for pagination info
-								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM users WHERE $where");
+								$where = implode(' AND ', $where_clauses);
+								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM users WHERE $where");
+								db_bind_params($count_query, $where_types, $where_params);
+								mysqli_stmt_execute($count_query);
+								$count_result = mysqli_stmt_get_result($count_query);
 								$count_row = mysqli_fetch_assoc($count_result);
-								$total_records = $count_row['total'];
+								$total_records = (int) $count_row['total'];
+								mysqli_stmt_close($count_query);
 
 								// Calculate offset
 								$offset = ($current_page - 1) * $limit;
-								$total_pages = ceil($total_records / $limit);
+								$total_pages = max(1, (int) ceil($total_records / $limit));
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT * FROM users WHERE $where ORDER BY last_name ASC LIMIT $limit OFFSET $offset");
+								$list_query = mysqli_prepare($conn, "SELECT * FROM users WHERE $where ORDER BY last_name ASC LIMIT ? OFFSET ?");
+								$list_types = $where_types . "ii";
+								$list_params = array_merge($where_params, [$limit, $offset]);
+								db_bind_params($list_query, $list_types, $list_params);
+								mysqli_stmt_execute($list_query);
+								$result = mysqli_stmt_get_result($list_query);
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
@@ -249,15 +270,20 @@
 														<i class="dw dw-edit2"></i> Edit
 													</label>
 												</a>
-												<a class="dropdown-item text-danger"
-												   href="src/handlers/delete_user.php?id=<?= $row['id'] ?>"
-												   data-macpro-confirm
-												   data-macpro-confirm-title="Delete User?"
-												   data-macpro-confirm-message="This user account will be permanently deleted."
-												   data-macpro-confirm-label="Delete User"
-												   data-macpro-confirm-variant="danger">
-								                	<i class="dw dw-delete-3"></i> Delete
-												</a>
+												<form method="POST" action="src/handlers/delete_user.php" style="margin: 0;">
+													<?= csrf_input() ?>
+													<input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+													<button type="submit"
+														class="dropdown-item text-danger"
+														style="border: 0; background: transparent; width: 100%; text-align: left;"
+														data-macpro-confirm
+														data-macpro-confirm-title="Delete User?"
+														data-macpro-confirm-message="This user account will be permanently deleted."
+														data-macpro-confirm-label="Delete User"
+														data-macpro-confirm-variant="danger">
+														<i class="dw dw-delete-3"></i> Delete
+													</button>
+												</form>
 											</div>
 										</div>
 									</td>
@@ -364,6 +390,7 @@
 
 				<!-- Form -->
 				<form method="POST" action="src/handlers/add_user.php">
+					<?= csrf_input() ?>
 
 					<div class="form-group">
 						<label class="form-label">Username</label>

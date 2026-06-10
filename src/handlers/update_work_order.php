@@ -13,6 +13,7 @@ require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/communication_helpers.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $update_work_order_message = '';
 $update_work_order_error = '';
@@ -76,9 +77,16 @@ function resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order'])) {
+    if (!verify_csrf_token()) {
+        redirectWorkOrderWithDialog((int) ($_POST['client_id'] ?? 0), 'error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
+
+    require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+        redirectWorkOrderWithDialog((int) ($_POST['client_id'] ?? 0), 'error', 'Permission Required', 'Only authorized staff can update work orders.');
+    });
 
     $work_order_id = intval($_POST['work_order_id']);
-    $client_id = trim($_POST['client_id']);
+    $client_id = (int) ($_POST['client_id'] ?? 0);
     $unit_type = trim($_POST['unit_type']);
     $other_unit_type = isset($_POST['other_unit_type']) ? trim($_POST['other_unit_type']) : '';
     $brand = trim($_POST['brand']);

@@ -4,6 +4,7 @@
 	require_once __DIR__ . '/src/handlers/item_schema.php';
 	require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
 	require_once __DIR__ . '/src/handlers/category_schema.php';
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	try {
 		ensure_item_category_name_column($conn);
@@ -39,6 +40,8 @@
 		}
 		return '?' . http_build_query($params);
 	}
+
+	$canManageInventory = user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff']);
 ?>
 
 	<!-- Hidden checkbox for add item modal toggle (reuse add-client modal CSS) -->
@@ -60,6 +63,7 @@
 			<div class="css-modal-body">
 				<!-- Form -->
 				<form method="POST" enctype="multipart/form-data" action="src/handlers/add_item.php">
+					<?= csrf_input() ?>
 					<div class="row">
 						<div style="width: 45%;">
 							<div class="form-group">
@@ -131,6 +135,7 @@
 				<div class="row">
 					<div class="col-md-4 col-sm-12">
 						<form method="POST" action="src/handlers/add_category.php">
+							<?= csrf_input() ?>
 							<input type="hidden" name="redirect" value="items.php">
 							<div class="form-group">
 								<label class="form-label">New Category</label>
@@ -181,6 +186,7 @@
 			</div>
 			<div class="css-modal-body">
 				<form method="POST" action="src/handlers/edit_category.php">
+					<?= csrf_input() ?>
 					<input type="hidden" name="redirect" value="items.php">
 					<input type="hidden" name="id" id="categoryIdField" value="">
 					<div class="form-group">
@@ -208,6 +214,7 @@
 			</div>
 			<div class="css-modal-body">
 				<form method="POST" enctype="multipart/form-data" action="src/handlers/edit_item.php">
+					<?= csrf_input() ?>
 					<input type="hidden" name="id" id="editItemId" value="">
 					<div class="row">
 						<div style="width: 45%;">
@@ -278,11 +285,13 @@
 								<h4><i class="micon dw dw-table mtext"></i> Inventory</h4>
 							</div>
 						</div>
-						<div class="col-md-6 col-sm-12 text-right" style="margin-left: auto;">
-					<label for="categoryModalToggle" class="btn btn-secondary" style="margin-right: 10px;">Category</label>
-					<div class="dropdown d-inline-block">
-						<label for="addItemToggle" class="btn btn-primary">Add New</label>
-					</div>
+				<div class="col-md-6 col-sm-12 text-right" style="margin-left: auto;">
+					<?php if ($canManageInventory): ?>
+						<label for="categoryModalToggle" class="btn btn-secondary" style="margin-right: 10px;">Category</label>
+						<div class="dropdown d-inline-block">
+							<label for="addItemToggle" class="btn btn-primary">Add New</label>
+						</div>
+					<?php endif; ?>
 				</div>
 					</div>
 				</div>
@@ -356,7 +365,9 @@
 								</tr>
 							</thead>
 							<?php
-								$where = "1";
+								$where_clauses = ["1=1"];
+								$where_types = "";
+								$where_params = [];
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -373,20 +384,34 @@
 
 								// Secure search
 								if (!empty($_GET['search'])) {
-								    $s = mysqli_real_escape_string($conn, strtolower($_GET['search']));
-									$where .= " AND (LOWER(brand_name) LIKE '%$s%' OR LOWER(model) LIKE '%$s%' OR LOWER(product_code) LIKE '%$s%' OR LOWER(status) LIKE '%$s%')";
+								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
+									$where_clauses[] = "(LOWER(brand_name) LIKE ? OR LOWER(model) LIKE ? OR LOWER(product_code) LIKE ? OR LOWER(status) LIKE ?)";
+									$where_types .= "ssss";
+									$where_params[] = $s;
+									$where_params[] = $s;
+									$where_params[] = $s;
+									$where_params[] = $s;
 								}
 								
 								// Category filter
 								if (!empty($_GET['category'])) {
-									$cat = mysqli_real_escape_string($conn, $_GET['category']);
-									$where .= " AND category_id='$cat'";
+									$cat = (int) $_GET['category'];
+									if ($cat > 0) {
+										$where_clauses[] = "category_id = ?";
+										$where_types .= "i";
+										$where_params[] = $cat;
+									}
 								}
 
 									// Get total count for pagination info
-								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM items WHERE $where");
+								$where = implode(' AND ', $where_clauses);
+								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM items WHERE $where");
+								db_bind_params($count_query, $where_types, $where_params);
+								mysqli_stmt_execute($count_query);
+								$count_result = mysqli_stmt_get_result($count_query);
 								$count_row = mysqli_fetch_assoc($count_result);
-								$total_records = $count_row['total'];
+								$total_records = (int) $count_row['total'];
+								mysqli_stmt_close($count_query);
 
 								// Calculate offset
 								$offset = ($current_page - 1) * $limit;
@@ -398,7 +423,12 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT * FROM items WHERE $where ORDER BY brand_name ASC LIMIT $limit OFFSET $offset");
+								$list_query = mysqli_prepare($conn, "SELECT * FROM items WHERE $where ORDER BY brand_name ASC LIMIT ? OFFSET ?");
+								$list_types = $where_types . "ii";
+								$list_params = array_merge($where_params, [$limit, $offset]);
+								db_bind_params($list_query, $list_types, $list_params);
+								mysqli_stmt_execute($list_query);
+								$result = mysqli_stmt_get_result($list_query);
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
@@ -429,14 +459,21 @@
 													</a>
 													<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 														<a class="dropdown-item" href="stock_transaction.php?item_id=<?= (int) $row['id'] ?>"><i class="dw dw-eye"></i> View</a>
-														<a class="dropdown-item" href="#" onclick="editItem('<?= $row['id'] ?>', '<?= htmlspecialchars($row['brand_name']) ?>', '<?= htmlspecialchars($row['model']) ?>', '<?= htmlspecialchars($row['description']) ?>', '<?= $row['category_id'] ?>', '<?= $row['date'] ?>'); return false;"><i class="dw dw-edit2"></i> Edit</a>
-														<a class="dropdown-item text-danger"
-														   href="src/handlers/delete_item.php?id=<?= $row['id'] ?>"
-														   data-macpro-confirm
-														   data-macpro-confirm-title="Delete Product Item?"
-														   data-macpro-confirm-message="This product item will be permanently deleted."
-														   data-macpro-confirm-label="Delete Item"
-														   data-macpro-confirm-variant="danger"><i class="dw dw-delete-3"></i> Delete</a>
+														<?php if ($canManageInventory): ?>
+															<a class="dropdown-item" href="#" onclick="editItem('<?= $row['id'] ?>', '<?= htmlspecialchars($row['brand_name']) ?>', '<?= htmlspecialchars($row['model']) ?>', '<?= htmlspecialchars($row['description']) ?>', '<?= $row['category_id'] ?>', '<?= $row['date'] ?>'); return false;"><i class="dw dw-edit2"></i> Edit</a>
+															<form method="POST" action="src/handlers/delete_item.php" style="margin: 0;">
+																<?= csrf_input() ?>
+																<input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
+																<button type="submit"
+																	class="dropdown-item text-danger"
+																	style="border: 0; background: transparent; width: 100%; text-align: left;"
+																	data-macpro-confirm
+																	data-macpro-confirm-title="Delete Product Item?"
+																	data-macpro-confirm-message="This product item will be permanently deleted."
+																	data-macpro-confirm-label="Delete Item"
+																	data-macpro-confirm-variant="danger"><i class="dw dw-delete-3"></i> Delete</button>
+															</form>
+														<?php endif; ?>
 													</div>
 												</div>
 											</td>

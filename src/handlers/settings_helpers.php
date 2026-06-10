@@ -58,6 +58,71 @@ if (!function_exists('app_settings_is_secret_key')) {
     }
 }
 
+if (!function_exists('app_settings_local_key_path')) {
+    function app_settings_local_key_path(): string
+    {
+        return __DIR__ . '/config.local.php';
+    }
+}
+
+if (!function_exists('app_settings_read_local_key')) {
+    function app_settings_read_local_key(): string
+    {
+        $path = app_settings_local_key_path();
+
+        if (!is_file($path)) {
+            return '';
+        }
+
+        $localConfig = include $path;
+
+        if (is_array($localConfig)) {
+            return trim((string) ($localConfig['MACPROTECH_APP_KEY'] ?? ''));
+        }
+
+        return is_string($localConfig) ? trim($localConfig) : '';
+    }
+}
+
+if (!function_exists('app_settings_generate_key_material')) {
+    function app_settings_generate_key_material(): string
+    {
+        return 'base64:' . base64_encode(random_bytes(32));
+    }
+}
+
+if (!function_exists('app_settings_write_local_key')) {
+    function app_settings_write_local_key(string $keyMaterial): bool
+    {
+        $path = app_settings_local_key_path();
+        $content = "<?php\n\nreturn [\n    'MACPROTECH_APP_KEY' => " . var_export($keyMaterial, true) . ",\n];\n";
+
+        $written = @file_put_contents($path, $content, LOCK_EX);
+        if ($written === false) {
+            return false;
+        }
+
+        @chmod($path, 0600);
+
+        return true;
+    }
+}
+
+if (!function_exists('app_settings_ensure_local_key')) {
+    function app_settings_ensure_local_key(): string
+    {
+        $existingKey = app_settings_read_local_key();
+
+        if ($existingKey !== '') {
+            return $existingKey;
+        }
+
+        $newKey = app_settings_generate_key_material();
+
+        return app_settings_write_local_key($newKey) ? $newKey : '';
+    }
+}
+
 if (!function_exists('app_settings_key_material')) {
     function app_settings_key_material(): string
     {
@@ -66,7 +131,16 @@ if (!function_exists('app_settings_key_material')) {
             return trim((string) $envKey);
         }
 
-        return defined('MACPROTECH_APP_KEY') ? trim((string) MACPROTECH_APP_KEY) : '';
+        if (defined('MACPROTECH_APP_KEY') && trim((string) MACPROTECH_APP_KEY) !== '') {
+            return trim((string) MACPROTECH_APP_KEY);
+        }
+
+        $localKey = app_settings_read_local_key();
+        if ($localKey !== '') {
+            return $localKey;
+        }
+
+        return app_settings_ensure_local_key();
     }
 }
 
@@ -76,7 +150,7 @@ if (!function_exists('app_settings_crypto_key')) {
         $keyMaterial = app_settings_key_material();
 
         if ($keyMaterial === '') {
-            throw new Exception('Application encryption key is not configured.');
+            throw new Exception('Application encryption key could not be created automatically. Make src/handlers writable or set MACPROTECH_APP_KEY in the web server environment.');
         }
 
         if (strpos($keyMaterial, 'base64:') === 0) {

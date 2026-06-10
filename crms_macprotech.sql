@@ -125,7 +125,23 @@ CREATE TABLE `stock_out_transaction` (
   `item_id` int(11) NOT NULL,
   `work_order_id` int(11) NOT NULL DEFAULT 0,
   `quantity` int(11) NOT NULL DEFAULT 0,
+  `average_cost_snapshot` decimal(10,2) DEFAULT NULL,
   `stock_out_date` date NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `login_attempts`
+--
+
+CREATE TABLE `login_attempts` (
+  `id` int(11) NOT NULL,
+  `username` varchar(100) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `success` tinyint(1) NOT NULL DEFAULT 0,
+  `attempted_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `lock_until` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -417,6 +433,14 @@ ALTER TABLE `item_category`
   ADD KEY `category_name` (`category_name`);
 
 --
+-- Indexes for table `login_attempts`
+--
+ALTER TABLE `login_attempts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_login_attempts_lookup` (`username`,`ip_address`,`success`,`attempted_at`),
+  ADD KEY `idx_login_attempts_lock` (`username`,`ip_address`,`lock_until`);
+
+--
 -- Indexes for table `ordered_parts`
 --
 ALTER TABLE `ordered_parts`
@@ -481,6 +505,7 @@ ALTER TABLE `users`
 --
 ALTER TABLE `work_order`
   ADD PRIMARY KEY (`id`),
+  ADD KEY `client_id` (`client_id`),
   ADD KEY `technician_id` (`technician_id`);
 
 --
@@ -545,6 +570,12 @@ ALTER TABLE `item_category`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `login_attempts`
+--
+ALTER TABLE `login_attempts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `ordered_parts`
 --
 ALTER TABLE `ordered_parts`
@@ -603,9 +634,31 @@ ALTER TABLE `work_order_assignments`
 --
 
 --
+-- Constraints for table `payments`
+--
+ALTER TABLE `payments`
+  ADD CONSTRAINT `fk_payments_work_order` FOREIGN KEY (`work_order_id`) REFERENCES `work_order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+--
+-- Constraints for table `payment_transaction`
+--
+ALTER TABLE `payment_transaction`
+  ADD CONSTRAINT `fk_payment_transaction_payment` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_payment_transaction_recorded_by` FOREIGN KEY (`recorded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_payment_transaction_work_order` FOREIGN KEY (`work_order_id`) REFERENCES `work_order` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+--
+-- Constraints for table `refunds`
+--
+ALTER TABLE `refunds`
+  ADD CONSTRAINT `fk_refunds_payment` FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_refunds_user` FOREIGN KEY (`refunded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+--
 -- Constraints for table `work_order`
 --
 ALTER TABLE `work_order`
+  ADD CONSTRAINT `fk_work_order_client` FOREIGN KEY (`client_id`) REFERENCES `client` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   ADD CONSTRAINT `work_order_ibfk_1` FOREIGN KEY (`technician_id`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 COMMIT;
 

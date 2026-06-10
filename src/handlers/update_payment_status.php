@@ -5,8 +5,20 @@ ini_set('display_errors', 1);
 include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_payment_status'])) {
+    if (!verify_csrf_token()) {
+        $_SESSION['payment_error'] = 'Your form session expired. Please try again.';
+        header("Location: ../../payment.php");
+        exit();
+    }
+
+    if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        $_SESSION['payment_error'] = 'You are not allowed to update payment status.';
+        header("Location: ../../payment.php");
+        exit();
+    }
 
     $payment_id = (int) $_POST['payment_id'];
     $new_status = trim($_POST['status']);

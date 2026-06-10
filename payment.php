@@ -1,13 +1,28 @@
 <?php 
 	include 'header.php';
+	if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+		$_SESSION['dialog_flash'] = [
+			'type' => 'error',
+			'title' => 'Permission Required',
+			'message' => 'Only authorized staff can manage payments.'
+		];
+		header('Location: index.php');
+		exit();
+	}
 	include 'sidebar.php';
 	include 'src/db/connection.php';
 	require_once 'src/handlers/payment_schema.php';
 	require_once 'src/handlers/settings_helpers.php';
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	ensure_payment_detail_columns($conn);
 	refresh_payment_summaries($conn);
-	$payment_app_settings = get_app_settings($conn);
+	try {
+		$payment_app_settings = get_app_settings($conn);
+	} catch (Exception $e) {
+		error_log('Payment settings load failed: ' . $e->getMessage());
+		$payment_app_settings = app_settings_defaults();
+	}
 
 	function payment_display_date($value, $format = 'M d, Y') {
 		if (empty($value) || $value === '0000-00-00' || $value === '0000-00-00 00:00:00') {
@@ -437,7 +452,9 @@
 								</tr>
 							</thead>
 							<?php
-								$where = "1";
+								$where_clauses = ["1=1"];
+								$where_types = "";
+								$where_params = [];
 								$from_clause = "payments p LEFT JOIN work_order wo ON p.work_order_id = wo.id";
 								$payment_status_sql = "COALESCE(NULLIF(p.payment_status, ''), CASE WHEN p.status IS NULL OR p.status = 'Pending' OR p.status = '' THEN 'Unpaid' ELSE p.status END)";
 								$limit = 10; // Default limit
@@ -456,28 +473,24 @@
 
 								// Secure search
 								if (!empty($_GET['search'])) {
-								    $s = strtolower(mysqli_real_escape_string($conn, trim($_GET['search'])));
-								    $amount_search = preg_replace('/[^0-9.]/', '', $s);
-								    $amount_condition = "";
-
-								    if ($amount_search !== '' && $amount_search !== $s) {
-										$amount_search = mysqli_real_escape_string($conn, $amount_search);
-										$amount_condition = " OR CAST(p.total_amount AS CHAR) LIKE '%$amount_search%'";
-								    }
-
-								    $where .= " AND (
-										LOWER(p.payment_code) LIKE '%$s%' OR
-										LOWER(wo.code) LIKE '%$s%' OR
-										CAST(p.total_amount AS CHAR) LIKE '%$s%' OR
+								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
+								    $where_clauses[] = "(
+										LOWER(p.payment_code) LIKE ? OR
+										LOWER(wo.code) LIKE ? OR
+										CAST(p.total_amount AS CHAR) LIKE ? OR
 										EXISTS (
 											SELECT 1
 											FROM purchased_item pi
 											INNER JOIN items i ON pi.product_id = i.id
 											WHERE pi.work_order_id = p.work_order_id
-											AND LOWER(i.product_code) LIKE '%$s%'
+											AND LOWER(i.product_code) LIKE ?
 										)
-										$amount_condition
 									)";
+									$where_types .= "ssss";
+									$where_params[] = $s;
+									$where_params[] = $s;
+									$where_params[] = $s;
+									$where_params[] = $s;
 								}
 
 								// Secure filter
@@ -485,23 +498,35 @@
 									$allowed_payment_status = ['Paid', 'Partial', 'Unpaid', 'Partially Refunded', 'Refunded'];
 
 									if (in_array($_GET['filter'], $allowed_payment_status, true)) {
-										$f = mysqli_real_escape_string($conn, $_GET['filter']);
-										$where .= " AND $payment_status_sql='$f'";
+										$f = $_GET['filter'];
+										$where_clauses[] = "$payment_status_sql = ?";
+										$where_types .= "s";
+										$where_params[] = $f;
 									}
 								}
 
 								// Get total count for pagination info
-								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM $from_clause WHERE $where");
+								$where = implode(' AND ', $where_clauses);
+								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM $from_clause WHERE $where");
+								db_bind_params($count_query, $where_types, $where_params);
+								mysqli_stmt_execute($count_query);
+								$count_result = mysqli_stmt_get_result($count_query);
 								$count_row = mysqli_fetch_assoc($count_result);
-								$total_records = $count_row['total'];
+								$total_records = (int) $count_row['total'];
+								mysqli_stmt_close($count_query);
 
 								// Calculate offset
 								$offset = ($current_page - 1) * $limit;
-								$total_pages = ceil($total_records / $limit);
+								$total_pages = max(1, (int) ceil($total_records / $limit));
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$result = mysqli_query($conn, "SELECT p.*, wo.code AS work_order_code FROM $from_clause WHERE $where ORDER BY COALESCE(p.date, DATE(p.created_at)) DESC, p.created_at DESC, p.id DESC LIMIT $limit OFFSET $offset");
+								$list_query = mysqli_prepare($conn, "SELECT p.*, wo.code AS work_order_code FROM $from_clause WHERE $where ORDER BY COALESCE(p.date, DATE(p.created_at)) DESC, p.created_at DESC, p.id DESC LIMIT ? OFFSET ?");
+								$list_types = $where_types . "ii";
+								$list_params = array_merge($where_params, [$limit, $offset]);
+								db_bind_params($list_query, $list_types, $list_params);
+								mysqli_stmt_execute($list_query);
+								$result = mysqli_stmt_get_result($list_query);
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
@@ -615,6 +640,7 @@
 			<form id="paymentForm">
 				<div class="payment-modal-body">
 					<div id="paymentAlert" class="payment-alert"></div>
+					<?= csrf_input() ?>
 					<input type="hidden" name="payment_id" id="payment_id">
 
 					<div class="payment-section">
@@ -794,6 +820,7 @@
 			<form id="refundForm">
 				<div class="payment-modal-body" style="max-height: calc(100vh - 220px);">
 					<div id="refundAlert" class="payment-alert"></div>
+					<?= csrf_input() ?>
 					<input type="hidden" name="payment_id" id="refund_payment_id">
 					<div class="payment-computed-box" style="margin-bottom: 16px;">
 						<div class="payment-computed-row">
@@ -1506,6 +1533,7 @@
 			const button = document.getElementById('emailReceiptBtn');
 			const formData = new FormData();
 			formData.append('payment_id', document.getElementById('payment_id').value);
+			formData.append('csrf_token', window.MACPRO_CSRF_TOKEN || '');
 			button.disabled = true;
 			button.textContent = 'Sending...';
 

@@ -6,6 +6,7 @@ include '../db/connection.php';
 include '../../auth_check.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 if (!function_exists('redirectItemWithDialog')) {
     function redirectItemWithDialog($type, $title, $message) {
@@ -19,9 +20,16 @@ if (!function_exists('redirectItemWithDialog')) {
     }
 }
 
-if($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
+    if (!verify_csrf_token()) {
+        redirectItemWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
+    }
 
-    $item_id = (int) $_GET['id'];
+    require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+        redirectItemWithDialog('error', 'Permission Required', 'Only authorized staff can delete product items.');
+    });
+
+    $item_id = (int) $_POST['id'];
     $item_label = "product item #{$item_id}";
 
     $item_query = mysqli_prepare($conn, "SELECT product_code, brand_name, model FROM items WHERE id = ? LIMIT 1");

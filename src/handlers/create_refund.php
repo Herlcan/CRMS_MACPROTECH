@@ -8,6 +8,7 @@ header('Content-Type: application/json');
 include '../db/connection.php';
 include 'payment_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 $transactionStarted = false;
@@ -22,6 +23,16 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         throw new Exception('Invalid request method');
+    }
+
+    if (!verify_csrf_token()) {
+        http_response_code(403);
+        throw new Exception('Your form session expired. Please try again.');
+    }
+
+    if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        http_response_code(403);
+        throw new Exception('You are not allowed to record refunds.');
     }
 
     $paymentId = isset($_POST['payment_id']) ? intval($_POST['payment_id']) : 0;

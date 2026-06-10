@@ -6,6 +6,7 @@ header('Content-Type: application/json');
 
 require_once '../db/connection.php';
 require_once 'notification_helpers.php';
+require_once 'security_helpers.php';
 
 if (empty($_SESSION['user_id'])) {
     http_response_code(401);
@@ -14,6 +15,12 @@ if (empty($_SESSION['user_id'])) {
 }
 
 ensure_notifications_table($conn);
+
+if (!verify_csrf_token()) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Your form session expired. Please try again.']);
+    exit;
+}
 
 $userId = (int) $_SESSION['user_id'];
 $action = $_POST['action'] ?? 'read';

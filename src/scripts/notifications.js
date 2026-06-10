@@ -77,6 +77,7 @@
         const formData = new FormData();
         formData.append('id', id || '0');
         formData.append('action', action || 'read');
+        formData.append('csrf_token', window.MACPRO_CSRF_TOKEN || '');
 
         return fetch('src/handlers/mark_notification_read.php', {
             method: 'POST',

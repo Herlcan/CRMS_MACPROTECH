@@ -10,14 +10,20 @@ $update_message = '';
 $update_error = '';
 
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 // Handle profile update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-	$username = mysqli_real_escape_string($conn, $_POST['username']);
-	$first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
-	$last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
-	$contact_num = mysqli_real_escape_string($conn, $_POST['contact_num']);
-	$email = mysqli_real_escape_string($conn, $_POST['email']);
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['update_profile'])) {
+	if (!verify_csrf_token()) {
+		$update_error = 'Your form session expired. Please try again.';
+		return;
+	}
+
+	$username = trim($_POST['username'] ?? '');
+	$first_name = trim($_POST['first_name'] ?? '');
+	$last_name = trim($_POST['last_name'] ?? '');
+	$contact_num = trim($_POST['contact_num'] ?? '');
+	$email = trim($_POST['email'] ?? '');
 	$new_password = ($_POST['new_password'] ?? '');
 	$redirect_to = basename((string) ($_POST['redirect_to'] ?? 'index.php'));
 	$allowed_redirects = ['index.php', 'settings.php'];
@@ -33,8 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 		$update_error = 'Username must be at least 3 characters long.';
 	} elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 		$update_error = 'Invalid email address.';
-	} elseif (!empty($new_password) && strlen($new_password) < 8) {
-		$update_error = 'Password must be at least 8 characters long.';
+	} elseif (!empty($new_password) && password_policy_message($new_password) !== '') {
+		$update_error = password_policy_message($new_password);
 	} else {
 		// Check if username or email already exists (for other users)
 		$check_query = mysqli_prepare($conn,

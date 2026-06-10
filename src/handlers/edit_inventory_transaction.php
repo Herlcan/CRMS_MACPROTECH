@@ -7,6 +7,7 @@ include '../../auth_check.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
+require_once __DIR__ . '/security_helpers.php';
 
 if (!function_exists('redirectStockRecordsWithDialog')) {
     function redirectStockRecordsWithDialog($item_id, $type, $title, $message) {
@@ -24,6 +25,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['edit_inventory_trans
     header("Location: ../../items.php");
     exit();
 }
+
+if (!verify_csrf_token()) {
+    redirectStockRecordsWithDialog((int) ($_POST['item_id'] ?? 0), 'error', 'Security Check Failed', 'Your form session expired. Please try again.');
+}
+
+require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
+    redirectStockRecordsWithDialog((int) ($_POST['item_id'] ?? 0), 'error', 'Permission Required', 'Only authorized staff can edit stock transactions.');
+});
 
 $transaction_id = (int) ($_POST['id'] ?? 0);
 $item_id = (int) ($_POST['item_id'] ?? 0);
