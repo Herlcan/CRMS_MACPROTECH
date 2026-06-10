@@ -448,8 +448,17 @@
         }, delay);
     }
 
+    function normalizeHrefForSchemeCheck(href) {
+        try {
+            return decodeURI(href).trim().toLowerCase();
+        } catch (error) {
+            return href.trim().toLowerCase();
+        }
+    }
+
     function shouldSkipLink(link, event) {
         const href = link.getAttribute('href') || '';
+        const normalizedHref = normalizeHrefForSchemeCheck(href);
 
         if (
             event.defaultPrevented ||
@@ -459,9 +468,11 @@
             link.hasAttribute('data-macpro-confirm') ||
             href === '' ||
             href.charAt(0) === '#' ||
-            href.indexOf('javascript:') === 0 ||
-            href.indexOf('mailto:') === 0 ||
-            href.indexOf('tel:') === 0
+            normalizedHref.indexOf('javascript:') === 0 ||
+            normalizedHref.indexOf('data:') === 0 ||
+            normalizedHref.indexOf('vbscript:') === 0 ||
+            normalizedHref.indexOf('mailto:') === 0 ||
+            normalizedHref.indexOf('tel:') === 0
         ) {
             return true;
         }
