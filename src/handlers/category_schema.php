@@ -1,13 +1,9 @@
 <?php
 
+require_once __DIR__ . '/db_helpers.php';
+
 function ensure_item_category_name_column($conn) {
-    $check = mysqli_query($conn, "SHOW COLUMNS FROM item_category LIKE 'category_name'");
-
-    if (!$check) {
-        throw new Exception('Failed to inspect item category table: ' . mysqli_error($conn));
-    }
-
-    $column_info = mysqli_fetch_assoc($check);
+    $column_info = db_table_column_info($conn, 'item_category', 'category_name');
 
     if (!$column_info || stripos($column_info['Type'], 'varchar(50)') !== false) {
         return;

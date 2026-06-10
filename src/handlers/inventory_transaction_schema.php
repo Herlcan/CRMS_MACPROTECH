@@ -1,17 +1,10 @@
 <?php
 
 require_once __DIR__ . '/item_schema.php';
+require_once __DIR__ . '/db_helpers.php';
 
 function inventory_table_has_column($conn, $table, $column) {
-    $table = mysqli_real_escape_string($conn, $table);
-    $column = mysqli_real_escape_string($conn, $column);
-    $check = mysqli_query($conn, "SHOW COLUMNS FROM $table LIKE '$column'");
-
-    if (!$check) {
-        throw new Exception("Failed to inspect $table table: " . mysqli_error($conn));
-    }
-
-    return mysqli_num_rows($check) > 0;
+    return db_table_column_exists($conn, $table, $column);
 }
 
 function ensure_stock_in_transaction_table($conn) {
@@ -116,8 +109,7 @@ function ensure_inventory_aggregate_columns($conn) {
         }
     }
 
-    $index_check = mysqli_query($conn, "SHOW INDEX FROM inventory_transaction WHERE Key_name = 'uq_inventory_transaction_item'");
-    if ($index_check && mysqli_num_rows($index_check) === 0) {
+    if (!db_table_index_exists($conn, 'inventory_transaction', 'uq_inventory_transaction_item')) {
         if (!mysqli_query($conn, "DELETE FROM inventory_transaction")) {
             throw new Exception('Failed to reset inventory aggregate rows: ' . mysqli_error($conn));
         }
@@ -357,11 +349,21 @@ function reduce_stock_out_transaction($conn, $item_id, $work_order_id, $quantity
         $transaction_quantity = (int) $row['quantity'];
 
         if ($transaction_quantity <= $remaining) {
-            mysqli_query($conn, "DELETE FROM stock_out_transaction WHERE id = $transaction_id");
+            $delete_query = mysqli_prepare($conn, "DELETE FROM stock_out_transaction WHERE id = ?");
+            if ($delete_query) {
+                mysqli_stmt_bind_param($delete_query, "i", $transaction_id);
+                mysqli_stmt_execute($delete_query);
+                mysqli_stmt_close($delete_query);
+            }
             $remaining -= $transaction_quantity;
         } else {
             $new_quantity = $transaction_quantity - $remaining;
-            mysqli_query($conn, "UPDATE stock_out_transaction SET quantity = $new_quantity WHERE id = $transaction_id");
+            $update_query = mysqli_prepare($conn, "UPDATE stock_out_transaction SET quantity = ? WHERE id = ?");
+            if ($update_query) {
+                mysqli_stmt_bind_param($update_query, "ii", $new_quantity, $transaction_id);
+                mysqli_stmt_execute($update_query);
+                mysqli_stmt_close($update_query);
+            }
             $remaining = 0;
         }
     }
@@ -609,9 +611,20 @@ function delete_inventory_records_for_item($conn, $item_id) {
         return;
     }
 
-    mysqli_query($conn, "DELETE FROM stock_in_transaction WHERE item_id = $item_id");
-    mysqli_query($conn, "DELETE FROM stock_out_transaction WHERE item_id = $item_id");
-    mysqli_query($conn, "DELETE FROM inventory_transaction WHERE item_id = $item_id");
+    $delete_queries = [
+        "DELETE FROM stock_in_transaction WHERE item_id = ?",
+        "DELETE FROM stock_out_transaction WHERE item_id = ?",
+        "DELETE FROM inventory_transaction WHERE item_id = ?"
+    ];
+
+    foreach ($delete_queries as $sql) {
+        $query = mysqli_prepare($conn, $sql);
+        if ($query) {
+            mysqli_stmt_bind_param($query, "i", $item_id);
+            mysqli_stmt_execute($query);
+            mysqli_stmt_close($query);
+        }
+    }
 }
 
 ?>

@@ -17,6 +17,7 @@
 	include 'sidebar.php'; 
 	include 'src/db/connection.php';
 	require_once __DIR__ . '/src/handlers/work_order_schema.php';
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	ensure_work_order_priority_column($conn);
 	ensure_work_order_warranty_columns($conn);
@@ -1756,14 +1757,16 @@ function viewWorkOrder(id) {
 										</tr>
 									</thead>
 									<?php
-										$where = "1";
+										$where_clauses = ["client_id = ?"];
+										$where_types = "i";
+										$where_params = [$client_id];
 										$limit = 10; // Default limit
 										$current_page = 1; // Default page
 
 										// Get limit from query string
 										if (!empty($_GET['limit'])) {
 											$limit_input = intval($_GET['limit']);
-											$limit = ($limit_input == -1) ? 999999 : $limit_input; // -1 means show all
+											$limit = ($limit_input == -1) ? 999999 : (in_array($limit_input, [10, 25, 50], true) ? $limit_input : 10); // -1 means show all
 										}
 
 										// Get current page from query string
@@ -1773,29 +1776,47 @@ function viewWorkOrder(id) {
 
 										// Secure search
 										if (!empty($_GET['search'])) {
-											$s = mysqli_real_escape_string($conn, $_GET['search']);
-											$where .= " AND (LOWER(code) LIKE '%$s%')";
+											$s = '%' . strtolower(trim($_GET['search'])) . '%';
+											$where_clauses[] = "LOWER(code) LIKE ?";
+											$where_types .= "s";
+											$where_params[] = $s;
 										}
 
 										// Secure filter
 										if (!empty($_GET['filter'])) {
-											$f = mysqli_real_escape_string($conn, $_GET['filter']);
-											$where .= " AND status='$f'";
+											$allowed_status = ['Pending','Diagnosing','Waiting for Parts','In Progress','Repaired','Ready for Release','Released','Cancelled'];
+
+											if (in_array($_GET['filter'], $allowed_status, true)) {
+												$f = $_GET['filter'];
+												$where_clauses[] = "status = ?";
+												$where_types .= "s";
+												$where_params[] = $f;
+											}
 										}
 
 										// Get total count for pagination info
-										$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM work_order WHERE client_id = $client_id AND $where");
+										$where = implode(' AND ', $where_clauses);
+										$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM work_order WHERE $where");
+										db_bind_params($count_query, $where_types, $where_params);
+										mysqli_stmt_execute($count_query);
+										$count_result = mysqli_stmt_get_result($count_query);
 										$count_row = mysqli_fetch_assoc($count_result);
-										$total_records = $count_row['total'];
+										$total_records = (int) $count_row['total'];
+										mysqli_stmt_close($count_query);
 
 										// Calculate offset
 										$offset = ($current_page - 1) * $limit;
-										$total_pages = ceil($total_records / $limit);
+										$total_pages = max(1, (int) ceil($total_records / $limit));
 										$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 										// Correct table + column names with LIMIT and OFFSET
 										$active_priority_sort = "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END";
-										$result = mysqli_query($conn, "SELECT work_order.*, (SELECT p.total_amount FROM payments p WHERE p.work_order_id = work_order.id ORDER BY p.id DESC LIMIT 1) AS payment_total_amount FROM work_order WHERE client_id=$client_id AND $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
+										$list_query = mysqli_prepare($conn, "SELECT work_order.*, (SELECT p.total_amount FROM payments p WHERE p.work_order_id = work_order.id ORDER BY p.id DESC LIMIT 1) AS payment_total_amount FROM work_order WHERE $where ORDER BY $active_priority_sort, code DESC LIMIT ? OFFSET ?");
+										$list_types = $where_types . "ii";
+										$list_params = array_merge($where_params, [$limit, $offset]);
+										db_bind_params($list_query, $list_types, $list_params);
+										mysqli_stmt_execute($list_query);
+										$result = mysqli_stmt_get_result($list_query);
 										$records_shown = mysqli_num_rows($result);
 										$record_start = ($total_records > 0) ? $offset + 1 : 0;
 										$record_end = min($offset + $records_shown, $total_records);

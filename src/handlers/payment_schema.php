@@ -2,51 +2,38 @@
 
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
+require_once __DIR__ . '/db_helpers.php';
 
 function payment_column_exists(mysqli $conn, string $column): bool
 {
-    $column = mysqli_real_escape_string($conn, $column);
-    $result = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE '$column'");
-    return $result && mysqli_num_rows($result) > 0;
+    return db_table_column_exists($conn, 'payments', $column);
 }
 
 function payment_table_exists(mysqli $conn, string $table): bool
 {
-    $table = mysqli_real_escape_string($conn, $table);
-    $result = mysqli_query($conn, "SHOW TABLES LIKE '$table'");
-    return $result && mysqli_num_rows($result) > 0;
+    return db_table_exists($conn, $table);
 }
 
 function payment_table_column_exists(mysqli $conn, string $table, string $column): bool
 {
-    $table = str_replace('`', '', $table);
-    $column = mysqli_real_escape_string($conn, $column);
-    $result = mysqli_query($conn, "SHOW COLUMNS FROM `$table` LIKE '$column'");
-    return $result && mysqli_num_rows($result) > 0;
+    return db_table_column_exists($conn, str_replace('`', '', $table), $column);
 }
 
 function payment_table_index_exists(mysqli $conn, string $table, string $index): bool
 {
-    $table = str_replace('`', '', $table);
-    $index = mysqli_real_escape_string($conn, $index);
-    $result = mysqli_query($conn, "SHOW INDEX FROM `$table` WHERE Key_name = '$index'");
-    return $result && mysqli_num_rows($result) > 0;
+    return db_table_index_exists($conn, str_replace('`', '', $table), $index);
 }
 
 function payment_column_allows_null(mysqli $conn, string $column): bool
 {
-    $column = mysqli_real_escape_string($conn, $column);
-    $result = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE '$column'");
-    $row = $result ? mysqli_fetch_assoc($result) : null;
+    $row = db_table_column_info($conn, 'payments', $column);
 
     return $row && strtoupper((string) $row['Null']) === 'YES';
 }
 
 function payment_column_type(mysqli $conn, string $column): string
 {
-    $column = mysqli_real_escape_string($conn, $column);
-    $result = mysqli_query($conn, "SHOW COLUMNS FROM payments LIKE '$column'");
-    $row = $result ? mysqli_fetch_assoc($result) : null;
+    $row = db_table_column_info($conn, 'payments', $column);
 
     return $row ? strtolower((string) $row['Type']) : '';
 }

@@ -4,6 +4,7 @@ ini_set('display_errors', 1);
 
 include '../db/connection.php';
 require_once __DIR__ . '/item_schema.php';
+require_once __DIR__ . '/db_helpers.php';
 
 header('Content-Type: application/json');
 
@@ -28,22 +29,31 @@ if (empty($search_term)) {
     exit;
 }
 
-// Sanitize search term
-$search_term = mysqli_real_escape_string($conn, $search_term);
+$like_search_term = '%' . $search_term . '%';
 
 // Query to search items by code, product name (brand_name, model), description, or category
-$query = "SELECT i.id, i.brand_name, i.model, i.description, i.average_price AS price, ic.category_name as category_name
+$query = mysqli_prepare($conn, "SELECT i.id, i.brand_name, i.model, i.description, i.average_price AS price, ic.category_name as category_name
           FROM items i
           LEFT JOIN item_category ic ON i.category_id = ic.id
-          WHERE i.id LIKE '%$search_term%'
-          OR i.brand_name LIKE '%$search_term%' 
-          OR i.model LIKE '%$search_term%' 
-          OR i.description LIKE '%$search_term%'
-          OR i.product_code LIKE '%$search_term%'
-          OR ic.category_name LIKE '%$search_term%'
-          LIMIT 10";
+          WHERE CAST(i.id AS CHAR) LIKE ?
+          OR i.brand_name LIKE ? 
+          OR i.model LIKE ? 
+          OR i.description LIKE ?
+          OR i.product_code LIKE ?
+          OR ic.category_name LIKE ?
+          LIMIT 10");
 
-$result = mysqli_query($conn, $query);
+$query_params = [
+    $like_search_term,
+    $like_search_term,
+    $like_search_term,
+    $like_search_term,
+    $like_search_term,
+    $like_search_term
+];
+db_bind_params($query, "ssssss", $query_params);
+mysqli_stmt_execute($query);
+$result = mysqli_stmt_get_result($query);
 
 $items = [];
 if ($result && mysqli_num_rows($result) > 0) {
@@ -61,5 +71,6 @@ if ($result && mysqli_num_rows($result) > 0) {
     }
 }
 
+mysqli_stmt_close($query);
 echo json_encode($items);
 ?>

@@ -12,6 +12,7 @@ require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/payment_schema.php';
+require_once __DIR__ . '/db_helpers.php';
 
 $response = [
     'success' => false,
@@ -128,8 +129,7 @@ try {
 
     $payments = [];
     // Fetch payments if table exists
-    $checkPayments = mysqli_query($conn, "SHOW TABLES LIKE 'payments'");
-    if ($checkPayments && mysqli_num_rows($checkPayments) > 0) {
+    if (db_table_exists($conn, 'payments')) {
         $paymentsQuery = mysqli_prepare($conn, "
             SELECT * FROM payments
             WHERE work_order_id = ?

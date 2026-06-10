@@ -2,6 +2,7 @@
 	include 'header.php';
 	include 'sidebar.php'; 
 	require_once __DIR__ . '/src/handlers/work_order_schema.php';
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	ensure_work_order_priority_column($conn);
 ?>
@@ -98,14 +99,16 @@
 								</tr>
 							</thead>
 							<?php
-								$where = "1";
+								$where_clauses = ["1=1"];
+								$where_types = "";
+								$where_params = [];
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
 								// Get limit from query string
 								if (!empty($_GET['limit'])) {
 									$limit_input = intval($_GET['limit']);
-									$limit = ($limit_input == -1) ? 999999 : $limit_input; // -1 means show all
+									$limit = ($limit_input == -1) ? 999999 : (in_array($limit_input, [10, 25, 50], true) ? $limit_input : 10); // -1 means show all
 								}
 
 								// Get current page from query string
@@ -115,25 +118,35 @@
 
 								// Secure search
 								if (!empty($_GET['search'])) {
-									$s = mysqli_real_escape_string($conn, strtolower($_GET['search']));
-									$where .= " AND (
-										LOWER(code) LIKE '%$s%' OR
-										LOWER(unit_type) LIKE '%$s%' OR
-										LOWER(brand) LIKE '%$s%' OR
-										LOWER(model) LIKE '%$s%'
+									$s = '%' . strtolower(trim($_GET['search'])) . '%';
+									$where_clauses[] = "(
+										LOWER(code) LIKE ? OR
+										LOWER(unit_type) LIKE ? OR
+										LOWER(brand) LIKE ? OR
+										LOWER(model) LIKE ?
 									)";
+									$where_types .= "ssss";
+									$where_params[] = $s;
+									$where_params[] = $s;
+									$where_params[] = $s;
+									$where_params[] = $s;
 								}
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
 									$allowed_status = ['Pending','Diagnosing','Waiting for Parts','In Progress','Repaired','Released','Cancelled'];
 
-									if (in_array($_GET['filter'], $allowed_status)) {
-										$f = mysqli_real_escape_string($conn, $_GET['filter']);
+									if (in_array($_GET['filter'], $allowed_status, true)) {
+										$f = $_GET['filter'];
 										if ($f === 'Repaired') {
-											$where .= " AND status IN ('Repaired', 'Ready for Release')";
+											$where_clauses[] = "status IN (?, ?)";
+											$where_types .= "ss";
+											$where_params[] = 'Repaired';
+											$where_params[] = 'Ready for Release';
 										} else {
-											$where .= " AND status='$f'";
+											$where_clauses[] = "status = ?";
+											$where_types .= "s";
+											$where_params[] = $f;
 										}
 									}
 								}
@@ -142,8 +155,10 @@
 									$allowed_priorities = ['Rush', 'In Que'];
 
 									if (in_array($_GET['priority_filter'], $allowed_priorities, true)) {
-										$p = mysqli_real_escape_string($conn, $_GET['priority_filter']);
-										$where .= " AND priority='$p'";
+										$p = $_GET['priority_filter'];
+										$where_clauses[] = "priority = ?";
+										$where_types .= "s";
+										$where_params[] = $p;
 									}
 								}
 
@@ -153,22 +168,34 @@
 								    $technician_id = intval($_SESSION['user_id']);
 
 								    // Add technician filter to WHERE
-								    $where .= " AND technician_id = $technician_id";
+								    $where_clauses[] = "technician_id = ?";
+									$where_types .= "i";
+									$where_params[] = $technician_id;
 								}
 
 								// Get total count for pagination info
-								$count_result = mysqli_query($conn, "SELECT COUNT(*) as total FROM work_order WHERE $where");
+								$where = implode(' AND ', $where_clauses);
+								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM work_order WHERE $where");
+								db_bind_params($count_query, $where_types, $where_params);
+								mysqli_stmt_execute($count_query);
+								$count_result = mysqli_stmt_get_result($count_query);
 								$count_row = mysqli_fetch_assoc($count_result);
-								$total_records = $count_row['total'];
+								$total_records = (int) $count_row['total'];
+								mysqli_stmt_close($count_query);
 
 								// Calculate offset
 								$offset = ($current_page - 1) * $limit;
-								$total_pages = ceil($total_records / $limit);
+								$total_pages = max(1, (int) ceil($total_records / $limit));
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
 								$active_priority_sort = "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END";
-									$result = mysqli_query($conn, "SELECT work_order.*, (SELECT p.total_amount FROM payments p WHERE p.work_order_id = work_order.id ORDER BY p.id DESC LIMIT 1) AS payment_total_amount FROM work_order WHERE $where ORDER BY $active_priority_sort, code DESC LIMIT $limit OFFSET $offset");
+								$list_query = mysqli_prepare($conn, "SELECT work_order.*, (SELECT p.total_amount FROM payments p WHERE p.work_order_id = work_order.id ORDER BY p.id DESC LIMIT 1) AS payment_total_amount FROM work_order WHERE $where ORDER BY $active_priority_sort, code DESC LIMIT ? OFFSET ?");
+								$list_types = $where_types . "ii";
+								$list_params = array_merge($where_params, [$limit, $offset]);
+								db_bind_params($list_query, $list_types, $list_params);
+								mysqli_stmt_execute($list_query);
+								$result = mysqli_stmt_get_result($list_query);
 								$records_shown = mysqli_num_rows($result);
 								$record_start = ($total_records > 0) ? $offset + 1 : 0;
 								$record_end = min($offset + $records_shown, $total_records);
@@ -190,13 +217,21 @@
 
 									$user_id = intval($_SESSION['user_id']);
 
-									$query = "SELECT role FROM users WHERE id = $user_id LIMIT 1";
-									$result = mysqli_query($conn, $query);
+									$query = mysqli_prepare($conn, "SELECT role FROM users WHERE id = ? LIMIT 1");
+									if (!$query) {
+										return false;
+									}
+
+									mysqli_stmt_bind_param($query, "i", $user_id);
+									mysqli_stmt_execute($query);
+									$result = mysqli_stmt_get_result($query);
 
 									if ($row = mysqli_fetch_assoc($result)) {
+										mysqli_stmt_close($query);
 										return in_array($row['role'], ['Administrator', 'Technician']);
 									}
 
+									mysqli_stmt_close($query);
 									return false;
 									}
 

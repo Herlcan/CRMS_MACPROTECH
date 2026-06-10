@@ -16,13 +16,30 @@
 	require_once __DIR__ . '/src/handlers/work_order_schema.php';
 	require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
 	require_once __DIR__ . '/src/handlers/ordered_part_schema.php';
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	$report_warnings = [];
 
 	function reports_table_exists(mysqli $conn, string $table): bool {
-		$table = mysqli_real_escape_string($conn, $table);
-		$result = mysqli_query($conn, "SHOW TABLES LIKE '$table'");
-		return $result && mysqli_num_rows($result) > 0;
+		$statement = mysqli_prepare(
+			$conn,
+			"SELECT COUNT(*) AS total
+			 FROM INFORMATION_SCHEMA.TABLES
+			 WHERE TABLE_SCHEMA = DATABASE()
+			 AND TABLE_NAME = ?"
+		);
+
+		if (!$statement) {
+			return false;
+		}
+
+		mysqli_stmt_bind_param($statement, "s", $table);
+		mysqli_stmt_execute($statement);
+		$result = mysqli_stmt_get_result($statement);
+		$row = $result ? mysqli_fetch_assoc($result) : null;
+		mysqli_stmt_close($statement);
+
+		return (int) ($row['total'] ?? 0) > 0;
 	}
 
 	function reports_safe_date($date): string {
@@ -30,60 +47,133 @@
 		return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : '';
 	}
 
-	function reports_date_condition(mysqli $conn, string $column, string $date_from, string $date_to): string {
+	function reports_date_condition(string $column, string $date_from, string $date_to): array {
 		$conditions = [];
+		$types = '';
+		$params = [];
 
 		if ($date_from !== '') {
-			$from = mysqli_real_escape_string($conn, $date_from);
-			$conditions[] = "$column >= '$from'";
+			$conditions[] = "$column >= ?";
+			$types .= 's';
+			$params[] = $date_from;
 		}
 
 		if ($date_to !== '') {
-			$to = mysqli_real_escape_string($conn, $date_to);
-			$conditions[] = "$column <= '$to'";
+			$conditions[] = "$column <= ?";
+			$types .= 's';
+			$params[] = $date_to;
 		}
 
-		return $conditions ? implode(' AND ', $conditions) : '1';
+		return [
+			'sql' => $conditions ? implode(' AND ', $conditions) : '1',
+			'types' => $types,
+			'params' => $params
+		];
 	}
 
-	function reports_scalar(mysqli $conn, string $sql, string $field = 'total', $fallback = 0) {
-		global $report_warnings;
-		$result = mysqli_query($conn, $sql);
+	function reports_params(array ...$filters): array {
+		$types = '';
+		$params = [];
 
-		if (!$result) {
+		foreach ($filters as $filter) {
+			$types .= $filter['types'] ?? '';
+			foreach (($filter['params'] ?? []) as $param) {
+				$params[] = $param;
+			}
+		}
+
+		return [$types, $params];
+	}
+
+	function reports_scalar(mysqli $conn, string $sql, string $field = 'total', $fallback = 0, string $types = '', array $params = []) {
+		global $report_warnings;
+		$statement = mysqli_prepare($conn, $sql);
+
+		if (!$statement) {
 			$report_warnings[] = mysqli_error($conn);
+			return $fallback;
+		}
+
+		db_bind_params($statement, $types, $params);
+
+		if (!mysqli_stmt_execute($statement)) {
+			$report_warnings[] = mysqli_stmt_error($statement);
+			mysqli_stmt_close($statement);
+			return $fallback;
+		}
+
+		$result = mysqli_stmt_get_result($statement);
+		if (!$result) {
+			$report_warnings[] = mysqli_stmt_error($statement);
+			mysqli_stmt_close($statement);
 			return $fallback;
 		}
 
 		$row = mysqli_fetch_assoc($result);
+		mysqli_stmt_close($statement);
+
 		return $row[$field] ?? $fallback;
 	}
 
-	function reports_row(mysqli $conn, string $sql, array $fallback = []): array {
+	function reports_row(mysqli $conn, string $sql, array $fallback = [], string $types = '', array $params = []): array {
 		global $report_warnings;
-		$result = mysqli_query($conn, $sql);
+		$statement = mysqli_prepare($conn, $sql);
 
-		if (!$result) {
+		if (!$statement) {
 			$report_warnings[] = mysqli_error($conn);
 			return $fallback;
 		}
 
-		return mysqli_fetch_assoc($result) ?: $fallback;
+		db_bind_params($statement, $types, $params);
+
+		if (!mysqli_stmt_execute($statement)) {
+			$report_warnings[] = mysqli_stmt_error($statement);
+			mysqli_stmt_close($statement);
+			return $fallback;
+		}
+
+		$result = mysqli_stmt_get_result($statement);
+		if (!$result) {
+			$report_warnings[] = mysqli_stmt_error($statement);
+			mysqli_stmt_close($statement);
+			return $fallback;
+		}
+
+		$row = mysqli_fetch_assoc($result) ?: $fallback;
+		mysqli_stmt_close($statement);
+
+		return $row;
 	}
 
-	function reports_rows(mysqli $conn, string $sql): array {
+	function reports_rows(mysqli $conn, string $sql, string $types = '', array $params = []): array {
 		global $report_warnings;
 		$rows = [];
-		$result = mysqli_query($conn, $sql);
+		$statement = mysqli_prepare($conn, $sql);
 
-		if (!$result) {
+		if (!$statement) {
 			$report_warnings[] = mysqli_error($conn);
+			return $rows;
+		}
+
+		db_bind_params($statement, $types, $params);
+
+		if (!mysqli_stmt_execute($statement)) {
+			$report_warnings[] = mysqli_stmt_error($statement);
+			mysqli_stmt_close($statement);
+			return $rows;
+		}
+
+		$result = mysqli_stmt_get_result($statement);
+		if (!$result) {
+			$report_warnings[] = mysqli_stmt_error($statement);
+			mysqli_stmt_close($statement);
 			return $rows;
 		}
 
 		while ($row = mysqli_fetch_assoc($result)) {
 			$rows[] = $row;
 		}
+		mysqli_stmt_close($statement);
 
 		return $rows;
 	}
@@ -175,18 +265,35 @@
 		$report_warnings[] = $e->getMessage();
 	}
 
-	$work_order_date_where = reports_date_condition($conn, 'request_date', $date_from, $date_to);
-	$work_order_alias_date_where = reports_date_condition($conn, 'w.request_date', $date_from, $date_to);
-	$completion_date_where = reports_date_condition($conn, 'completion_date', $date_from, $date_to);
-	$completion_alias_date_where = reports_date_condition($conn, 'w.completion_date', $date_from, $date_to);
-	$client_date_where = reports_date_condition($conn, 'date', $date_from, $date_to);
-	$payment_date_where = reports_date_condition($conn, 'COALESCE(p.date, DATE(p.created_at))', $date_from, $date_to);
-	$payment_transaction_date_where = reports_date_condition($conn, 'DATE(pt.transaction_at)', $date_from, $date_to);
-	$stock_in_date_where = reports_date_condition($conn, 'sit.stock_in_date', $date_from, $date_to);
-	$stock_out_date_where = reports_date_condition($conn, 'sot.stock_out_date', $date_from, $date_to);
-	$purchased_part_date_where = reports_date_condition($conn, 'pi.date', $date_from, $date_to);
-	$ordered_part_date_where = reports_date_condition($conn, 'DATE(op.created_at)', $date_from, $date_to);
-	$activity_date_where = reports_date_condition($conn, 'DATE(al.created_at)', $date_from, $date_to);
+	$work_order_date_filter = reports_date_condition('request_date', $date_from, $date_to);
+	$work_order_alias_date_filter = reports_date_condition('w.request_date', $date_from, $date_to);
+	$completion_date_filter = reports_date_condition('completion_date', $date_from, $date_to);
+	$completion_alias_date_filter = reports_date_condition('w.completion_date', $date_from, $date_to);
+	$client_date_filter = reports_date_condition('date', $date_from, $date_to);
+	$payment_date_filter = reports_date_condition('COALESCE(p.date, DATE(p.created_at))', $date_from, $date_to);
+	$payment_transaction_date_filter = reports_date_condition('DATE(pt.transaction_at)', $date_from, $date_to);
+	$stock_in_date_filter = reports_date_condition('sit.stock_in_date', $date_from, $date_to);
+	$stock_out_date_filter = reports_date_condition('sot.stock_out_date', $date_from, $date_to);
+	$purchased_part_date_filter = reports_date_condition('pi.date', $date_from, $date_to);
+	$ordered_part_date_filter = reports_date_condition('DATE(op.created_at)', $date_from, $date_to);
+	$activity_date_filter = reports_date_condition('DATE(al.created_at)', $date_from, $date_to);
+	$refund_date_filter = reports_date_condition('DATE(r.refunded_at)', $date_from, $date_to);
+	$client_alias_date_filter = reports_date_condition('c.date', $date_from, $date_to);
+
+	$work_order_date_where = $work_order_date_filter['sql'];
+	$work_order_alias_date_where = $work_order_alias_date_filter['sql'];
+	$completion_date_where = $completion_date_filter['sql'];
+	$completion_alias_date_where = $completion_alias_date_filter['sql'];
+	$client_date_where = $client_date_filter['sql'];
+	$payment_date_where = $payment_date_filter['sql'];
+	$payment_transaction_date_where = $payment_transaction_date_filter['sql'];
+	$stock_in_date_where = $stock_in_date_filter['sql'];
+	$stock_out_date_where = $stock_out_date_filter['sql'];
+	$purchased_part_date_where = $purchased_part_date_filter['sql'];
+	$ordered_part_date_where = $ordered_part_date_filter['sql'];
+	$activity_date_where = $activity_date_filter['sql'];
+	$refund_date_where = $refund_date_filter['sql'];
+	$client_alias_date_where = $client_alias_date_filter['sql'];
 
 	$payment_status_sql = "COALESCE(NULLIF(p.payment_status, ''), CASE WHEN p.status IS NULL OR p.status = 'Pending' OR p.status = '' THEN 'Unpaid' ELSE p.status END)";
 	$payment_balance_sql = "
@@ -206,7 +313,7 @@
 	";
 
 	$total_workorders = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order");
-	$period_workorders = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE $work_order_date_where");
+	$period_workorders = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE $work_order_date_where", 'total', 0, $work_order_date_filter['types'], $work_order_date_filter['params']);
 	$open_workorders = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE status NOT IN ('Released', 'Cancelled')");
 	$unassigned_open = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE technician_id IS NULL AND status NOT IN ('Released', 'Cancelled')");
 	$aged_open = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE status NOT IN ('Released', 'Cancelled') AND request_date <= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
@@ -216,9 +323,13 @@
 		 FROM work_order
 		 WHERE completion_date IS NOT NULL
 		 AND status IN ('Repaired', 'Ready for Release', 'Released')
-		 AND $completion_date_where"
+		 AND $completion_date_where",
+		'total',
+		0,
+		$completion_date_filter['types'],
+		$completion_date_filter['params']
 	);
-	$cancelled_period = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE status = 'Cancelled' AND $work_order_date_where");
+	$cancelled_period = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM work_order WHERE status = 'Cancelled' AND $work_order_date_where", 'total', 0, $work_order_date_filter['types'], $work_order_date_filter['params']);
 	$avg_cycle_days = (float) reports_scalar(
 		$conn,
 		"SELECT COALESCE(AVG(DATEDIFF(completion_date, request_date)), 0) AS total
@@ -226,11 +337,15 @@
 		 WHERE completion_date IS NOT NULL
 		 AND completion_date >= request_date
 		 AND status IN ('Repaired', 'Ready for Release', 'Released')
-		 AND $completion_date_where"
+		 AND $completion_date_where",
+		'total',
+		0,
+		$completion_date_filter['types'],
+		$completion_date_filter['params']
 	);
 
 	$total_customers = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM client");
-	$new_customers = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM client WHERE $client_date_where");
+	$new_customers = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM client WHERE $client_date_where", 'total', 0, $client_date_filter['types'], $client_date_filter['params']);
 	$repeat_customers = (int) reports_scalar(
 		$conn,
 		"SELECT COUNT(*) AS total
@@ -240,7 +355,11 @@
 			INNER JOIN work_order w ON w.client_id = c.id AND $work_order_alias_date_where
 			GROUP BY c.id
 			HAVING COUNT(w.id) > 1
-		 ) repeat_clients"
+		 ) repeat_clients",
+		'total',
+		0,
+		$work_order_alias_date_filter['types'],
+		$work_order_alias_date_filter['params']
 	);
 
 	$payment_summary = reports_row(
@@ -250,32 +369,34 @@
 			COALESCE(SUM(CASE WHEN pt.transaction_type = 'refund' THEN pt.amount ELSE 0 END), 0) AS refunded
 		 FROM payment_transaction pt
 		 WHERE $payment_transaction_date_where",
-		['collected' => 0, 'refunded' => 0]
+		['collected' => 0, 'refunded' => 0],
+		$payment_transaction_date_filter['types'],
+		$payment_transaction_date_filter['params']
 	);
 	$collected_total = (float) $payment_summary['collected'];
 	$refunded_total = (float) $payment_summary['refunded'];
 	$net_revenue = max(0, $collected_total - $refunded_total);
-	$gross_billed = (float) reports_scalar($conn, "SELECT COALESCE(SUM(p.total_amount), 0) AS total FROM payments p WHERE $payment_date_where");
-	$discount_total = (float) reports_scalar($conn, "SELECT COALESCE(SUM(p.discount_amount), 0) AS total FROM payments p WHERE $payment_date_where");
-	$outstanding_balance = (float) reports_scalar($conn, "SELECT COALESCE(SUM($payment_balance_sql), 0) AS total FROM payments p WHERE $payment_date_where");
-	$pending_payments = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM payments p WHERE $payment_date_where AND $payment_balance_sql > 0");
+	$gross_billed = (float) reports_scalar($conn, "SELECT COALESCE(SUM(p.total_amount), 0) AS total FROM payments p WHERE $payment_date_where", 'total', 0, $payment_date_filter['types'], $payment_date_filter['params']);
+	$discount_total = (float) reports_scalar($conn, "SELECT COALESCE(SUM(p.discount_amount), 0) AS total FROM payments p WHERE $payment_date_where", 'total', 0, $payment_date_filter['types'], $payment_date_filter['params']);
+	$outstanding_balance = (float) reports_scalar($conn, "SELECT COALESCE(SUM($payment_balance_sql), 0) AS total FROM payments p WHERE $payment_date_where", 'total', 0, $payment_date_filter['types'], $payment_date_filter['params']);
+	$pending_payments = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM payments p WHERE $payment_date_where AND $payment_balance_sql > 0", 'total', 0, $payment_date_filter['types'], $payment_date_filter['params']);
 
 	$total_items = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM items");
 	$low_stock_items = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM items WHERE quantity > 0 AND quantity < 10");
 	$out_of_stock_items = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM items WHERE quantity <= 0");
 	$inventory_value = (float) reports_scalar($conn, "SELECT COALESCE(SUM(quantity * average_price), 0) AS total FROM items");
-	$stock_in_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(sit.stock_in), 0) AS total FROM stock_in_transaction sit WHERE $stock_in_date_where");
-	$stock_in_cost = (float) reports_scalar($conn, "SELECT COALESCE(SUM(sit.capital * sit.stock_in), 0) AS total FROM stock_in_transaction sit WHERE $stock_in_date_where");
-	$stock_out_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(sot.quantity), 0) AS total FROM stock_out_transaction sot WHERE $stock_out_date_where");
-	$purchased_part_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(pi.quantity), 0) AS total FROM purchased_item pi WHERE $purchased_part_date_where");
-	$ordered_part_spend = (float) reports_scalar($conn, "SELECT COALESCE(SUM(op.quantity * op.price), 0) AS total FROM ordered_parts op WHERE $ordered_part_date_where");
-	$ordered_part_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(op.quantity), 0) AS total FROM ordered_parts op WHERE $ordered_part_date_where");
+	$stock_in_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(sit.stock_in), 0) AS total FROM stock_in_transaction sit WHERE $stock_in_date_where", 'total', 0, $stock_in_date_filter['types'], $stock_in_date_filter['params']);
+	$stock_in_cost = (float) reports_scalar($conn, "SELECT COALESCE(SUM(sit.capital * sit.stock_in), 0) AS total FROM stock_in_transaction sit WHERE $stock_in_date_where", 'total', 0, $stock_in_date_filter['types'], $stock_in_date_filter['params']);
+	$stock_out_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(sot.quantity), 0) AS total FROM stock_out_transaction sot WHERE $stock_out_date_where", 'total', 0, $stock_out_date_filter['types'], $stock_out_date_filter['params']);
+	$purchased_part_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(pi.quantity), 0) AS total FROM purchased_item pi WHERE $purchased_part_date_where", 'total', 0, $purchased_part_date_filter['types'], $purchased_part_date_filter['params']);
+	$ordered_part_spend = (float) reports_scalar($conn, "SELECT COALESCE(SUM(op.quantity * op.price), 0) AS total FROM ordered_parts op WHERE $ordered_part_date_where", 'total', 0, $ordered_part_date_filter['types'], $ordered_part_date_filter['params']);
+	$ordered_part_units = (int) reports_scalar($conn, "SELECT COALESCE(SUM(op.quantity), 0) AS total FROM ordered_parts op WHERE $ordered_part_date_where", 'total', 0, $ordered_part_date_filter['types'], $ordered_part_date_filter['params']);
 
 	$total_users = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM users");
 	$total_technicians = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM users WHERE role = 'Technician'");
 	$total_categories = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM item_category");
 	$total_unit_types = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM unit_type");
-	$activity_count = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM activity_logs al WHERE $activity_date_where");
+	$activity_count = (int) reports_scalar($conn, "SELECT COUNT(*) AS total FROM activity_logs al WHERE $activity_date_where", 'total', 0, $activity_date_filter['types'], $activity_date_filter['params']);
 	$customer_parts_count = (int) reports_scalar($conn, "SELECT COALESCE(SUM(quantity), 0) AS total FROM customer_provided_component");
 
 	$work_order_status_rows = reports_rows(
@@ -284,7 +405,9 @@
 		 FROM work_order
 		 WHERE $work_order_date_where
 		 GROUP BY CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END
-		 ORDER BY total DESC, status ASC"
+		 ORDER BY total DESC, status ASC",
+		$work_order_date_filter['types'],
+		$work_order_date_filter['params']
 	);
 	$status_total = array_sum(array_map(fn($row) => (int) $row['total'], $work_order_status_rows));
 
@@ -294,7 +417,9 @@
 		 FROM work_order
 		 WHERE $work_order_date_where
 		 GROUP BY COALESCE(NULLIF(priority, ''), 'Unspecified')
-		 ORDER BY total DESC, priority ASC"
+		 ORDER BY total DESC, priority ASC",
+		$work_order_date_filter['types'],
+		$work_order_date_filter['params']
 	);
 
 	$unit_type_rows = reports_rows(
@@ -308,7 +433,9 @@
 		 WHERE $work_order_alias_date_where
 		 GROUP BY COALESCE(NULLIF(w.unit_type, ''), 'Unspecified')
 		 ORDER BY total DESC, net_paid DESC
-		 LIMIT 8"
+		 LIMIT 8",
+		$work_order_alias_date_filter['types'],
+		$work_order_alias_date_filter['params']
 	);
 
 	$payment_status_rows = reports_rows(
@@ -321,7 +448,9 @@
 		 FROM payments p
 		 WHERE $payment_date_where
 		 GROUP BY $payment_status_sql
-		 ORDER BY total DESC, status ASC"
+		 ORDER BY total DESC, status ASC",
+		$payment_date_filter['types'],
+		$payment_date_filter['params']
 	);
 
 	$payment_method_rows = reports_rows(
@@ -333,7 +462,9 @@
 		 WHERE pt.transaction_type = 'payment'
 		 AND $payment_transaction_date_where
 		 GROUP BY COALESCE(NULLIF(pt.method, ''), 'Unspecified')
-		 ORDER BY total DESC, transaction_count DESC"
+		 ORDER BY total DESC, transaction_count DESC",
+		$payment_transaction_date_filter['types'],
+		$payment_transaction_date_filter['params']
 	);
 
 	$recent_payments = reports_rows(
@@ -345,7 +476,9 @@
 		 LEFT JOIN work_order wo ON wo.id = p.work_order_id
 		 WHERE $payment_date_where
 		 ORDER BY COALESCE(p.date, DATE(p.created_at)) DESC, p.id DESC
-		 LIMIT 8"
+		 LIMIT 8",
+		$payment_date_filter['types'],
+		$payment_date_filter['params']
 	);
 
 	$refund_rows = reports_rows(
@@ -354,9 +487,11 @@
 		 FROM refunds r
 		 INNER JOIN payments p ON p.id = r.payment_id
 		 LEFT JOIN work_order wo ON wo.id = p.work_order_id
-		 WHERE " . reports_date_condition($conn, 'DATE(r.refunded_at)', $date_from, $date_to) . "
+		 WHERE $refund_date_where
 		 ORDER BY r.refunded_at DESC, r.id DESC
-		 LIMIT 8"
+		 LIMIT 8",
+		$refund_date_filter['types'],
+		$refund_date_filter['params']
 	);
 
 	$top_customers = reports_rows(
@@ -371,17 +506,27 @@
 		 LEFT JOIN ($payment_net_by_work_order_sql) ps ON ps.work_order_id = w.id
 		 GROUP BY c.id, c.first_name, c.last_name
 		 ORDER BY net_paid DESC, work_order_count DESC, latest_order DESC
-		 LIMIT 8"
+		 LIMIT 8",
+		$work_order_alias_date_filter['types'],
+		$work_order_alias_date_filter['params']
 	);
 
 	$customer_intake_rows = reports_rows(
 		$conn,
 		"SELECT DATE_FORMAT(c.date, '%Y-%m') AS month_key, COUNT(*) AS total
 		 FROM client c
-		 WHERE " . reports_date_condition($conn, 'c.date', $date_from, $date_to) . "
+		 WHERE $client_alias_date_where
 		 GROUP BY DATE_FORMAT(c.date, '%Y-%m')
 		 ORDER BY month_key DESC
-		 LIMIT 6"
+		 LIMIT 6",
+		$client_alias_date_filter['types'],
+		$client_alias_date_filter['params']
+	);
+
+	[$technician_date_types, $technician_date_params] = reports_params(
+		$work_order_alias_date_filter,
+		$completion_alias_date_filter,
+		$completion_alias_date_filter
 	);
 
 	$technician_rows = reports_rows(
@@ -396,7 +541,9 @@
 		 LEFT JOIN work_order w ON w.technician_id = u.id
 		 WHERE u.role = 'Technician'
 		 GROUP BY u.id, u.first_name, u.last_name
-		 ORDER BY current_open DESC, completed_period DESC, technician_name ASC"
+		 ORDER BY current_open DESC, completed_period DESC, technician_name ASC",
+		$technician_date_types,
+		$technician_date_params
 	);
 
 	$inventory_category_rows = reports_rows(
@@ -430,7 +577,9 @@
 		 WHERE $stock_out_date_where
 		 GROUP BY i.id, i.product_code, i.brand_name, i.model
 		 ORDER BY used_quantity DESC, work_order_count DESC
-		 LIMIT 8"
+		 LIMIT 8",
+		$stock_out_date_filter['types'],
+		$stock_out_date_filter['params']
 	);
 
 	$ordered_parts_rows = reports_rows(
@@ -444,7 +593,9 @@
 		 WHERE $ordered_part_date_where
 		 GROUP BY COALESCE(NULLIF(op.part_name, ''), 'Unnamed Part'), COALESCE(NULLIF(op.brand, ''), 'Unspecified'), COALESCE(NULLIF(op.category, ''), 'Unspecified')
 		 ORDER BY total_cost DESC, quantity DESC
-		 LIMIT 8"
+		 LIMIT 8",
+		$ordered_part_date_filter['types'],
+		$ordered_part_date_filter['params']
 	);
 
 	$activity_rows = reports_rows(
@@ -462,7 +613,9 @@
 		 LEFT JOIN work_order wo ON wo.id = al.work_order_id
 		 WHERE $activity_date_where
 		 ORDER BY al.created_at DESC, al.id DESC
-		 LIMIT 12"
+		 LIMIT 12",
+		$activity_date_filter['types'],
+		$activity_date_filter['params']
 	);
 
 	$customer_intake_chart_rows = array_reverse($customer_intake_rows);

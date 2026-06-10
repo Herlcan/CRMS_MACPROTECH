@@ -17,6 +17,7 @@ require_once __DIR__ . '/src/handlers/payment_schema.php';
 require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
 require_once __DIR__ . '/src/handlers/ordered_part_schema.php';
 require_once __DIR__ . '/src/handlers/activity_log_helper.php';
+require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 function export_report_safe_date($date): string
 {
@@ -24,18 +25,20 @@ function export_report_safe_date($date): string
     return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : '';
 }
 
-function export_report_date_condition(mysqli $conn, string $column, string $dateFrom, string $dateTo): string
+function export_report_date_condition(string $column, string $dateFrom, string $dateTo, string &$types, array &$params): string
 {
     $conditions = [];
 
     if ($dateFrom !== '') {
-        $from = mysqli_real_escape_string($conn, $dateFrom);
-        $conditions[] = "$column >= '$from'";
+        $conditions[] = "$column >= ?";
+        $types .= "s";
+        $params[] = $dateFrom;
     }
 
     if ($dateTo !== '') {
-        $to = mysqli_real_escape_string($conn, $dateTo);
-        $conditions[] = "$column <= '$to'";
+        $conditions[] = "$column <= ?";
+        $types .= "s";
+        $params[] = $dateTo;
     }
 
     return $conditions ? implode(' AND ', $conditions) : '1';
@@ -86,13 +89,27 @@ function export_report_send_csv(string $filename, array $headers, mysqli_result 
     exit();
 }
 
-function export_report_query(mysqli $conn, string $sql): mysqli_result
+function export_report_query(mysqli $conn, string $sql, string $types = '', array $params = []): mysqli_result
 {
-    $result = mysqli_query($conn, $sql);
+    $statement = mysqli_prepare($conn, $sql);
+
+    if (!$statement) {
+        http_response_code(500);
+        exit('Unable to export report: ' . mysqli_error($conn));
+    }
+
+    db_bind_params($statement, $types, $params);
+
+    if (!mysqli_stmt_execute($statement)) {
+        http_response_code(500);
+        exit('Unable to export report: ' . mysqli_stmt_error($statement));
+    }
+
+    $result = mysqli_stmt_get_result($statement);
 
     if (!$result) {
         http_response_code(500);
-        exit('Unable to export report: ' . mysqli_error($conn));
+        exit('Unable to export report: ' . mysqli_stmt_error($statement));
     }
 
     return $result;
@@ -115,13 +132,13 @@ function export_report_payment_balance_sql(string $paymentStatusSql): string
     ";
 }
 
-function export_report_apply_work_order_filters(mysqli $conn, array &$where, string $scope, string $dateFrom, string $dateTo): void
+function export_report_apply_work_order_filters(array &$where, string &$types, array &$params, string $scope, string $dateFrom, string $dateTo): void
 {
     if ($scope === 'all') {
         return;
     }
 
-    $dateCondition = export_report_date_condition($conn, 'w.request_date', $dateFrom, $dateTo);
+    $dateCondition = export_report_date_condition('w.request_date', $dateFrom, $dateTo, $types, $params);
     if ($dateCondition !== '1') {
         $where[] = $dateCondition;
     }
@@ -130,26 +147,33 @@ function export_report_apply_work_order_filters(mysqli $conn, array &$where, str
     $status = $_GET['work_order_status'] ?? '';
     if (in_array($status, $allowedStatuses, true)) {
         if ($status === 'Repaired') {
-            $where[] = "w.status IN ('Repaired', 'Ready for Release')";
+            $where[] = "w.status IN (?, ?)";
+            $types .= "ss";
+            $params[] = 'Repaired';
+            $params[] = 'Ready for Release';
         } else {
-            $where[] = "w.status = '" . mysqli_real_escape_string($conn, $status) . "'";
+            $where[] = "w.status = ?";
+            $types .= "s";
+            $params[] = $status;
         }
     }
 
     $technicianId = isset($_GET['technician_id']) ? (int) $_GET['technician_id'] : 0;
     if ($technicianId > 0) {
-        $where[] = "w.technician_id = $technicianId";
+        $where[] = "w.technician_id = ?";
+        $types .= "i";
+        $params[] = $technicianId;
     }
 }
 
-function export_report_apply_payment_filters(mysqli $conn, array &$where, string $scope, string $dateFrom, string $dateTo, string $paymentStatusSql, bool $useTransactionDate = false): void
+function export_report_apply_payment_filters(array &$where, string &$types, array &$params, string $scope, string $dateFrom, string $dateTo, string $paymentStatusSql, bool $useTransactionDate = false): void
 {
     if ($scope === 'all') {
         return;
     }
 
     $dateColumn = $useTransactionDate ? 'DATE(pt.transaction_at)' : 'COALESCE(p.date, DATE(p.created_at))';
-    $dateCondition = export_report_date_condition($conn, $dateColumn, $dateFrom, $dateTo);
+    $dateCondition = export_report_date_condition($dateColumn, $dateFrom, $dateTo, $types, $params);
     if ($dateCondition !== '1') {
         $where[] = $dateCondition;
     }
@@ -157,24 +181,28 @@ function export_report_apply_payment_filters(mysqli $conn, array &$where, string
     $allowedPaymentStatuses = ['Paid', 'Partial', 'Unpaid', 'Partially Refunded', 'Refunded'];
     $paymentStatus = $_GET['payment_status'] ?? '';
     if (!$useTransactionDate && in_array($paymentStatus, $allowedPaymentStatuses, true)) {
-        $where[] = "$paymentStatusSql = '" . mysqli_real_escape_string($conn, $paymentStatus) . "'";
+        $where[] = "$paymentStatusSql = ?";
+        $types .= "s";
+        $params[] = $paymentStatus;
     }
 
     $allowedMethods = ['Cash', 'GCash', 'Maya', 'Bank Transfer'];
     $paymentMethod = $_GET['payment_method'] ?? '';
     if (in_array($paymentMethod, $allowedMethods, true)) {
         $methodColumn = $useTransactionDate ? 'pt.method' : 'p.payment_method';
-        $where[] = "$methodColumn = '" . mysqli_real_escape_string($conn, $paymentMethod) . "'";
+        $where[] = "$methodColumn = ?";
+        $types .= "s";
+        $params[] = $paymentMethod;
     }
 }
 
-function export_report_apply_customer_filters(mysqli $conn, array &$where, string $scope, string $dateFrom, string $dateTo): void
+function export_report_apply_customer_filters(array &$where, string &$types, array &$params, string $scope, string $dateFrom, string $dateTo): void
 {
     if ($scope === 'all') {
         return;
     }
 
-    $dateCondition = export_report_date_condition($conn, 'c.date', $dateFrom, $dateTo);
+    $dateCondition = export_report_date_condition('c.date', $dateFrom, $dateTo, $types, $params);
     if ($dateCondition !== '1') {
         $where[] = $dateCondition;
     }
@@ -184,13 +212,13 @@ function export_report_apply_customer_filters(mysqli $conn, array &$where, strin
     }
 }
 
-function export_report_apply_inventory_filters(mysqli $conn, array &$where, string $scope, string $dateFrom, string $dateTo): void
+function export_report_apply_inventory_filters(array &$where, string &$types, array &$params, string $scope, string $dateFrom, string $dateTo): void
 {
     if ($scope === 'all') {
         return;
     }
 
-    $dateCondition = export_report_date_condition($conn, 'i.date', $dateFrom, $dateTo);
+    $dateCondition = export_report_date_condition('i.date', $dateFrom, $dateTo, $types, $params);
     if ($dateCondition !== '1') {
         $where[] = $dateCondition;
     }
@@ -237,7 +265,9 @@ log_activity($conn, "Exported {$type} {$scope} report ({$rangeLabel})");
 
 if ($type === 'work_orders') {
     $where = ['1'];
-    export_report_apply_work_order_filters($conn, $where, $scope, $dateFrom, $dateTo);
+    $where_types = "";
+    $where_params = [];
+    export_report_apply_work_order_filters($where, $where_types, $where_params, $scope, $dateFrom, $dateTo);
 
     $sql = "
         SELECT
@@ -288,7 +318,7 @@ if ($type === 'work_orders') {
         ORDER BY w.request_date DESC, w.code DESC
     ";
 
-    $result = export_report_query($conn, $sql);
+    $result = export_report_query($conn, $sql, $where_types, $where_params);
     export_report_send_csv(
         $filename,
         ['Work Order Number', 'Date Created', 'Customer Name', 'Device/Item', 'Brand', 'Model', 'Problem Description', 'Technician Assigned', 'Status', 'Diagnostic Fee', 'Labor Fee', 'Parts Cost', 'Total Amount', 'Date Completed', 'Priority'],
@@ -315,7 +345,9 @@ if ($type === 'work_orders') {
 
 if ($type === 'payments') {
     $where = ['1'];
-    export_report_apply_payment_filters($conn, $where, $scope, $dateFrom, $dateTo, $paymentStatusSql);
+    $where_types = "";
+    $where_params = [];
+    export_report_apply_payment_filters($where, $where_types, $where_params, $scope, $dateFrom, $dateTo, $paymentStatusSql);
 
     $paymentTypeSql = "
         CASE
@@ -345,7 +377,7 @@ if ($type === 'payments') {
         ORDER BY COALESCE(p.date, DATE(p.created_at)) DESC, p.id DESC
     ";
 
-    $result = export_report_query($conn, $sql);
+    $result = export_report_query($conn, $sql, $where_types, $where_params);
     export_report_send_csv(
         $filename,
         ['Payment ID', 'Work Order Number', 'Customer Name', 'Total Bill', 'Discount', 'Amount Paid', 'Payment Type', 'Payment Method', 'Payment Date', 'Remaining Balance', 'Payment Status'],
@@ -368,7 +400,9 @@ if ($type === 'payments') {
 
 if ($type === 'customers') {
     $where = ['1'];
-    export_report_apply_customer_filters($conn, $where, $scope, $dateFrom, $dateTo);
+    $where_types = "";
+    $where_params = [];
+    export_report_apply_customer_filters($where, $where_types, $where_params, $scope, $dateFrom, $dateTo);
 
     $sql = "
         SELECT
@@ -394,7 +428,7 @@ if ($type === 'customers') {
         ORDER BY c.last_name ASC, c.first_name ASC, c.id ASC
     ";
 
-    $result = export_report_query($conn, $sql);
+    $result = export_report_query($conn, $sql, $where_types, $where_params);
     export_report_send_csv(
         $filename,
         ['Customer ID', 'Full Name', 'Contact Number', 'Email', 'Address', 'Date Registered', 'Total Work Orders', 'Outstanding Balance'],
@@ -414,7 +448,9 @@ if ($type === 'customers') {
 
 if ($type === 'financial') {
     $where = ["pt.transaction_type IN ('payment', 'refund')"];
-    export_report_apply_payment_filters($conn, $where, $scope, $dateFrom, $dateTo, $paymentStatusSql, true);
+    $where_types = "";
+    $where_params = [];
+    export_report_apply_payment_filters($where, $where_types, $where_params, $scope, $dateFrom, $dateTo, $paymentStatusSql, true);
 
     $sql = "
         SELECT
@@ -433,7 +469,7 @@ if ($type === 'financial') {
         ORDER BY report_date DESC, wo.code ASC
     ";
 
-    $result = export_report_query($conn, $sql);
+    $result = export_report_query($conn, $sql, $where_types, $where_params);
     export_report_send_csv(
         $filename,
         ['Date', 'Work Order Number', 'Customer', 'Revenue', 'Refunds', 'Net Revenue'],
@@ -451,7 +487,9 @@ if ($type === 'financial') {
 
 if ($type === 'inventory') {
     $where = ['1'];
-    export_report_apply_inventory_filters($conn, $where, $scope, $dateFrom, $dateTo);
+    $where_types = "";
+    $where_params = [];
+    export_report_apply_inventory_filters($where, $where_types, $where_params, $scope, $dateFrom, $dateTo);
 
     $stockStatusSql = "
         CASE
@@ -478,7 +516,7 @@ if ($type === 'inventory') {
         ORDER BY i.brand_name ASC, i.model ASC, i.product_code ASC
     ";
 
-    $result = export_report_query($conn, $sql);
+    $result = export_report_query($conn, $sql, $where_types, $where_params);
     export_report_send_csv(
         $filename,
         ['Item Code', 'Item Name', 'Category', 'Quantity', 'Capital Cost', 'Markup Percentage', 'Selling Price', 'Stock Status', 'Date Added'],

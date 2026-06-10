@@ -118,7 +118,7 @@
 
 	if (!empty($_GET['transaction_limit'])) {
 		$transaction_limit_input = (int) $_GET['transaction_limit'];
-		$transaction_limit = ($transaction_limit_input === -1) ? 999999 : max(1, $transaction_limit_input);
+		$transaction_limit = ($transaction_limit_input === -1) ? 999999 : (in_array($transaction_limit_input, [10, 25, 50], true) ? $transaction_limit_input : 10);
 	}
 
 	if (!empty($_GET['transaction_page'])) {

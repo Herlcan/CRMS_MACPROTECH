@@ -12,23 +12,50 @@
 
 	function dashboard_scalar(mysqli $conn, string $sql, string $field = 'total', $fallback = 0)
 	{
-		$result = mysqli_query($conn, $sql);
+		$statement = mysqli_prepare($conn, $sql);
+		if (!$statement) {
+			return $fallback;
+		}
+
+		if (!mysqli_stmt_execute($statement)) {
+			mysqli_stmt_close($statement);
+			return $fallback;
+		}
+
+		$result = mysqli_stmt_get_result($statement);
 		if (!$result) {
+			mysqli_stmt_close($statement);
 			return $fallback;
 		}
 
 		$row = mysqli_fetch_assoc($result);
+		mysqli_stmt_close($statement);
+
 		return $row[$field] ?? $fallback;
 	}
 
 	function dashboard_row(mysqli $conn, string $sql, array $fallback = []): array
 	{
-		$result = mysqli_query($conn, $sql);
-		if (!$result) {
+		$statement = mysqli_prepare($conn, $sql);
+		if (!$statement) {
 			return $fallback;
 		}
 
-		return mysqli_fetch_assoc($result) ?: $fallback;
+		if (!mysqli_stmt_execute($statement)) {
+			mysqli_stmt_close($statement);
+			return $fallback;
+		}
+
+		$result = mysqli_stmt_get_result($statement);
+		if (!$result) {
+			mysqli_stmt_close($statement);
+			return $fallback;
+		}
+
+		$row = mysqli_fetch_assoc($result) ?: $fallback;
+		mysqli_stmt_close($statement);
+
+		return $row;
 	}
 
 	function dashboard_monthly_series(mysqli $conn, string $sql): array
@@ -45,14 +72,20 @@
 			$values[$key] = 0;
 		}
 
-		$result = mysqli_query($conn, $sql);
-		if ($result) {
-			while ($row = mysqli_fetch_assoc($result)) {
-				$key = $row['month_key'] ?? '';
-				if (array_key_exists($key, $values)) {
-					$values[$key] = (float) $row['total'];
+		$statement = mysqli_prepare($conn, $sql);
+		if ($statement && mysqli_stmt_execute($statement)) {
+			$result = mysqli_stmt_get_result($statement);
+			if ($result) {
+				while ($row = mysqli_fetch_assoc($result)) {
+					$key = $row['month_key'] ?? '';
+					if (array_key_exists($key, $values)) {
+						$values[$key] = (float) $row['total'];
+					}
 				}
 			}
+		}
+		if ($statement) {
+			mysqli_stmt_close($statement);
 		}
 
 		return [

@@ -1,14 +1,9 @@
 <?php
 
+require_once __DIR__ . '/db_helpers.php';
+
 function items_table_has_column($conn, $column) {
-    $column = mysqli_real_escape_string($conn, $column);
-    $check = mysqli_query($conn, "SHOW COLUMNS FROM items LIKE '$column'");
-
-    if (!$check) {
-        throw new Exception('Failed to inspect items table: ' . mysqli_error($conn));
-    }
-
-    return mysqli_num_rows($check) > 0;
+    return db_table_column_exists($conn, 'items', $column);
 }
 
 function ensure_items_markup_percentage_column($conn) {
@@ -44,8 +39,7 @@ function ensure_items_average_price_column($conn) {
         return;
     }
 
-    $check = mysqli_query($conn, "SHOW COLUMNS FROM items LIKE 'average_price'");
-    $column_info = mysqli_fetch_assoc($check);
+    $column_info = db_table_column_info($conn, 'items', 'average_price');
 
     if ($column_info && stripos($column_info['Type'], 'decimal') === false) {
         $sql = "ALTER TABLE items MODIFY average_price decimal(10,2) NOT NULL DEFAULT 0.00";

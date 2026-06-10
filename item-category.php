@@ -125,7 +125,7 @@
 								// Get limit from query string
 								if (!empty($_GET['limit'])) {
 									$limit_input = intval($_GET['limit']);
-									$limit = ($limit_input == -1) ? 999999 : $limit_input; // -1 means show all
+									$limit = ($limit_input == -1) ? 999999 : (in_array($limit_input, [10, 25, 50], true) ? $limit_input : 10); // -1 means show all
 								}
 
 								// Get current page from query string

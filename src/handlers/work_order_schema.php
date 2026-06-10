@@ -1,11 +1,10 @@
 <?php
 
+require_once __DIR__ . '/db_helpers.php';
+
 function work_order_column_exists(mysqli $conn, string $column): bool
 {
-    $column = mysqli_real_escape_string($conn, $column);
-    $result = mysqli_query($conn, "SHOW COLUMNS FROM work_order LIKE '$column'");
-
-    return $result && mysqli_num_rows($result) > 0;
+    return db_table_column_exists($conn, 'work_order', $column);
 }
 
 function ensure_work_order_priority_column(mysqli $conn): void

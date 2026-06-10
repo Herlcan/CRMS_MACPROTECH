@@ -4,11 +4,10 @@
     include '../../auth_check.php';
     require_once __DIR__ . '/activity_log_helper.php';
     require_once __DIR__ . '/security_helpers.php';
+    require_once __DIR__ . '/db_helpers.php';
 
     function clientDeleteTableExists(mysqli $conn, string $table): bool {
-        $table = mysqli_real_escape_string($conn, $table);
-        $result = mysqli_query($conn, "SHOW TABLES LIKE '$table'");
-        return $result && mysqli_num_rows($result) > 0;
+        return db_table_exists($conn, $table);
     }
 
     function executeClientDeleteStatement(mysqli $conn, string $sql, int $client_id, string $error_message): void {

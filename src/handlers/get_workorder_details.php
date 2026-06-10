@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../db/connection.php';
+require_once __DIR__ . '/db_helpers.php';
 
 header('Content-Type: application/json');
 
@@ -50,8 +51,7 @@ $clientParts = [];
 $payments = [];
 
 // Try to fetch purchased parts if table exists
-$check = $conn->query("SHOW TABLES LIKE 'purchased_parts'");
-if ($check && $check->num_rows > 0) {
+if (db_table_exists($conn, 'purchased_parts')) {
     $stmt = $conn->prepare("
         SELECT p.*, i.product_name, i.selling_price as product_price
         FROM purchased_parts p
@@ -68,8 +68,7 @@ if ($check && $check->num_rows > 0) {
 }
 
 // Try to fetch client provided parts if table exists
-$check = $conn->query("SHOW TABLES LIKE 'client_provided_parts'");
-if ($check && $check->num_rows > 0) {
+if (db_table_exists($conn, 'client_provided_parts')) {
     $stmt = $conn->prepare("SELECT * FROM client_provided_parts WHERE work_order_id = ?");
     if ($stmt) {
         $stmt->bind_param("i", $id);
@@ -81,8 +80,7 @@ if ($check && $check->num_rows > 0) {
 }
 
 // Try to fetch payments if table exists
-$check = $conn->query("SHOW TABLES LIKE 'payments'");
-if ($check && $check->num_rows > 0) {
+if (db_table_exists($conn, 'payments')) {
     $stmt = $conn->prepare("SELECT * FROM payments WHERE work_order_id = ?");
     if ($stmt) {
         $stmt->bind_param("i", $id);
