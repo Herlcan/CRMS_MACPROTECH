@@ -67,6 +67,7 @@ try {
 
     ensure_work_order_assignments_table($conn);
     ensure_work_order_priority_column($conn);
+    ensure_work_order_warranty_columns($conn);
     ensure_ordered_parts_table($conn);
     ensure_payment_detail_columns($conn);
 

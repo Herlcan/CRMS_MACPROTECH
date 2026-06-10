@@ -321,6 +321,10 @@ CREATE TABLE `work_order` (
   `work_order_cost` int(11) NOT NULL,
   `priority` varchar(20) NOT NULL DEFAULT 'In Que',
   `completion_date` date DEFAULT NULL,
+  `warranty_days` smallint(5) UNSIGNED NOT NULL DEFAULT 0,
+  `warranty_start_date` date DEFAULT NULL,
+  `warranty_expiration_date` date DEFAULT NULL,
+  `warranty_expiration_notified_at` datetime DEFAULT NULL,
   `status` varchar(50) NOT NULL,
   `technician_id` int(11) DEFAULT NULL,
   `notes` longtext DEFAULT NULL

@@ -87,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
     $diagnostic_fee = trim($_POST['diagnostic_fee']);
     $work_order_cost = trim($_POST['work_order_cost']);
     $priority = normalize_work_order_priority($_POST['priority'] ?? 'In Que');
+    $warranty_days = normalize_work_order_warranty_days($_POST['warranty_days'] ?? 0);
     $status = trim($_POST['status']);
     $technician_id = !empty($_POST['technician_id']) ? intval($_POST['technician_id']) : null;
     $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
@@ -95,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
     ensure_notifications_table($conn);
     ensure_work_order_assignments_table($conn);
     ensure_work_order_priority_column($conn);
+    ensure_work_order_warranty_columns($conn);
     ensure_ordered_parts_table($conn);
     ensure_items_inventory_columns($conn);
     ensure_inventory_transaction_table($conn);
@@ -108,8 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
         $add_query = mysqli_prepare($conn,
             "INSERT INTO work_order
-            (client_id, request_date, unit_type, brand, model, specs_acce, prob_find, diagnostic_fee, work_order_cost, priority, status, technician_id, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            (client_id, request_date, unit_type, brand, model, specs_acce, prob_find, diagnostic_fee, work_order_cost, priority, warranty_days, status, technician_id, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
 
         if (!$add_query) {
@@ -118,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
         mysqli_stmt_bind_param(
             $add_query,
-            "issssssssssis",
+            "isssssssssisis",
             $client_id,
             $request_date,
             $unit_type,
@@ -129,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
             $diagnostic_fee,
             $work_order_cost,
             $priority,
+            $warranty_days,
             $status,
             $technician_id,
             $notes
@@ -157,6 +160,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         
         mysqli_stmt_close($add_query);
         mysqli_stmt_close($update_query);
+
+        if ($status === 'Released') {
+            activate_work_order_warranty($conn, (int) $id);
+        }
 
         // Calculate total payment amount (diagnostic fee + work order cost + purchased parts cost)
         $purchased_parts_total = 0;

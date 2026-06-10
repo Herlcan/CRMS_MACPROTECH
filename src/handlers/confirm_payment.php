@@ -10,6 +10,7 @@ include 'payment_schema.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/settings_helpers.php';
+require_once __DIR__ . '/work_order_schema.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 $transactionStarted = false;
@@ -22,6 +23,7 @@ try {
 
     ensure_payment_detail_columns($conn);
     ensure_notifications_table($conn);
+    ensure_work_order_warranty_columns($conn);
     $appSettings = get_app_settings($conn);
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -140,6 +142,7 @@ try {
 
         if ($releasedRows > 0) {
             $repairStatus = 'Released';
+            activate_work_order_warranty($conn, $workOrderId);
             log_activity($conn, 'Released work order after full payment', $workOrderId);
         }
     }

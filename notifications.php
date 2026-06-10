@@ -5,6 +5,10 @@
 	require_once 'src/handlers/notification_helpers.php';
 
 	ensure_notifications_table($conn);
+	$warrantyNotificationRoles = ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'];
+	if (in_array((string) ($_SESSION['role'] ?? ''), $warrantyNotificationRoles, true)) {
+		notify_expired_work_order_warranties($conn);
+	}
 
 	$userId = (int) $_SESSION['user_id'];
 	$filter = $_GET['filter'] ?? 'all';

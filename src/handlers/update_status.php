@@ -11,6 +11,7 @@ require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/settings_helpers.php';
 require_once __DIR__ . '/communication_helpers.php';
+require_once __DIR__ . '/work_order_schema.php';
 
 /**
  * Check if logged-in user can edit work order status
@@ -91,6 +92,7 @@ if (!in_array($status, $allowedStatuses, true)) {
 }
 
 ensure_notifications_table($conn);
+ensure_work_order_warranty_columns($conn);
 
 $conn->begin_transaction();
 
@@ -187,6 +189,14 @@ try {
     $userId = $_SESSION['user_id'];
     $previousDisplayStatus = communication_display_status((string) $previousStatus);
     $statusChanged = $affectedRows > 0;
+
+    if ($statusChanged) {
+        if ($status === 'Released') {
+            activate_work_order_warranty($conn, $id);
+        } else {
+            clear_work_order_warranty_dates($conn, $id);
+        }
+    }
 
     if ($statusChanged) {
         $action = "Changed status from {$previousDisplayStatus} to {$status}";

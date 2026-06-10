@@ -3939,6 +3939,41 @@ table tbody tr:hover {
     margin-bottom: 0;
 }
 
+.work-order-device-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+}
+
+.work-order-device-field {
+    min-width: 0;
+}
+
+.work-order-device-field small {
+    display: block;
+    color: #6c757d;
+    font-weight: 600;
+    line-height: 1.25;
+    margin-bottom: 8px;
+    overflow-wrap: anywhere;
+}
+
+.work-order-device-field p {
+    color: #555;
+    line-height: 1.5;
+    margin: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+@media (max-width: 767px) {
+    .work-order-device-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
 /* Modal with custom scrollbar */
 .modal-body::-webkit-scrollbar {
     width: 6px;

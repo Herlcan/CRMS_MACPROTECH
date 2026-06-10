@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/notification_schema.php';
+require_once __DIR__ . '/work_order_schema.php';
 
 function notification_valid_type(string $type): string
 {
@@ -176,6 +177,88 @@ function notify_low_stock_for_item(mysqli $conn, int $itemId, int $threshold = 1
         $type,
         'items.php?search=' . urlencode((string) ($item['product_code'] ?? $name))
     );
+}
+
+function notify_expired_work_order_warranties(mysqli $conn, int $limit = 25): int
+{
+    ensure_notifications_table($conn);
+    ensure_work_order_warranty_columns($conn);
+
+    $limit = max(1, min(100, $limit));
+    $query = mysqli_prepare($conn, "
+        SELECT
+            w.id,
+            w.code,
+            w.warranty_expiration_date,
+            CONCAT(c.first_name, ' ', c.last_name) AS customer_name
+        FROM work_order w
+        LEFT JOIN client c ON c.id = w.client_id
+        WHERE w.status = 'Released'
+        AND w.warranty_days > 0
+        AND w.warranty_expiration_date IS NOT NULL
+        AND w.warranty_expiration_date < CURDATE()
+        AND w.warranty_expiration_notified_at IS NULL
+        ORDER BY w.warranty_expiration_date ASC, w.id ASC
+        LIMIT ?
+    ");
+
+    if (!$query) {
+        error_log('Expired warranty lookup failed: ' . mysqli_error($conn));
+        return 0;
+    }
+
+    mysqli_stmt_bind_param($query, "i", $limit);
+    mysqli_stmt_execute($query);
+    $result = mysqli_stmt_get_result($query);
+    $expired = mysqli_fetch_all($result, MYSQLI_ASSOC);
+    mysqli_stmt_close($query);
+
+    $notified = 0;
+    foreach ($expired as $workOrder) {
+        $workOrderId = (int) ($workOrder['id'] ?? 0);
+        if ($workOrderId <= 0) {
+            continue;
+        }
+
+        $claimQuery = mysqli_prepare($conn, "
+            UPDATE work_order
+            SET warranty_expiration_notified_at = NOW()
+            WHERE id = ?
+            AND warranty_expiration_notified_at IS NULL
+        ");
+
+        if (!$claimQuery) {
+            error_log('Expired warranty claim prepare failed: ' . mysqli_error($conn));
+            continue;
+        }
+
+        mysqli_stmt_bind_param($claimQuery, "i", $workOrderId);
+        mysqli_stmt_execute($claimQuery);
+        $claimed = mysqli_stmt_affected_rows($claimQuery) > 0;
+        mysqli_stmt_close($claimQuery);
+
+        if (!$claimed) {
+            continue;
+        }
+
+        $workCode = (string) ($workOrder['code'] ?? ('WO-' . sprintf('%04d', $workOrderId)));
+        $customerName = trim((string) ($workOrder['customer_name'] ?? ''));
+        $customerLabel = $customerName !== '' ? " for {$customerName}" : '';
+        $expirationDate = (string) ($workOrder['warranty_expiration_date'] ?? '');
+
+        notify_users_by_roles(
+            $conn,
+            ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
+            'Repair Warranty Expired',
+            "{$workCode}{$customerLabel} warranty expired on {$expirationDate}.",
+            'warning',
+            'work-order.php?search=' . urlencode($workCode)
+        );
+
+        $notified++;
+    }
+
+    return $notified;
 }
 
 function notification_time_ago(string $datetime): string

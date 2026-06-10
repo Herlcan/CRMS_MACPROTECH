@@ -320,9 +320,9 @@
 									<small style="color: #6c757d; font-weight: 600; text-transform: uppercase;">Completion Date</small>
 									<p id="vw_completion_date" style="color: #555; margin: 5px 0 0 0;">—</p>
 								</div>
-								<div>
-									<small style="color: #6c757d; font-weight: 600; text-transform: uppercase;">Unit Type</small>
-									<p id="vw_unit_type" style="color: #555; margin: 5px 0 0 0;">—</p>
+								<div style="margin-bottom: 15px;">
+									<small style="color: #6c757d; font-weight: 600; text-transform: uppercase;">Warranty Expiration</small>
+									<p id="vw_warranty_expiration" style="color: #555; margin: 5px 0 0 0;">—</p>
 								</div>
 							</div>
 						</div>
@@ -331,18 +331,18 @@
 					<!-- Device Details -->
 					<div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
 						<h6 style="font-weight: 700; margin-top: 0; margin-bottom: 15px; color: #333;">Device Information</h6>
-						<div class="row">
-							<div class="col-md-6">
-								<div style="margin-bottom: 12px;">
-									<small style="color: #6c757d; font-weight: 600;">Brand & Model</small>
-									<p id="vw_brand_model" style="color: #555; margin: 5px 0 0 0;">—</p>
-								</div>
+						<div class="work-order-device-grid">
+							<div class="work-order-device-field">
+								<small>Unit Type</small>
+								<p id="vw_unit_type">—</p>
 							</div>
-							<div class="col-md-6" style="padding-left: 17%;">
-								<div style="margin-bottom: 12px;">
-									<small style="color: #6c757d; font-weight: 600;">Specs/Accessories</small>
-									<p id="vw_specs" style="color: #555; margin: 5px 0 0 0;">—</p>
-								</div>
+							<div class="work-order-device-field">
+								<small>Brand &amp; Model</small>
+								<p id="vw_brand_model">—</p>
+							</div>
+							<div class="work-order-device-field">
+								<small>Specs/Accessories</small>
+								<p id="vw_specs">—</p>
 							</div>
 						</div>
 					</div>
@@ -467,6 +467,49 @@
 
 		function getDisplayStatus(status) {
 			return status === 'Ready for Release' ? 'Repaired' : (status || 'Pending');
+		}
+
+		function formatWorkOrderDate(value) {
+			if (!value || value === '0000-00-00' || value === '0000-00-00 00:00:00') {
+				return '';
+			}
+
+			const date = new Date(String(value).slice(0, 10) + 'T00:00:00');
+			if (Number.isNaN(date.getTime())) {
+				return value;
+			}
+
+			return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+		}
+
+		function getWarrantyExpirationText(wo) {
+			const warrantyDays = Number(wo.warranty_days) || 0;
+			if (warrantyDays <= 0) {
+				return 'No warranty';
+			}
+
+			const expirationDate = wo.warranty_expiration_date || '';
+			if (!expirationDate || expirationDate === '0000-00-00') {
+				return warrantyDays + ' day' + (warrantyDays === 1 ? '' : 's') + ' - starts when released';
+			}
+
+			const expiration = new Date(String(expirationDate).slice(0, 10) + 'T00:00:00');
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			const isExpired = !Number.isNaN(expiration.getTime()) && expiration < today;
+
+			return (formatWorkOrderDate(expirationDate) || expirationDate) + (isExpired ? ' (Expired)' : '');
+		}
+
+		function renderWarrantyExpiration(wo) {
+			const warrantyEl = document.getElementById('vw_warranty_expiration');
+			if (!warrantyEl) return;
+
+			const text = getWarrantyExpirationText(wo);
+			const isExpired = text.includes('(Expired)');
+			warrantyEl.textContent = text;
+			warrantyEl.style.color = isExpired ? '#dc3545' : '#555';
+			warrantyEl.style.fontWeight = isExpired ? '700' : '400';
 		}
 
 		function getStatusBadgeClass(status) {
@@ -768,6 +811,7 @@ function viewWorkOrder(id) {
 				document.getElementById('vw_request_date').textContent = wo.request_date || '—';
 				document.getElementById('vw_technician').textContent = wo.technician_name || '—';
 				document.getElementById('vw_completion_date').textContent = wo.completion_date || '—';
+				renderWarrantyExpiration(wo);
 				document.getElementById('vw_unit_type').textContent = wo.unit_type || '—';
 
 				// Update status badge

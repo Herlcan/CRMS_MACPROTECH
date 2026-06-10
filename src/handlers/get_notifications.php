@@ -16,6 +16,11 @@ if (empty($_SESSION['user_id'])) {
 ensure_notifications_table($conn);
 
 $userId = (int) $_SESSION['user_id'];
+$warrantyNotificationRoles = ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'];
+if (in_array((string) ($_SESSION['role'] ?? ''), $warrantyNotificationRoles, true)) {
+    notify_expired_work_order_warranties($conn);
+}
+
 $limit = isset($_GET['limit']) ? max(1, min(50, (int) $_GET['limit'])) : 5;
 $includeArchived = isset($_GET['archived']) && $_GET['archived'] === '1';
 $filter = $_GET['filter'] ?? 'active';
