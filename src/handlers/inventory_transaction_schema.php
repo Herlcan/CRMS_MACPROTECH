@@ -21,7 +21,7 @@ function ensure_stock_in_transaction_table($conn) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ";
 
-    if (!mysqli_query($conn, $sql)) {
+    if (!db_execute_statement($conn, $sql)) {
         throw new Exception('Failed to prepare stock-in transaction table: ' . mysqli_error($conn));
     }
 }
@@ -42,12 +42,12 @@ function ensure_stock_out_transaction_table($conn) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ";
 
-    if (!mysqli_query($conn, $sql)) {
+    if (!db_execute_statement($conn, $sql)) {
         throw new Exception('Failed to prepare stock-out transaction table: ' . mysqli_error($conn));
     }
 
     if (!inventory_table_has_column($conn, 'stock_out_transaction', 'average_cost_snapshot')) {
-        if (!mysqli_query($conn, "ALTER TABLE stock_out_transaction ADD COLUMN average_cost_snapshot decimal(10,2) DEFAULT NULL AFTER quantity")) {
+        if (!db_execute_statement($conn, "ALTER TABLE stock_out_transaction ADD COLUMN average_cost_snapshot decimal(10,2) DEFAULT NULL AFTER quantity")) {
             throw new Exception('Failed to prepare stock-out average cost snapshot column: ' . mysqli_error($conn));
         }
     }
@@ -70,7 +70,7 @@ function ensure_inventory_transaction_table($conn) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     ";
 
-    if (!mysqli_query($conn, $sql)) {
+    if (!db_execute_statement($conn, $sql)) {
         throw new Exception('Failed to prepare inventory transaction table: ' . mysqli_error($conn));
     }
 
@@ -81,40 +81,40 @@ function ensure_inventory_transaction_table($conn) {
 function ensure_inventory_aggregate_columns($conn) {
     if (!inventory_table_has_column($conn, 'inventory_transaction', 'total_stock_in')) {
         if (inventory_table_has_column($conn, 'inventory_transaction', 'stock_in')) {
-            mysqli_query($conn, "ALTER TABLE inventory_transaction CHANGE stock_in total_stock_in int(11) NOT NULL DEFAULT 0");
+            db_execute_statement($conn, "ALTER TABLE inventory_transaction CHANGE stock_in total_stock_in int(11) NOT NULL DEFAULT 0");
         } else {
-            mysqli_query($conn, "ALTER TABLE inventory_transaction ADD COLUMN total_stock_in int(11) NOT NULL DEFAULT 0 AFTER item_id");
+            db_execute_statement($conn, "ALTER TABLE inventory_transaction ADD COLUMN total_stock_in int(11) NOT NULL DEFAULT 0 AFTER item_id");
         }
     }
 
     if (!inventory_table_has_column($conn, 'inventory_transaction', 'total_stock_out')) {
         if (inventory_table_has_column($conn, 'inventory_transaction', 'stock_out')) {
-            mysqli_query($conn, "ALTER TABLE inventory_transaction CHANGE stock_out total_stock_out int(11) NOT NULL DEFAULT 0");
+            db_execute_statement($conn, "ALTER TABLE inventory_transaction CHANGE stock_out total_stock_out int(11) NOT NULL DEFAULT 0");
         } else {
-            mysqli_query($conn, "ALTER TABLE inventory_transaction ADD COLUMN total_stock_out int(11) NOT NULL DEFAULT 0 AFTER total_stock_in");
+            db_execute_statement($conn, "ALTER TABLE inventory_transaction ADD COLUMN total_stock_out int(11) NOT NULL DEFAULT 0 AFTER total_stock_in");
         }
     }
 
     if (!inventory_table_has_column($conn, 'inventory_transaction', 'status')) {
-        mysqli_query($conn, "ALTER TABLE inventory_transaction ADD COLUMN status varchar(50) NOT NULL DEFAULT '' AFTER total_stock_out");
-    } else if (!mysqli_query($conn, "ALTER TABLE inventory_transaction MODIFY status varchar(50) NOT NULL DEFAULT ''")) {
+        db_execute_statement($conn, "ALTER TABLE inventory_transaction ADD COLUMN status varchar(50) NOT NULL DEFAULT '' AFTER total_stock_out");
+    } else if (!db_execute_statement($conn, "ALTER TABLE inventory_transaction MODIFY status varchar(50) NOT NULL DEFAULT ''")) {
         throw new Exception('Failed to prepare inventory transaction status column: ' . mysqli_error($conn));
     }
 
     foreach (['capital', 'stock_in_date'] as $legacy_column) {
         if (inventory_table_has_column($conn, 'inventory_transaction', $legacy_column)) {
-            if (!mysqli_query($conn, "ALTER TABLE inventory_transaction DROP COLUMN $legacy_column")) {
+            if (!db_execute_statement($conn, "ALTER TABLE inventory_transaction DROP COLUMN $legacy_column")) {
                 throw new Exception("Failed to remove inventory transaction $legacy_column column: " . mysqli_error($conn));
             }
         }
     }
 
     if (!db_table_index_exists($conn, 'inventory_transaction', 'uq_inventory_transaction_item')) {
-        if (!mysqli_query($conn, "DELETE FROM inventory_transaction")) {
+        if (!db_execute_statement($conn, "DELETE FROM inventory_transaction")) {
             throw new Exception('Failed to reset inventory aggregate rows: ' . mysqli_error($conn));
         }
 
-        if (!mysqli_query($conn, "ALTER TABLE inventory_transaction ADD UNIQUE KEY uq_inventory_transaction_item (item_id)")) {
+        if (!db_execute_statement($conn, "ALTER TABLE inventory_transaction ADD UNIQUE KEY uq_inventory_transaction_item (item_id)")) {
             throw new Exception('Failed to prepare inventory item aggregate index: ' . mysqli_error($conn));
         }
     }
@@ -141,7 +141,7 @@ function migrate_legacy_inventory_transactions($conn) {
             )
         ";
 
-        if (!mysqli_query($conn, $sql)) {
+        if (!db_execute_statement($conn, $sql)) {
             throw new Exception('Failed to migrate stock-in transactions: ' . mysqli_error($conn));
         }
     }
@@ -312,7 +312,7 @@ function backfill_stock_out_transactions_from_purchased_items($conn) {
         )
     ";
 
-    if (!mysqli_query($conn, $sql)) {
+    if (!db_execute_statement($conn, $sql)) {
         throw new Exception('Failed to backfill stock-out transactions: ' . mysqli_error($conn));
     }
 }
@@ -587,7 +587,7 @@ function sync_all_items_from_inventory_transactions($conn) {
     ensure_inventory_transaction_table($conn);
     ensure_items_inventory_columns($conn);
 
-    $result = mysqli_query($conn, "SELECT id FROM items");
+    $result = db_prepared_result($conn, "SELECT id FROM items");
 
     if (!$result) {
         throw new Exception('Failed to fetch items: ' . mysqli_error($conn));

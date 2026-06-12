@@ -27,7 +27,7 @@ function ordered_part_column_exists(mysqli $conn, string $table, string $column)
 
 function ensure_ordered_parts_table(mysqli $conn): void
 {
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         CREATE TABLE IF NOT EXISTS ordered_parts (
             id INT PRIMARY KEY AUTO_INCREMENT,
             work_order_id INT NOT NULL,
@@ -55,7 +55,7 @@ function ensure_ordered_parts_table(mysqli $conn): void
 
     foreach ($columns as $column => $sql) {
         if (!ordered_part_column_exists($conn, 'ordered_parts', $column)) {
-            mysqli_query($conn, $sql);
+            db_execute_statement($conn, $sql);
         }
     }
 }

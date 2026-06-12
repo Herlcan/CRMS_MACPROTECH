@@ -6,11 +6,12 @@ ini_set('display_startup_errors', '1');
 header('Content-Type: application/json');
 
 include '../db/connection.php';
-include '../../auth_check.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/inventory_transaction_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/security_helpers.php';
+
+require_authenticated_json($conn);
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 

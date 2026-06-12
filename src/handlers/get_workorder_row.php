@@ -1,7 +1,9 @@
 <?php
 session_start();
 require_once '../db/connection.php';
-require_once '../../auth_check.php';
+require_once __DIR__ . '/security_helpers.php';
+
+require_authenticated_fragment($conn);
 
 function canEditStatus(mysqli $conn): bool
 {
@@ -36,5 +38,15 @@ if (!$wo = $result->fetch_assoc()) {
 }
 
 $canEdit = canEditStatus($conn);
+if (
+    !$canEdit
+    || (
+        user_has_role('Technician')
+        && (int) ($wo['technician_id'] ?? 0) !== (int) ($_SESSION['user_id'] ?? 0)
+    )
+) {
+    http_response_code(403);
+    exit;
+}
 
 include '../partials/workorder_row_template.php';

@@ -96,7 +96,7 @@ if (!function_exists('httpsms_request_id')) {
 if (!function_exists('ensure_sms_delivery_log_table')) {
     function ensure_sms_delivery_log_table(mysqli $conn): void
     {
-        mysqli_query($conn, "
+        db_execute_statement($conn, "
             CREATE TABLE IF NOT EXISTS sms_delivery_log (
                 id INT PRIMARY KEY AUTO_INCREMENT,
                 dedupe_key CHAR(64) NOT NULL,

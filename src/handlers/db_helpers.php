@@ -15,6 +15,41 @@ if (!function_exists('db_bind_params')) {
     }
 }
 
+if (!function_exists('db_prepared_result')) {
+    function db_prepared_result(mysqli $conn, string $sql, string $types = '', array $params = []) {
+        $statement = mysqli_prepare($conn, $sql);
+        if (!$statement) {
+            return false;
+        }
+
+        if ($types !== '' && !db_bind_params($statement, $types, $params)) {
+            mysqli_stmt_close($statement);
+            return false;
+        }
+
+        if (!mysqli_stmt_execute($statement)) {
+            mysqli_stmt_close($statement);
+            return false;
+        }
+
+        return mysqli_stmt_get_result($statement);
+    }
+}
+
+if (!function_exists('db_execute_statement')) {
+    function db_execute_statement(mysqli $conn, string $sql): bool {
+        $statement = mysqli_prepare($conn, $sql);
+        if (!$statement) {
+            return false;
+        }
+
+        $success = mysqli_stmt_execute($statement);
+        mysqli_stmt_close($statement);
+
+        return $success;
+    }
+}
+
 if (!function_exists('db_table_exists')) {
     function db_table_exists(mysqli $conn, string $table): bool {
         $statement = mysqli_prepare(

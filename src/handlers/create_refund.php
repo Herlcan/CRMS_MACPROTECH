@@ -14,10 +14,7 @@ $response = ['success' => false, 'message' => 'Unknown error'];
 $transactionStarted = false;
 
 try {
-    if (!isset($_SESSION['user_id'])) {
-        http_response_code(401);
-        throw new Exception('Unauthorized');
-    }
+    require_authenticated_json($conn);
 
     ensure_payment_detail_columns($conn);
 

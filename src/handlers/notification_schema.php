@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/db_helpers.php';
+
 function notification_column_exists(mysqli $conn, string $table, string $column): bool
 {
     $query = mysqli_prepare($conn, "
@@ -25,7 +27,7 @@ function notification_column_exists(mysqli $conn, string $table, string $column)
 
 function ensure_notifications_table(mysqli $conn): void
 {
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         CREATE TABLE IF NOT EXISTS notifications (
             id INT PRIMARY KEY AUTO_INCREMENT,
             user_id INT NOT NULL,
@@ -52,7 +54,7 @@ function ensure_notifications_table(mysqli $conn): void
 
     foreach ($columns as $column => $sql) {
         if (!notification_column_exists($conn, 'notifications', $column)) {
-            mysqli_query($conn, $sql);
+            db_execute_statement($conn, $sql);
         }
     }
 }

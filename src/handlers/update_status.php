@@ -6,13 +6,14 @@ session_start();
 header('Content-Type: application/json');
 
 require_once '../db/connection.php';
-require_once '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/settings_helpers.php';
 require_once __DIR__ . '/communication_helpers.php';
 require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/security_helpers.php';
+
+require_authenticated_json($conn);
 
 /**
  * Check if logged-in user can edit work order status

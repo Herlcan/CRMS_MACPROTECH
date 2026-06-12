@@ -81,13 +81,13 @@
 								<input type="text" class="form-control" placeholder="Input Model" name="model" required autocomplete="off">
 							</div>
 
-							<?php $result = mysqli_query($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
+							<?php $result = db_prepared_result($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
 
 							<div class="form-group">
 								<label class="form-label">Category</label>
 								<select class="form-control" id="itemCategorySelect" name="category" required autocomplete="off" onchange="toggleOtherCategory('itemCategorySelect', 'otherCategoryInput')">
 									<option value="">Select Category</option>
-									<?php while ($row = mysqli_fetch_assoc($result)) { ?>
+									<?php while ($row = ($result ? mysqli_fetch_assoc($result) : null)) { ?>
 										<option value="<?= htmlspecialchars($row['id']) ?>">
 											<?= htmlspecialchars($row['category_name']) ?>
 										</option>
@@ -149,7 +149,7 @@
 					</div>
 					<div class="col-md-8 col-sm-12">
 						<h6 class="mb-20">Category List</h6>
-						<?php $category_result = mysqli_query($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
+						<?php $category_result = db_prepared_result($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
 						<table class="data-table table responsive">
 							<thead>
 								<tr>
@@ -158,7 +158,7 @@
 								</tr>
 							</thead>
 							<tbody>
-								<?php while ($category_row = mysqli_fetch_assoc($category_result)) : ?>
+								<?php while ($category_row = ($category_result ? mysqli_fetch_assoc($category_result) : null)) : ?>
 								<tr>
 									<td><?= htmlspecialchars($category_row['category_name']) ?></td>
 									<td style="text-align: center;">
@@ -233,13 +233,13 @@
 								<input type="text" class="form-control" placeholder="Input Model" id="editItemModel" name="model" required autocomplete="off">
 							</div>
 
-							<?php $result_edit = mysqli_query($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
+							<?php $result_edit = db_prepared_result($conn, "SELECT * FROM item_category ORDER BY category_name ASC"); ?>
 
 							<div class="form-group">
 								<label class="form-label">Category</label>
 								<select class="form-control" id="editItemCategory" name="category" required autocomplete="off" onchange="toggleOtherCategory('editItemCategory', 'editOtherCategoryInput')">
 									<option value="">Select Category</option>
-									<?php while ($row_cat = mysqli_fetch_assoc($result_edit)) { ?>
+									<?php while ($row_cat = ($result_edit ? mysqli_fetch_assoc($result_edit) : null)) { ?>
 										<option value="<?= htmlspecialchars($row_cat['id']) ?>">
 											<?= htmlspecialchars($row_cat['category_name']) ?>
 										</option>
@@ -326,13 +326,15 @@
 
 									<?php
 									// Load categories dynamically (BEST PRACTICE ⭐)
-									$cat_result = mysqli_query($conn, "SELECT * FROM item_category ORDER BY category_name ASC");
+									$cat_result = db_prepared_result($conn, "SELECT * FROM item_category ORDER BY category_name ASC");
 
-									while($cat = mysqli_fetch_assoc($cat_result)){
-										$selected = (isset($_GET['category']) && $_GET['category']==$cat['id']) ? 'selected' : '';
-										echo "<option value='".htmlspecialchars($cat['id'])."' $selected>
-												".htmlspecialchars($cat['category_name'])."
-											  </option>";
+									if ($cat_result) {
+										while($cat = mysqli_fetch_assoc($cat_result)){
+											$selected = (isset($_GET['category']) && $_GET['category']==$cat['id']) ? 'selected' : '';
+											echo "<option value='".htmlspecialchars($cat['id'])."' $selected>
+													".htmlspecialchars($cat['category_name'])."
+												  </option>";
+										}
 									}
 									?>
 

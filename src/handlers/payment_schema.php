@@ -55,26 +55,26 @@ function ensure_payment_detail_columns(mysqli $conn): void
     ];
 
     foreach ($columns as $column => $alterSql) {
-        if (!payment_column_exists($conn, $column) && !mysqli_query($conn, $alterSql)) {
+        if (!payment_column_exists($conn, $column) && !db_execute_statement($conn, $alterSql)) {
             throw new Exception('Failed to prepare payment details: ' . mysqli_error($conn));
         }
     }
 
     if (payment_column_exists($conn, 'total_amount') && !str_contains(payment_column_type($conn, 'total_amount'), 'decimal')) {
-        if (!mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00")) {
+        if (!db_execute_statement($conn, "ALTER TABLE payments MODIFY COLUMN total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00")) {
             throw new Exception('Failed to prepare payment total amount precision: ' . mysqli_error($conn));
         }
     }
 
-    if (!payment_column_allows_null($conn, 'date') && !mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN date DATE NULL DEFAULT NULL")) {
+    if (!payment_column_allows_null($conn, 'date') && !db_execute_statement($conn, "ALTER TABLE payments MODIFY COLUMN date DATE NULL DEFAULT NULL")) {
         throw new Exception('Failed to prepare paid date column: ' . mysqli_error($conn));
     }
 
     if (payment_column_exists($conn, 'payment_status')) {
-        mysqli_query($conn, "ALTER TABLE payments MODIFY COLUMN payment_status VARCHAR(50) NULL");
+        db_execute_statement($conn, "ALTER TABLE payments MODIFY COLUMN payment_status VARCHAR(50) NULL");
     }
 
-    if (!mysqli_query($conn, "
+    if (!db_execute_statement($conn, "
         CREATE TABLE IF NOT EXISTS refunds (
             id INT PRIMARY KEY AUTO_INCREMENT,
             payment_id INT NOT NULL,
@@ -93,14 +93,14 @@ function ensure_payment_detail_columns(mysqli $conn): void
     ensure_payment_transaction_table($conn);
     migrate_legacy_payment_transactions($conn);
 
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         UPDATE payments
         SET status = 'Unpaid', payment_status = 'Unpaid'
         WHERE (status = 'Pending' OR status = '')
         AND (payment_status IS NULL OR payment_status = '')
     ");
 
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         UPDATE payments
         SET date = NULL
         WHERE COALESCE(amount_paid, 0) = 0
@@ -125,12 +125,12 @@ function ensure_purchased_item_unit_price_column(mysqli $conn): void
     ensure_items_inventory_columns($conn);
 
     if (!payment_table_column_exists($conn, 'purchased_item', 'unit_price')) {
-        if (!mysqli_query($conn, "ALTER TABLE purchased_item ADD COLUMN unit_price DECIMAL(10,2) NULL AFTER quantity")) {
+        if (!db_execute_statement($conn, "ALTER TABLE purchased_item ADD COLUMN unit_price DECIMAL(10,2) NULL AFTER quantity")) {
             throw new Exception('Failed to prepare purchased item unit price: ' . mysqli_error($conn));
         }
     }
 
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         UPDATE purchased_item pi
         LEFT JOIN items i ON (
             (pi.product_id REGEXP '^[0-9]+$' AND CAST(pi.product_id AS UNSIGNED) = i.id)
@@ -143,7 +143,7 @@ function ensure_purchased_item_unit_price_column(mysqli $conn): void
 
 function ensure_payment_transaction_table(mysqli $conn): void
 {
-    if (!mysqli_query($conn, "
+    if (!db_execute_statement($conn, "
         CREATE TABLE IF NOT EXISTS payment_transaction (
             id INT PRIMARY KEY AUTO_INCREMENT,
             payment_id INT NOT NULL,
@@ -187,7 +187,7 @@ function ensure_payment_transaction_table(mysqli $conn): void
     ];
 
     foreach ($columns as $column => $alterSql) {
-        if (!payment_table_column_exists($conn, 'payment_transaction', $column) && !mysqli_query($conn, $alterSql)) {
+        if (!payment_table_column_exists($conn, 'payment_transaction', $column) && !db_execute_statement($conn, $alterSql)) {
             throw new Exception('Failed to prepare payment transaction column: ' . mysqli_error($conn));
         }
     }
@@ -202,7 +202,7 @@ function ensure_payment_transaction_table(mysqli $conn): void
     ];
 
     foreach ($indexes as $index => $alterSql) {
-        if (!payment_table_index_exists($conn, 'payment_transaction', $index) && !mysqli_query($conn, $alterSql)) {
+        if (!payment_table_index_exists($conn, 'payment_transaction', $index) && !db_execute_statement($conn, $alterSql)) {
             throw new Exception('Failed to prepare payment transaction index: ' . mysqli_error($conn));
         }
     }
@@ -210,7 +210,7 @@ function ensure_payment_transaction_table(mysqli $conn): void
 
 function migrate_legacy_payment_transactions(mysqli $conn): void
 {
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         INSERT INTO payment_transaction
             (payment_id, work_order_id, transaction_type, amount, method, reference_number, notes, recorded_by, transaction_at, source_table, source_id)
         SELECT
@@ -240,7 +240,7 @@ function migrate_legacy_payment_transactions(mysqli $conn): void
     ");
 
     if (payment_table_exists($conn, 'refunds')) {
-        mysqli_query($conn, "
+        db_execute_statement($conn, "
             INSERT INTO payment_transaction
                 (payment_id, work_order_id, transaction_type, amount, method, reference_number, notes, reason, recorded_by, transaction_at, source_table, source_id)
             SELECT

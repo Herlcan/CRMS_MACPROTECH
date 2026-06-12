@@ -7,50 +7,68 @@
 		$conn,
 		"SELECT COUNT(*) AS total
 		 FROM work_order
-		 WHERE technician_id = $technician_id
-		 AND status IN ('In Progress', 'Diagnosing')"
+		 WHERE technician_id = ?
+		 AND status IN ('In Progress', 'Diagnosing')",
+		'total',
+		0,
+		'i',
+		[$technician_id]
 	);
 
 	$tech_waiting_parts = (int) dashboard_scalar(
 		$conn,
 		"SELECT COUNT(*) AS total
 		 FROM work_order
-		 WHERE technician_id = $technician_id
-		 AND status = 'Waiting for Parts'"
+		 WHERE technician_id = ?
+		 AND status = 'Waiting for Parts'",
+		'total',
+		0,
+		'i',
+		[$technician_id]
 	);
 
 	$tech_completed_today = (int) dashboard_scalar(
 		$conn,
 		"SELECT COUNT(*) AS total
 		 FROM work_order
-		 WHERE technician_id = $technician_id
+		 WHERE technician_id = ?
 		 AND status IN ('Repaired', 'Released')
-		 AND completion_date = CURDATE()"
+		 AND completion_date = CURDATE()",
+		'total',
+		0,
+		'i',
+		[$technician_id]
 	);
 
 	$tech_aged_handled = (int) dashboard_scalar(
 		$conn,
 		"SELECT COUNT(*) AS total
 		 FROM work_order
-		 WHERE technician_id = $technician_id
+		 WHERE technician_id = ?
 		 AND status NOT IN ('Repaired', 'Released', 'Cancelled')
-		 AND request_date <= DATE_SUB(CURDATE(), INTERVAL 5 DAY)"
+		 AND request_date <= DATE_SUB(CURDATE(), INTERVAL 5 DAY)",
+		'total',
+		0,
+		'i',
+		[$technician_id]
 	);
 
-	$tech_active_queue = mysqli_query(
+	$tech_active_queue = dashboard_result(
 		$conn,
 		"SELECT id, code, request_date, unit_type, brand, model, prob_find, status, priority
 		 FROM work_order
-		 WHERE technician_id = $technician_id
+		 WHERE technician_id = ?
 		 AND status NOT IN ('Repaired', 'Released', 'Cancelled')
 		 ORDER BY
 			CASE WHEN priority = 'Rush' THEN 0 ELSE 1 END,
 			request_date ASC,
 			id ASC
-		 LIMIT 8"
+		 LIMIT 8",
+		'i',
+		[$technician_id]
 	);
 
-	$tech_parts_tracker = mysqli_query(
+	$tech_parts_tracker = dashboard_result(
 		$conn,
 		"SELECT
 			op.id,
@@ -68,7 +86,7 @@
 			OR LOWER(i.model) = LOWER(op.part_name)
 			OR LOWER(CONCAT(i.brand_name, ' ', i.model)) = LOWER(TRIM(CONCAT(COALESCE(op.brand, ''), ' ', op.part_name)))
 		 )
-		 WHERE w.technician_id = $technician_id
+		 WHERE w.technician_id = ?
 		 AND w.status NOT IN ('Released', 'Cancelled')
 		 GROUP BY op.id, op.part_name, op.brand, op.quantity, op.created_at, w.code, w.status
 		 ORDER BY
@@ -78,7 +96,9 @@
 				ELSE 2
 			END,
 			op.created_at DESC
-		 LIMIT 8"
+		 LIMIT 8",
+		'i',
+		[$technician_id]
 	);
 ?>
 

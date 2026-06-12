@@ -50,12 +50,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
      */
     if ($user['role'] === 'Administrator') {
 
-        $count_query = mysqli_query(
+        $count_query = mysqli_prepare(
             $conn,
-            "SELECT COUNT(*) as total FROM users WHERE role='Administrator'"
+            "SELECT COUNT(*) as total FROM users WHERE role = ?"
         );
 
-        $admin_count = mysqli_fetch_assoc($count_query)['total'];
+        if (!$count_query) {
+            redirectUserWithDialog('error', 'User Not Deleted', 'Unable to verify administrator accounts.');
+        }
+
+        $administrator_role = 'Administrator';
+        mysqli_stmt_bind_param($count_query, "s", $administrator_role);
+        mysqli_stmt_execute($count_query);
+        $count_result = mysqli_stmt_get_result($count_query);
+        $admin_count = (int) (mysqli_fetch_assoc($count_result)['total'] ?? 0);
+        mysqli_stmt_close($count_query);
 
         if ($admin_count <= 1) {
             redirectUserWithDialog('error', 'User Not Deleted', 'Cannot delete the last administrator.');

@@ -55,8 +55,7 @@
 	}
 
 	$unitTypes = [];
-	$unitTypeQuery = "SELECT id, unit_type FROM unit_type ORDER BY unit_type";
-	$unitTypeResult = mysqli_query($conn, $unitTypeQuery);
+	$unitTypeResult = db_prepared_result($conn, "SELECT id, unit_type FROM unit_type ORDER BY unit_type");
 	if ($unitTypeResult) {
 		while ($unitTypeRow = mysqli_fetch_assoc($unitTypeResult)) {
 			$unitTypes[] = $unitTypeRow;
@@ -64,8 +63,7 @@
 	}
 
 	$itemCategories = [];
-	$itemCategoryQuery = "SELECT id, category_name FROM item_category ORDER BY category_name ASC";
-	$itemCategoryResult = mysqli_query($conn, $itemCategoryQuery);
+	$itemCategoryResult = db_prepared_result($conn, "SELECT id, category_name FROM item_category ORDER BY category_name ASC");
 	if ($itemCategoryResult) {
 		while ($itemCategoryRow = mysqli_fetch_assoc($itemCategoryResult)) {
 			$itemCategories[] = $itemCategoryRow;
@@ -297,10 +295,11 @@
 								<select class="form-control" name="technician_id" autocomplete="off">
 									<option value="">-- Select Technician --</option>
 									<?php
-										$tech_query = "SELECT id, first_name, last_name FROM users WHERE role IN ('Technician','Administrator') ORDER BY last_name, first_name";
-										$tech_result = mysqli_query($conn, $tech_query);
-										while ($tech = mysqli_fetch_assoc($tech_result)) {
-											echo '<option value="' . htmlspecialchars($tech['id']) . '">' . htmlspecialchars($tech['last_name'] . ', ' . $tech['first_name']) . '</option>';
+										$tech_result = db_prepared_result($conn, "SELECT id, first_name, last_name FROM users WHERE role IN ('Technician','Administrator') ORDER BY last_name, first_name");
+										if ($tech_result) {
+											while ($tech = mysqli_fetch_assoc($tech_result)) {
+												echo '<option value="' . htmlspecialchars($tech['id']) . '">' . htmlspecialchars($tech['last_name'] . ', ' . $tech['first_name']) . '</option>';
+											}
 										}
 									?>
 								</select>

@@ -8,11 +8,7 @@ require_once '../db/connection.php';
 require_once 'notification_helpers.php';
 require_once 'security_helpers.php';
 
-if (empty($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
-    exit;
-}
+require_authenticated_json($conn);
 
 ensure_notifications_table($conn);
 

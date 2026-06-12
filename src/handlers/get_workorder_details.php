@@ -2,15 +2,11 @@
 session_start();
 require_once '../db/connection.php';
 require_once __DIR__ . '/db_helpers.php';
+require_once __DIR__ . '/security_helpers.php';
 
 header('Content-Type: application/json');
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized', 'success' => false]);
-    exit;
-}
+require_authenticated_json($conn);
 
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
@@ -42,6 +38,18 @@ $stmt->close();
 if (!$wo) {
     http_response_code(404);
     echo json_encode(['error' => 'Work order not found', 'success' => false]);
+    exit;
+}
+
+$canView = user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])
+    || (
+        user_has_role('Technician')
+        && (int) ($wo['technician_id'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0)
+    );
+
+if (!$canView) {
+    http_response_code(403);
+    echo json_encode(['error' => 'You are not allowed to view this work order', 'success' => false]);
     exit;
 }
 

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/db_helpers.php';
+
 function work_order_assignment_column_exists(mysqli $conn, string $table, string $column): bool
 {
     $query = mysqli_prepare($conn, "
@@ -25,7 +27,7 @@ function work_order_assignment_column_exists(mysqli $conn, string $table, string
 
 function ensure_work_order_assignments_table(mysqli $conn): void
 {
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         CREATE TABLE IF NOT EXISTS work_order_assignments (
             id INT PRIMARY KEY AUTO_INCREMENT,
             work_order_id INT NOT NULL,
@@ -53,7 +55,7 @@ function ensure_work_order_assignments_table(mysqli $conn): void
 
     foreach ($columns as $column => $sql) {
         if (!work_order_assignment_column_exists($conn, 'work_order_assignments', $column)) {
-            mysqli_query($conn, $sql);
+            db_execute_statement($conn, $sql);
         }
     }
 }

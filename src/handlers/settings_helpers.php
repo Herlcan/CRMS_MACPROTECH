@@ -4,6 +4,8 @@ if (!defined('MACPROTECH_APP_KEY') && is_file(__DIR__ . '/config.php')) {
     require_once __DIR__ . '/config.php';
 }
 
+require_once __DIR__ . '/db_helpers.php';
+
 if (!function_exists('app_settings_config_value')) {
     function app_settings_config_value(string $constantName, string $default = ''): string
     {
@@ -223,7 +225,7 @@ if (!function_exists('ensure_app_settings_table')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
         ";
 
-        if (!mysqli_query($conn, $sql)) {
+        if (!db_execute_statement($conn, $sql)) {
             throw new Exception('Failed to prepare settings table: ' . mysqli_error($conn));
         }
     }
@@ -235,7 +237,17 @@ if (!function_exists('get_app_settings')) {
         ensure_app_settings_table($conn);
 
         $settings = app_settings_defaults();
-        $result = mysqli_query($conn, "SELECT setting_key, setting_value FROM app_settings");
+        $statement = mysqli_prepare($conn, "SELECT setting_key, setting_value FROM app_settings");
+        if (!$statement) {
+            return $settings;
+        }
+
+        if (!mysqli_stmt_execute($statement)) {
+            mysqli_stmt_close($statement);
+            return $settings;
+        }
+
+        $result = mysqli_stmt_get_result($statement);
 
         if ($result) {
             while ($row = mysqli_fetch_assoc($result)) {
@@ -248,6 +260,7 @@ if (!function_exists('get_app_settings')) {
                 }
             }
         }
+        mysqli_stmt_close($statement);
 
         return $settings;
     }

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/db_helpers.php';
+
 if (!function_exists('csrf_token')) {
     function csrf_token(): string {
         if (session_status() === PHP_SESSION_NONE) {
@@ -65,6 +67,124 @@ if (!function_exists('require_role')) {
     }
 }
 
+if (!function_exists('json_response')) {
+    function json_response(array $payload, int $statusCode = 200): void {
+        http_response_code($statusCode);
+        header('Content-Type: application/json');
+        echo json_encode($payload);
+        exit;
+    }
+}
+
+if (!function_exists('require_authenticated_json')) {
+    function require_authenticated_json(mysqli $conn): array {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            json_response(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $statement = mysqli_prepare(
+            $conn,
+            "SELECT id, username, role, first_name, last_name FROM users WHERE id = ? LIMIT 1"
+        );
+
+        if (!$statement) {
+            json_response(['success' => false, 'message' => 'Unable to verify your session.'], 500);
+        }
+
+        mysqli_stmt_bind_param($statement, "i", $userId);
+        mysqli_stmt_execute($statement);
+        $result = mysqli_stmt_get_result($statement);
+        $user = $result ? mysqli_fetch_assoc($result) : null;
+        mysqli_stmt_close($statement);
+
+        if (!$user) {
+            $_SESSION = [];
+            if (ini_get('session.use_cookies')) {
+                $params = session_get_cookie_params();
+                setcookie(
+                    session_name(),
+                    '',
+                    time() - 42000,
+                    $params['path'],
+                    $params['domain'],
+                    $params['secure'],
+                    $params['httponly']
+                );
+            }
+            session_destroy();
+            json_response(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['first_name'] = $user['first_name'] ?? '';
+        $_SESSION['last_name'] = $user['last_name'] ?? '';
+        csrf_token();
+
+        return $user;
+    }
+}
+
+if (!function_exists('require_json_role')) {
+    function require_json_role($roles, string $message = 'Forbidden'): void {
+        if (user_has_role($roles)) {
+            return;
+        }
+
+        json_response(['success' => false, 'message' => $message], 403);
+    }
+}
+
+if (!function_exists('require_authenticated_fragment')) {
+    function require_authenticated_fragment(mysqli $conn): array {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+        if ($userId <= 0) {
+            http_response_code(401);
+            exit('Unauthorized');
+        }
+
+        $statement = mysqli_prepare(
+            $conn,
+            "SELECT id, username, role, first_name, last_name FROM users WHERE id = ? LIMIT 1"
+        );
+
+        if (!$statement) {
+            http_response_code(500);
+            exit('Unable to verify session.');
+        }
+
+        mysqli_stmt_bind_param($statement, "i", $userId);
+        mysqli_stmt_execute($statement);
+        $result = mysqli_stmt_get_result($statement);
+        $user = $result ? mysqli_fetch_assoc($result) : null;
+        mysqli_stmt_close($statement);
+
+        if (!$user) {
+            http_response_code(401);
+            exit('Unauthorized');
+        }
+
+        $_SESSION['user_id'] = (int) $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['first_name'] = $user['first_name'] ?? '';
+        $_SESSION['last_name'] = $user['last_name'] ?? '';
+        csrf_token();
+
+        return $user;
+    }
+}
+
 if (!function_exists('password_policy_errors')) {
     function password_policy_errors(string $password): array {
         $errors = [];
@@ -123,7 +243,7 @@ if (!function_exists('ensure_login_attempts_table')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
         ";
 
-        mysqli_query($conn, $sql);
+        db_execute_statement($conn, $sql);
     }
 }
 

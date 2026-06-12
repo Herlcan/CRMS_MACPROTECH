@@ -5,19 +5,25 @@ ini_set('display_errors', 1);
 include '../db/connection.php';
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/db_helpers.php';
+require_once __DIR__ . '/security_helpers.php';
 
 header('Content-Type: application/json');
 
 try {
+    require_authenticated_json($conn);
+    require_json_role(
+        ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
+        'You are not allowed to search inventory items.'
+    );
     ensure_items_inventory_columns($conn);
 } catch (Exception $e) {
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     exit;
 }
 
 // Check if search term is provided
 if (!isset($_GET['q'])) {
-    echo json_encode(['error' => 'No search term provided']);
+    echo json_encode(['success' => false, 'error' => 'No search term provided']);
     exit;
 }
 

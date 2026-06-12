@@ -279,8 +279,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         $payment_status = 'Unpaid';
 
         // Get the last payment ID to generate payment code
-        $last_payment_query = mysqli_query($conn, "SELECT id FROM payments ORDER BY id DESC LIMIT 1");
-        $last_payment_row = mysqli_fetch_assoc($last_payment_query);
+        $last_payment_query = db_prepared_result($conn, "SELECT id FROM payments ORDER BY id DESC LIMIT 1");
+        $last_payment_row = $last_payment_query ? mysqli_fetch_assoc($last_payment_query) : null;
         $last_payment_id = $last_payment_row ? $last_payment_row['id'] : 0;
         $payment_code = "PMT-" . sprintf("%04d", $last_payment_id + 1);
 

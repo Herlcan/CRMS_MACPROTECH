@@ -10,12 +10,12 @@ function work_order_column_exists(mysqli $conn, string $column): bool
 function ensure_work_order_priority_column(mysqli $conn): void
 {
     if (!work_order_column_exists($conn, 'priority')) {
-        if (!mysqli_query($conn, "ALTER TABLE work_order ADD COLUMN priority VARCHAR(20) NOT NULL DEFAULT 'In Que' AFTER work_order_cost")) {
+        if (!db_execute_statement($conn, "ALTER TABLE work_order ADD COLUMN priority VARCHAR(20) NOT NULL DEFAULT 'In Que' AFTER work_order_cost")) {
             throw new Exception('Failed to prepare work order priority: ' . mysqli_error($conn));
         }
     }
 
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         UPDATE work_order
         SET priority = 'In Que'
         WHERE priority IS NULL
@@ -27,30 +27,30 @@ function ensure_work_order_priority_column(mysqli $conn): void
 function ensure_work_order_warranty_columns(mysqli $conn): void
 {
     if (!work_order_column_exists($conn, 'warranty_days')) {
-        if (!mysqli_query($conn, "ALTER TABLE work_order ADD COLUMN warranty_days SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER completion_date")) {
+        if (!db_execute_statement($conn, "ALTER TABLE work_order ADD COLUMN warranty_days SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER completion_date")) {
             throw new Exception('Failed to prepare work order warranty days: ' . mysqli_error($conn));
         }
     }
 
     if (!work_order_column_exists($conn, 'warranty_start_date')) {
-        if (!mysqli_query($conn, "ALTER TABLE work_order ADD COLUMN warranty_start_date DATE DEFAULT NULL AFTER warranty_days")) {
+        if (!db_execute_statement($conn, "ALTER TABLE work_order ADD COLUMN warranty_start_date DATE DEFAULT NULL AFTER warranty_days")) {
             throw new Exception('Failed to prepare work order warranty start date: ' . mysqli_error($conn));
         }
     }
 
     if (!work_order_column_exists($conn, 'warranty_expiration_date')) {
-        if (!mysqli_query($conn, "ALTER TABLE work_order ADD COLUMN warranty_expiration_date DATE DEFAULT NULL AFTER warranty_start_date")) {
+        if (!db_execute_statement($conn, "ALTER TABLE work_order ADD COLUMN warranty_expiration_date DATE DEFAULT NULL AFTER warranty_start_date")) {
             throw new Exception('Failed to prepare work order warranty expiration date: ' . mysqli_error($conn));
         }
     }
 
     if (!work_order_column_exists($conn, 'warranty_expiration_notified_at')) {
-        if (!mysqli_query($conn, "ALTER TABLE work_order ADD COLUMN warranty_expiration_notified_at DATETIME DEFAULT NULL AFTER warranty_expiration_date")) {
+        if (!db_execute_statement($conn, "ALTER TABLE work_order ADD COLUMN warranty_expiration_notified_at DATETIME DEFAULT NULL AFTER warranty_expiration_date")) {
             throw new Exception('Failed to prepare work order warranty notification date: ' . mysqli_error($conn));
         }
     }
 
-    mysqli_query($conn, "
+    db_execute_statement($conn, "
         UPDATE work_order
         SET warranty_days = 0
         WHERE warranty_days IS NULL

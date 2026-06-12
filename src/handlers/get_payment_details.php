@@ -7,14 +7,16 @@ header('Content-Type: application/json');
 
 include '../db/connection.php';
 include 'payment_schema.php';
+require_once __DIR__ . '/security_helpers.php';
 
 $response = ['success' => false, 'message' => 'Unknown error'];
 
 try {
-    if (!isset($_SESSION['user_id'])) {
-        http_response_code(401);
-        throw new Exception('Unauthorized');
-    }
+    require_authenticated_json($conn);
+    require_json_role(
+        ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
+        'You are not allowed to view payment details.'
+    );
 
     ensure_payment_detail_columns($conn);
     ensure_items_inventory_columns($conn);

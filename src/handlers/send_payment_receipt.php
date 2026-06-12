@@ -44,10 +44,7 @@ function receipt_row(string $label, float $amount, bool $bold = false): string
 $response = ['success' => false, 'message' => 'Unknown error'];
 
 try {
-    if (!isset($_SESSION['user_id'])) {
-        http_response_code(401);
-        throw new Exception('Unauthorized');
-    }
+    require_authenticated_json($conn);
 
     ensure_payment_detail_columns($conn);
     ensure_items_inventory_columns($conn);

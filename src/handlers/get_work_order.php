@@ -6,13 +6,15 @@ ini_set('display_startup_errors', '1');
 header('Content-Type: application/json');
 
 include '../db/connection.php';
-include '../../auth_check.php';
+require_once __DIR__ . '/security_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/work_order_schema.php';
 require_once __DIR__ . '/ordered_part_schema.php';
 require_once __DIR__ . '/item_schema.php';
 require_once __DIR__ . '/payment_schema.php';
 require_once __DIR__ . '/db_helpers.php';
+
+require_authenticated_json($conn);
 
 $response = [
     'success' => false,
@@ -51,6 +53,16 @@ function work_order_user_role(mysqli $conn): string
 function work_order_can_reassign(mysqli $conn): bool
 {
     return in_array(work_order_user_role($conn), ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], true);
+}
+
+function work_order_can_view(array $workOrder): bool
+{
+    if (user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        return true;
+    }
+
+    return user_has_role('Technician')
+        && (int) ($workOrder['technician_id'] ?? 0) === (int) ($_SESSION['user_id'] ?? 0);
 }
 
 try {
@@ -100,6 +112,11 @@ try {
         throw new Exception('Work order not found');
     }
 
+    if (!work_order_can_view($work_order)) {
+        http_response_code(403);
+        throw new Exception('You are not allowed to view this work order.');
+    }
+
     refresh_payment_summaries($conn, $work_order_id);
 
     $cancelled_from_status = null;
@@ -146,16 +163,19 @@ try {
     }
 
     $technicians = [];
-    $techniciansQuery = mysqli_query($conn, "
-        SELECT id, first_name, last_name, role
-        FROM users
-        WHERE role IN ('Technician', 'Administrator')
-        ORDER BY last_name, first_name
-    ");
+    $canReassign = work_order_can_reassign($conn);
+    if ($canReassign) {
+        $techniciansQuery = db_prepared_result($conn, "
+            SELECT id, first_name, last_name, role
+            FROM users
+            WHERE role IN ('Technician', 'Administrator')
+            ORDER BY last_name, first_name
+        ");
 
-    if ($techniciansQuery) {
-        while ($technician = mysqli_fetch_assoc($techniciansQuery)) {
-            $technicians[] = $technician;
+        if ($techniciansQuery) {
+            while ($technician = mysqli_fetch_assoc($techniciansQuery)) {
+                $technicians[] = $technician;
+            }
         }
     }
 
@@ -263,7 +283,7 @@ try {
         'technicians' => $technicians,
         'assignmentHistory' => $assignment_history,
         'activityTimeline' => $activity_timeline,
-        'canReassign' => work_order_can_reassign($conn),
+        'canReassign' => $canReassign,
         'cancelledFromStatus' => $cancelled_from_status
     ];
 

@@ -9,11 +9,43 @@
 	require_once __DIR__ . '/src/handlers/work_order_schema.php';
 	require_once __DIR__ . '/src/handlers/ordered_part_schema.php';
 	require_once __DIR__ . '/src/handlers/payment_schema.php';
+	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
-	function dashboard_scalar(mysqli $conn, string $sql, string $field = 'total', $fallback = 0)
+	function dashboard_result(mysqli $conn, string $sql, string $types = '', array $params = [])
 	{
 		$statement = mysqli_prepare($conn, $sql);
 		if (!$statement) {
+			return false;
+		}
+
+		if ($types !== '' && !db_bind_params($statement, $types, $params)) {
+			mysqli_stmt_close($statement);
+			return false;
+		}
+
+		if (!mysqli_stmt_execute($statement)) {
+			mysqli_stmt_close($statement);
+			return false;
+		}
+
+		$result = mysqli_stmt_get_result($statement);
+		if (!$result) {
+			mysqli_stmt_close($statement);
+			return false;
+		}
+
+		return $result;
+	}
+
+	function dashboard_scalar(mysqli $conn, string $sql, string $field = 'total', $fallback = 0, string $types = '', array $params = [])
+	{
+		$statement = mysqli_prepare($conn, $sql);
+		if (!$statement) {
+			return $fallback;
+		}
+
+		if ($types !== '' && !db_bind_params($statement, $types, $params)) {
+			mysqli_stmt_close($statement);
 			return $fallback;
 		}
 
@@ -34,10 +66,15 @@
 		return $row[$field] ?? $fallback;
 	}
 
-	function dashboard_row(mysqli $conn, string $sql, array $fallback = []): array
+	function dashboard_row(mysqli $conn, string $sql, array $fallback = [], string $types = '', array $params = []): array
 	{
 		$statement = mysqli_prepare($conn, $sql);
 		if (!$statement) {
+			return $fallback;
+		}
+
+		if ($types !== '' && !db_bind_params($statement, $types, $params)) {
+			mysqli_stmt_close($statement);
 			return $fallback;
 		}
 
@@ -58,7 +95,7 @@
 		return $row;
 	}
 
-	function dashboard_monthly_series(mysqli $conn, string $sql): array
+	function dashboard_monthly_series(mysqli $conn, string $sql, string $types = '', array $params = []): array
 	{
 		$labels = [];
 		$keys = [];
@@ -73,7 +110,11 @@
 		}
 
 		$statement = mysqli_prepare($conn, $sql);
-		if ($statement && mysqli_stmt_execute($statement)) {
+		if (
+			$statement
+			&& ($types === '' || db_bind_params($statement, $types, $params))
+			&& mysqli_stmt_execute($statement)
+		) {
 			$result = mysqli_stmt_get_result($statement);
 			if ($result) {
 				while ($row = mysqli_fetch_assoc($result)) {
@@ -220,7 +261,7 @@
 
 	$workorder_period = dashboard_previous_period_count($conn, 'work_order', 'request_date');
 
-	$status_query = mysqli_query(
+	$status_query = dashboard_result(
 		$conn,
 		"SELECT CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END AS status, COUNT(*) AS total
 		 FROM work_order
@@ -258,7 +299,7 @@
 		 GROUP BY DATE_FORMAT(COALESCE(p.date, DATE(p.created_at)), '%Y-%m')"
 	);
 
-	$recent_orders = mysqli_query(
+	$recent_orders = dashboard_result(
 		$conn,
 		"SELECT w.code, w.status, w.request_date, w.unit_type, c.first_name, c.last_name,
 				CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS technician_name
@@ -269,7 +310,7 @@
 		 LIMIT 6"
 	);
 
-	$low_stock_items = mysqli_query(
+	$low_stock_items = dashboard_result(
 		$conn,
 		"SELECT product_code, brand_name, model, quantity
 		 FROM items
@@ -278,7 +319,7 @@
 		 LIMIT 5"
 	);
 
-	$technician_workload = mysqli_query(
+	$technician_workload = dashboard_result(
 		$conn,
 		"SELECT u.first_name, u.last_name,
 				COUNT(w.id) AS open_total,

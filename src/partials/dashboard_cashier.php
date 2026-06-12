@@ -74,7 +74,7 @@
 		 AND status NOT IN ('Released', 'Cancelled')"
 	);
 
-	$cashier_pickup_queue = mysqli_query(
+	$cashier_pickup_queue = dashboard_result(
 		$conn,
 		"SELECT
 			w.id,

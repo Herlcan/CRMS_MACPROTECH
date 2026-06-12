@@ -6,11 +6,12 @@ session_start();
 header('Content-Type: application/json');
 
 require_once '../db/connection.php';
-require_once '../../auth_check.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/work_order_assignment_schema.php';
 require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/security_helpers.php';
+
+require_authenticated_json($conn);
 
 function reassign_current_user_role(mysqli $conn): string
 {
