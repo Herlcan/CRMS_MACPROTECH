@@ -727,6 +727,7 @@ h6, .h6 {
     .col-xl-8 { max-width: 66.667%; }
     .col-xl-9 { max-width: 75%; }
     .col-xl-10 { max-width: 83.333%; }
+    .col-xl-10-5 { max-width: 86%; }
     .col-xl-11 { max-width: 91.667%; }
     .col-xl-12 { max-width: 100%; }
 }
@@ -4094,6 +4095,172 @@ table tbody tr:hover {
 .page-header .breadcrumb {
     padding: 0;
     margin: 0;
+}
+
+.work-order-header-row {
+    gap: var(--spacing-4) 0;
+}
+
+.work-order-breakdown-card {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.2fr) minmax(0, 1fr);
+    gap: var(--spacing-4);
+    align-items: stretch;
+    max-width: 100%;
+    padding: var(--spacing-4);
+    border: 1px solid rgba(var(--brand-blue-rgb), 0.12);
+    border-radius: 8px;
+    background: rgba(var(--brand-white-rgb), 0.66);
+    box-shadow: 0 10px 28px rgba(var(--brand-black-rgb), 0.06);
+}
+
+.work-order-breakdown-total {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    padding: var(--spacing-3);
+    border-radius: 8px;
+    background: var(--brand-black);
+    color: var(--brand-white);
+}
+
+.work-order-breakdown-total span,
+.work-order-breakdown-heading {
+    display: block;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.work-order-breakdown-total span {
+    color: rgba(var(--brand-white-rgb), 0.72);
+}
+
+.work-order-breakdown-total strong {
+    display: block;
+    margin-top: var(--spacing-1);
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.work-order-breakdown-groups {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(160px, 0.6fr);
+    gap: var(--spacing-4);
+    min-width: 0;
+}
+
+.work-order-breakdown-group {
+    min-width: 0;
+}
+
+.work-order-breakdown-heading {
+    margin-bottom: var(--spacing-2);
+    color: var(--ink-600);
+}
+
+.work-order-breakdown-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+}
+
+.work-order-breakdown-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-2);
+    min-height: 32px;
+    max-width: 100%;
+    padding: 7px 10px;
+    border: 1px solid rgba(var(--brand-blue-rgb), 0.1);
+    border-radius: 999px;
+    background: rgba(var(--brand-white-rgb), 0.82);
+    color: var(--ink-800);
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.15;
+}
+
+.work-order-breakdown-pill::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-radius: 50%;
+    background: var(--ink-400);
+}
+
+.work-order-breakdown-pill > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.work-order-breakdown-pill strong {
+    color: var(--brand-black);
+    font-size: 13px;
+    line-height: 1;
+}
+
+.work-order-breakdown-pill.is-pending::before {
+    background: var(--status-pending);
+}
+
+.work-order-breakdown-pill.is-diagnosing::before {
+    background: var(--status-diagnosing);
+}
+
+.work-order-breakdown-pill.is-waiting::before {
+    background: var(--status-waiting);
+}
+
+.work-order-breakdown-pill.is-in-progress::before {
+    background: var(--status-inprogress);
+}
+
+.work-order-breakdown-pill.is-repaired::before {
+    background: var(--status-repaired);
+}
+
+.work-order-breakdown-pill.is-released::before {
+    background: var(--status-released);
+}
+
+.work-order-breakdown-pill.is-cancelled::before,
+.work-order-breakdown-pill.is-rush::before {
+    background: var(--red-700);
+}
+
+.work-order-breakdown-pill.is-queue::before {
+    background: var(--blue-600);
+}
+
+@media (max-width: 1199px) {
+    .work-order-breakdown-card,
+    .work-order-breakdown-groups {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 575px) {
+    .work-order-breakdown-total {
+        align-items: center;
+        text-align: center;
+    }
+
+    .work-order-breakdown-list {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .work-order-breakdown-pill {
+        width: 100%;
+    }
 }
 
 /* ================= SETTINGS ================= */

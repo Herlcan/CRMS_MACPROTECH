@@ -5,6 +5,86 @@
 	require_once __DIR__ . '/src/handlers/db_helpers.php';
 
 	ensure_work_order_priority_column($conn);
+
+	$work_order_breakdown_total = 0;
+	$work_order_status_breakdown = [
+		'Pending' => 0,
+		'Diagnosing' => 0,
+		'Waiting for Parts' => 0,
+		'In Progress' => 0,
+		'Repaired' => 0,
+		'Released' => 0,
+		'Cancelled' => 0
+	];
+	$work_order_priority_breakdown = [
+		'Rush' => 0,
+		'In Que' => 0
+	];
+
+	$work_order_breakdown_where = "1=1";
+	$work_order_breakdown_types = "";
+	$work_order_breakdown_params = [];
+
+	if (($_SESSION["role"] ?? "") == "Technician") {
+		$work_order_breakdown_where .= " AND technician_id = ?";
+		$work_order_breakdown_types .= "i";
+		$work_order_breakdown_params[] = intval($_SESSION['user_id']);
+	}
+
+	$work_order_breakdown_query = mysqli_prepare(
+		$conn,
+		"SELECT
+			COUNT(*) AS total,
+			COALESCE(SUM(CASE WHEN COALESCE(NULLIF(status, ''), 'Pending') = 'Pending' THEN 1 ELSE 0 END), 0) AS pending_total,
+			COALESCE(SUM(CASE WHEN status = 'Diagnosing' THEN 1 ELSE 0 END), 0) AS diagnosing_total,
+			COALESCE(SUM(CASE WHEN status = 'Waiting for Parts' THEN 1 ELSE 0 END), 0) AS waiting_total,
+			COALESCE(SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END), 0) AS in_progress_total,
+			COALESCE(SUM(CASE WHEN status IN ('Repaired', 'Ready for Release') THEN 1 ELSE 0 END), 0) AS repaired_total,
+			COALESCE(SUM(CASE WHEN status IN ('Released', 'Completed') THEN 1 ELSE 0 END), 0) AS released_total,
+			COALESCE(SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END), 0) AS cancelled_total,
+			COALESCE(SUM(CASE WHEN priority = 'Rush' THEN 1 ELSE 0 END), 0) AS rush_total,
+			COALESCE(SUM(CASE WHEN COALESCE(NULLIF(priority, ''), 'In Que') = 'In Que' THEN 1 ELSE 0 END), 0) AS queue_total
+		 FROM work_order
+		 WHERE $work_order_breakdown_where"
+	);
+
+	if ($work_order_breakdown_query) {
+		db_bind_params($work_order_breakdown_query, $work_order_breakdown_types, $work_order_breakdown_params);
+		mysqli_stmt_execute($work_order_breakdown_query);
+		$work_order_breakdown_result = mysqli_stmt_get_result($work_order_breakdown_query);
+		$work_order_breakdown_row = $work_order_breakdown_result ? mysqli_fetch_assoc($work_order_breakdown_result) : [];
+
+		$work_order_breakdown_total = (int) ($work_order_breakdown_row['total'] ?? 0);
+		$work_order_status_breakdown = [
+			'Pending' => (int) ($work_order_breakdown_row['pending_total'] ?? 0),
+			'Diagnosing' => (int) ($work_order_breakdown_row['diagnosing_total'] ?? 0),
+			'Waiting for Parts' => (int) ($work_order_breakdown_row['waiting_total'] ?? 0),
+			'In Progress' => (int) ($work_order_breakdown_row['in_progress_total'] ?? 0),
+			'Repaired' => (int) ($work_order_breakdown_row['repaired_total'] ?? 0),
+			'Released' => (int) ($work_order_breakdown_row['released_total'] ?? 0),
+			'Cancelled' => (int) ($work_order_breakdown_row['cancelled_total'] ?? 0)
+		];
+		$work_order_priority_breakdown = [
+			'Rush' => (int) ($work_order_breakdown_row['rush_total'] ?? 0),
+			'In Que' => (int) ($work_order_breakdown_row['queue_total'] ?? 0)
+		];
+
+		mysqli_stmt_close($work_order_breakdown_query);
+	}
+
+	$work_order_status_classes = [
+		'Pending' => 'is-pending',
+		'Diagnosing' => 'is-diagnosing',
+		'Waiting for Parts' => 'is-waiting',
+		'In Progress' => 'is-in-progress',
+		'Repaired' => 'is-repaired',
+		'Released' => 'is-released',
+		'Cancelled' => 'is-cancelled'
+	];
+	$work_order_priority_classes = [
+		'Rush' => 'is-rush',
+		'In Que' => 'is-queue'
+	];
 ?>
 
 	<div class="mobile-menu-overlay"></div>
@@ -13,12 +93,43 @@
 		<div class="pd-ltr-20 xs-pd-20-10">
 			<div class="min-height-200px">
 				<div class="page-header">
-					<div class="row">
-						<div class="col-md-6 col-sm-12">
+					<div class="row work-order-header-row">
+						<div class="col-xl-2 col-lg-3 col-md-12">
 							<div class="title">
 								<h4><i class="micon dw dw-shopping-basket mtext"></i> Work Order List</h4>
 							</div>
-							
+						</div>
+						<div class="col-xl-10 col-lg-9 col-md-12">
+							<div class="work-order-breakdown-card" aria-label="Work order status and priority totals">
+								<div class="work-order-breakdown-total">
+									<span>Total Work Orders</span>
+									<strong><?= number_format($work_order_breakdown_total) ?></strong>
+								</div>
+								<div class="work-order-breakdown-groups">
+									<div class="work-order-breakdown-group">
+										<span class="work-order-breakdown-heading">Status</span>
+										<div class="work-order-breakdown-list">
+											<?php foreach ($work_order_status_breakdown as $status_label => $status_total): ?>
+												<span class="work-order-breakdown-pill <?= htmlspecialchars($work_order_status_classes[$status_label] ?? '') ?>">
+													<span><?= htmlspecialchars($status_label) ?></span>
+													<strong><?= number_format($status_total) ?></strong>
+												</span>
+											<?php endforeach; ?>
+										</div>
+									</div>
+									<div class="work-order-breakdown-group">
+										<span class="work-order-breakdown-heading">Priority</span>
+										<div class="work-order-breakdown-list">
+											<?php foreach ($work_order_priority_breakdown as $priority_label => $priority_total): ?>
+												<span class="work-order-breakdown-pill <?= htmlspecialchars($work_order_priority_classes[$priority_label] ?? '') ?>">
+													<span><?= htmlspecialchars($priority_label) ?></span>
+													<strong><?= number_format($priority_total) ?></strong>
+												</span>
+											<?php endforeach; ?>
+										</div>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
