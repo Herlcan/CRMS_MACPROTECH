@@ -597,7 +597,34 @@
 	</div>
 </div>
 
-<script src="src/scripts/chart.js"></script>
-<script src="src/scripts/dashboard-charts.js"></script>
+<script>
+	(function () {
+		const chartBundle = <?= json_encode(asset_url('src/scripts/chart.js'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+		const dashboardCharts = <?= json_encode(asset_url('src/scripts/dashboard-charts.js'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+
+		function loadDashboardCharts() {
+			if (!document.getElementById('statusChart') && !document.getElementById('monthlyChart')) {
+				return;
+			}
+
+			window.MacproScriptLoader.load(chartBundle)
+				.then(function () {
+					return window.MacproScriptLoader.load(dashboardCharts);
+				})
+				.catch(function () {});
+		}
+
+		function scheduleWhenLoaderReady() {
+			if (window.MacproScriptLoader) {
+				window.MacproScriptLoader.runAfterLoad(loadDashboardCharts, 1500);
+				return;
+			}
+
+			window.setTimeout(scheduleWhenLoaderReady, 50);
+		}
+
+		scheduleWhenLoaderReady();
+	})();
+</script>
 
 <?php include 'footer.php'; ?>

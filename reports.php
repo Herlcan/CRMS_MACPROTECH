@@ -2162,13 +2162,14 @@
 	</div>
 </div>
 
-<script src="src/scripts/chart.js"></script>
 <script>
 (function () {
 	const chartData = <?= json_encode($report_chart_data, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+	const chartBundle = <?= json_encode(asset_url('src/scripts/chart.js'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 	const renderedCharts = {};
 	const palette = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#0891b2', '#7c3aed', '#475569', '#db2777'];
 	const tabsRoot = document.querySelector('[data-report-tabs]');
+	const chartPanels = ['work-orders', 'payments', 'customers', 'inventory'];
 
 	function valuesHaveData(values) {
 		return Array.isArray(values) && values.some(function (value) {
@@ -2348,6 +2349,41 @@
 		}
 	}
 
+	function ensurePanelCharts(panelName) {
+		if (chartPanels.indexOf(panelName) === -1 || renderedCharts[panelName]) {
+			return;
+		}
+
+		if (window.Chart) {
+			renderPanelCharts(panelName);
+			return;
+		}
+
+		if (!window.MacproScriptLoader) {
+			window.setTimeout(function () {
+				ensurePanelCharts(panelName);
+			}, 50);
+			return;
+		}
+
+		window.MacproScriptLoader.load(chartBundle)
+			.then(function () {
+				renderPanelCharts(panelName);
+			})
+			.catch(function () {});
+	}
+
+	function scheduleActivePanelCharts() {
+		if (!tabsRoot) {
+			return;
+		}
+
+		const activeTab = tabsRoot.querySelector('[data-report-tab].is-active');
+		if (activeTab) {
+			ensurePanelCharts(activeTab.dataset.reportTab);
+		}
+	}
+
 	function activateReportTab(name) {
 		if (!tabsRoot) {
 			return;
@@ -2366,7 +2402,7 @@
 			panel.hidden = !isActive;
 		});
 
-		renderPanelCharts(name);
+		ensurePanelCharts(name);
 	}
 
 	if (tabsRoot) {
@@ -2409,6 +2445,12 @@
 			});
 		});
 	});
+
+	if (window.MacproScriptLoader) {
+		window.MacproScriptLoader.runAfterLoad(scheduleActivePanelCharts, 1500);
+	} else {
+		window.setTimeout(scheduleActivePanelCharts, 400);
+	}
 })();
 
 (function () {

@@ -265,7 +265,7 @@
 									<li class="paginate_button page-item previous <?= ($current_page <= 1) ? 'disabled' : '' ?>">
 										<a href="<?= htmlspecialchars($pagination_url(max(1, $current_page - 1)), ENT_QUOTES, 'UTF-8') ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-left">
-												<img src="src/images/angle-double-small-left.png" width="20px" style="border: none">
+												<img src="<?= asset_attr('src/images/angle-double-small-left.png'); ?>" width="20" style="border: none" alt="" aria-hidden="true" decoding="async">
 											</i> 
 										</a>
 									</li>
@@ -299,7 +299,7 @@
 									<li class="paginate_button page-item next <?= ($current_page >= $total_pages) ? 'disabled' : '' ?>">
 										<a href="<?= htmlspecialchars($pagination_url(min($total_pages, $current_page + 1)), ENT_QUOTES, 'UTF-8') ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-right">
-												<img src="src/images/angle-double-small-right.png" width="20px" style="border: none">
+												<img src="<?= asset_attr('src/images/angle-double-small-right.png'); ?>" width="20" style="border: none" alt="" aria-hidden="true" decoding="async">
 											</i>
 										</a>
 									</li>

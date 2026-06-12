@@ -6,6 +6,7 @@
 	include 'src/db/connection.php';
 	require_once __DIR__ . '/src/handlers/security_helpers.php';
 	require_once __DIR__ . '/src/handlers/activity_log_helper.php';
+	require_once __DIR__ . '/src/handlers/asset_helpers.php';
 
 // Ensure a session is started before reading/writing $_SESSION
 if (session_status() === PHP_SESSION_NONE) {
@@ -72,17 +73,17 @@ if (session_status() === PHP_SESSION_NONE) {
 
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 	<meta charset="utf-8">
 	<title>Admin Login</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-	<link rel="apple-touch-icon" sizes="180x180" href="src/images/apple-touch-icon.png?v=<?= filemtime(__DIR__ . '/src/images/apple-touch-icon.png'); ?>">
-	<link rel="icon" type="image/png" sizes="192x192" href="src/images/favicon-192x192.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-192x192.png'); ?>">
-	<link rel="icon" type="image/png" sizes="32x32" href="src/images/favicon-32x32.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-32x32.png'); ?>">
-	<link rel="icon" type="image/png" sizes="16x16" href="src/images/favicon-16x16.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-16x16.png'); ?>">
-	<link rel="shortcut icon" href="src/images/favicon.ico?v=<?= filemtime(__DIR__ . '/src/images/favicon.ico'); ?>">
-	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css">
+	<link rel="apple-touch-icon" sizes="180x180" href="<?= asset_attr('src/images/apple-touch-icon.png'); ?>">
+	<link rel="icon" type="image/png" sizes="192x192" href="<?= asset_attr('src/images/favicon-192x192.png'); ?>">
+	<link rel="icon" type="image/png" sizes="32x32" href="<?= asset_attr('src/images/favicon-32x32.png'); ?>">
+	<link rel="icon" type="image/png" sizes="16x16" href="<?= asset_attr('src/images/favicon-16x16.png'); ?>">
+	<link rel="shortcut icon" href="<?= asset_attr('src/images/favicon.ico'); ?>">
+	<link rel="stylesheet" type="text/css" href="<?= asset_attr('src/styles/style-improved.css'); ?>">
 </head>
 
 <body class="login-page">
@@ -97,7 +98,7 @@ if (session_status() === PHP_SESSION_NONE) {
 		<section class="login-card" aria-label="MACPROTECH admin login">
 			<div class="login-brand-panel">
 				<div class="login-brand-content">
-					<img class="login-brand-logo" src="src/images/MACPROTECH_LOGO_SQUARE.png" alt="MACPROTECH logo">
+					<img class="login-brand-logo" src="<?= asset_attr('src/images/MACPROTECH_LOGO_SQUARE.png'); ?>" alt="MACPROTECH logo" decoding="async">
 					<p class="login-eyebrow">Administrator Workspace</p>
 					<h1>Welcome back, Admin</h1>
 					<p class="login-brand-copy">Sign in to oversee service operations, manage staff access, and keep MACPROTECH workflows moving securely.</p>
@@ -121,7 +122,7 @@ if (session_status() === PHP_SESSION_NONE) {
 					<div class="login-field">
 						<label for="admin-username">Username</label>
 						<div class="login-input-wrap">
-							<img src="src/images/user-dark.png" alt="" aria-hidden="true">
+							<img src="<?= asset_attr('src/images/user-dark.png'); ?>" alt="" aria-hidden="true" decoding="async">
 							<input id="admin-username" type="text" placeholder="Enter username" name="username" required autocomplete="username">
 						</div>
 					</div>
@@ -129,7 +130,7 @@ if (session_status() === PHP_SESSION_NONE) {
 					<div class="login-field">
 						<label for="admin-password">Password</label>
 						<div class="login-input-wrap">
-							<img src="src/images/lock.png" alt="" aria-hidden="true">
+							<img src="<?= asset_attr('src/images/lock.png'); ?>" alt="" aria-hidden="true" decoding="async">
 							<input id="admin-password" type="password" placeholder="Enter password" name="password" required autocomplete="current-password">
 						</div>
 					</div>
@@ -140,7 +141,7 @@ if (session_status() === PHP_SESSION_NONE) {
 					</div>
 
 					<button class="login-submit" type="submit" name="login" value="1">
-						<img src="src/images/sign-in-alt.png" alt="" aria-hidden="true">
+						<img src="<?= asset_attr('src/images/sign-in-alt.png'); ?>" alt="" aria-hidden="true" decoding="async">
 						<span>Login</span>
 					</button>
 

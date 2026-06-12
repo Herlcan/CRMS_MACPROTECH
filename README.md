@@ -737,23 +737,6 @@ Settings is available from the header profile dropdown.
 
 ---
 
-## Legacy Or Placeholder Pages
-
-The repository still contains older/static pages that appear to be retained from an earlier template and are not part of the main role-based sidebar flow:
-
-- `customer.php`
-- `customer-work-order.php`
-- `work-order-status.php`
-- `services.php`
-- `user-group.php`
-- `bar.php`
-- `pie.php`
-- `technician.php`
-
-These pages should be reviewed before treating them as active production workflows.
-
----
-
 ## Project Structure
 
 ```text

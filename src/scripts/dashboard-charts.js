@@ -1,4 +1,5 @@
-document.addEventListener("DOMContentLoaded", function () {
+(function () {
+	function initDashboardCharts() {
 	function parseJson(value, fallback) {
 		try {
 			return JSON.parse(value || "");
@@ -257,4 +258,11 @@ document.addEventListener("DOMContentLoaded", function () {
 			}
 		});
 	}
-});
+	}
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", initDashboardCharts);
+	} else {
+		initDashboardCharts();
+	}
+})();

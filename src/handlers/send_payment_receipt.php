@@ -194,7 +194,7 @@ try {
 
     $body = '
         <!doctype html>
-        <html>
+        <html lang="en">
         <head>
             <meta charset="utf-8">
             <style>

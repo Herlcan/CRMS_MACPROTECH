@@ -7,6 +7,7 @@
 
 	include 'src/db/connection.php';
 	include 'auth_check.php';
+	require_once __DIR__ . '/src/handlers/asset_helpers.php';
 
 	$user_id = $_SESSION['user_id'];
 
@@ -26,16 +27,16 @@
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 	<meta charset="utf-8">
 	<title>MACPROTECH</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-	<link rel="apple-touch-icon" sizes="180x180" href="src/images/apple-touch-icon.png?v=<?= filemtime(__DIR__ . '/src/images/apple-touch-icon.png'); ?>">
-	<link rel="icon" type="image/png" sizes="192x192" href="src/images/favicon-192x192.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-192x192.png'); ?>">
-	<link rel="icon" type="image/png" sizes="32x32" href="src/images/favicon-32x32.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-32x32.png'); ?>">
-	<link rel="icon" type="image/png" sizes="16x16" href="src/images/favicon-16x16.png?v=<?= filemtime(__DIR__ . '/src/images/favicon-16x16.png'); ?>">
-	<link rel="shortcut icon" href="src/images/favicon.ico?v=<?= filemtime(__DIR__ . '/src/images/favicon.ico'); ?>">
+	<link rel="apple-touch-icon" sizes="180x180" href="<?= asset_attr('src/images/apple-touch-icon.png'); ?>">
+	<link rel="icon" type="image/png" sizes="192x192" href="<?= asset_attr('src/images/favicon-192x192.png'); ?>">
+	<link rel="icon" type="image/png" sizes="32x32" href="<?= asset_attr('src/images/favicon-32x32.png'); ?>">
+	<link rel="icon" type="image/png" sizes="16x16" href="<?= asset_attr('src/images/favicon-16x16.png'); ?>">
+	<link rel="shortcut icon" href="<?= asset_attr('src/images/favicon.ico'); ?>">
 	<!--<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-eval';">-->
 	<script>
 		(function () {
@@ -62,11 +63,12 @@
 			} catch (error) {}
 		})();
 	</script>
-	<link rel="stylesheet" type="text/css" href="src/styles/style-improved.css?v=<?= filemtime(__DIR__ . '/src/styles/style-improved.css'); ?>">
-	<script defer src="src/scripts/dialogs.js"></script>
-	<script defer src="src/scripts/page-skeleton.js?v=<?= filemtime(__DIR__ . '/src/scripts/page-skeleton.js'); ?>"></script>
-	<script defer src="src/scripts/notifications.js"></script>
-	<script defer src="src/scripts/transition-tabs.js?v=<?= filemtime(__DIR__ . '/src/scripts/transition-tabs.js'); ?>"></script>
+	<link rel="stylesheet" type="text/css" href="<?= asset_attr('src/styles/style-improved.css'); ?>">
+	<script defer src="<?= asset_attr('src/scripts/lazy-script-loader.js'); ?>"></script>
+	<script defer src="<?= asset_attr('src/scripts/dialogs.js'); ?>"></script>
+	<script defer src="<?= asset_attr('src/scripts/page-skeleton.js'); ?>"></script>
+	<script defer src="<?= asset_attr('src/scripts/notifications.js'); ?>"></script>
+	<script defer src="<?= asset_attr('src/scripts/transition-tabs.js'); ?>"></script>
 </head>
 
 <body>
@@ -127,13 +129,13 @@
 	<div class="header">
 		<div class="header-left">
 			<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true">
-				<img src="src/images/menu-bar.png" width="30" height="30" alt="Menu">
+				<img src="<?= asset_attr('src/images/menu-bar.png'); ?>" width="30" height="30" alt="Menu" decoding="async">
 			</button>
 		</div>
 		<div class="header-right">
 			<div class="notification-dropdown">
 				<button type="button" class="notification-bell" id="notificationBellToggle" aria-label="Notifications">
-					<img src="src/images/bell.png" width="22" height="22" alt="">
+					<img src="<?= asset_attr('src/images/bell.png'); ?>" width="22" height="22" alt="" decoding="async">
 					<span class="notification-badge" id="notificationUnreadBadge" hidden>0</span>
 				</button>
 				<div class="notification-menu" id="notificationDropdownMenu">
@@ -161,10 +163,10 @@
 						</span>
 					</a>
 					<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-						<label class="dropdown-item profile-toggle-label" for="profileToggle"><img src="src/images/user-dark.png" width="20px" height="20px"> Profile</label>
-						<a class="dropdown-item" href="settings.php"><img src="src/images/settings-sliders-dark.png" width="20px" height="20px"> Setting</a>
+						<label class="dropdown-item profile-toggle-label" for="profileToggle"><img src="<?= asset_attr('src/images/user-dark.png'); ?>" width="20" height="20" alt="" aria-hidden="true" decoding="async"> Profile</label>
+						<a class="dropdown-item" href="settings.php"><img src="<?= asset_attr('src/images/settings-sliders-dark.png'); ?>" width="20" height="20" alt="" aria-hidden="true" decoding="async"> Setting</a>
 						<hr>
-						<a class="dropdown-item" href="logout.php"><img src="src/images/user-logout.png" width="20px" height="20px"> Log Out</a>
+						<a class="dropdown-item" href="logout.php"><img src="<?= asset_attr('src/images/user-logout.png'); ?>" width="20" height="20" alt="" aria-hidden="true" decoding="async"> Log Out</a>
 					</div>
 				</div>
 			</div>

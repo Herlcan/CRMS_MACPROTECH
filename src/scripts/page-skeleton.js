@@ -7,13 +7,9 @@
     const validLayouts = ['dashboard', 'table', 'reports', 'feed', 'form', 'detail'];
     const layoutByPage = {
         'index.php': 'dashboard',
-        'customer.php': 'dashboard',
         'reports.php': 'reports',
-        'bar.php': 'reports',
-        'pie.php': 'reports',
         'notifications.php': 'feed',
         'settings.php': 'form',
-        'customer-work-order.php': 'form',
         'client-view.php': 'detail',
         'stock_transaction.php': 'detail'
     };

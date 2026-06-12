@@ -433,7 +433,7 @@
 													<td style="text-align: center;">
 														<div class="dropdown">
 															<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
-																<img src="src/images/menu-dots.png" width="25px" style="border: none">
+																<img src="<?= asset_attr('src/images/menu-dots.png'); ?>" width="25" style="border: none" alt="" aria-hidden="true" decoding="async">
 															</a>
 															<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 																<a class="dropdown-item" href="#" onclick='editInventoryTransaction(<?= htmlspecialchars(json_encode($edit_payload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES) ?>); return false;'><i class="dw dw-edit2"></i> Edit</a>
@@ -479,7 +479,7 @@
 												<li class="paginate_button page-item previous <?= ($transaction_current_page <= 1) ? 'disabled' : '' ?>">
 													<a href="<?= htmlspecialchars(stock_records_history_url($item_id, ['transaction_page' => max(1, $transaction_current_page - 1)])) ?>" class="page-link" <?= ($transaction_current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
 														<i class="ion-chevron-left">
-															<img src="src/images/angle-double-small-left.png" width="20px" style="border: none">
+															<img src="<?= asset_attr('src/images/angle-double-small-left.png'); ?>" width="20" style="border: none" alt="" aria-hidden="true" decoding="async">
 														</i>
 													</a>
 												</li>
@@ -511,7 +511,7 @@
 												<li class="paginate_button page-item next <?= ($transaction_current_page >= $transaction_total_pages) ? 'disabled' : '' ?>">
 													<a href="<?= htmlspecialchars(stock_records_history_url($item_id, ['transaction_page' => min($transaction_total_pages, $transaction_current_page + 1)])) ?>" class="page-link" <?= ($transaction_current_page >= $transaction_total_pages) ? 'style="pointer-events: none;"' : '' ?>>
 														<i class="ion-chevron-right">
-															<img src="src/images/angle-double-small-right.png" width="20px" style="border: none">
+															<img src="<?= asset_attr('src/images/angle-double-small-right.png'); ?>" width="20" style="border: none" alt="" aria-hidden="true" decoding="async">
 														</i>
 													</a>
 												</li>

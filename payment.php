@@ -584,7 +584,7 @@
 									<li class="paginate_button page-item previous <?= ($current_page <= 1) ? 'disabled' : '' ?>">
 										<a href="?page=<?= max(1, $current_page - 1) ?>&limit=<?= $pagination_limit ?>&search=<?= $pagination_search ?>&filter=<?= $pagination_filter ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page <= 1) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-left">
-												<img src="src/images/angle-double-small-left.png" width="20px" style="border: none">
+												<img src="<?= asset_attr('src/images/angle-double-small-left.png'); ?>" width="20" style="border: none" alt="" aria-hidden="true" decoding="async">
 											</i> 
 										</a>
 									</li>
@@ -618,7 +618,7 @@
 									<li class="paginate_button page-item next <?= ($current_page >= $total_pages) ? 'disabled' : '' ?>">
 										<a href="?page=<?= min($total_pages, $current_page + 1) ?>&limit=<?= $pagination_limit ?>&search=<?= $pagination_search ?>&filter=<?= $pagination_filter ?>" aria-controls="DataTables_Table_0" class="page-link" <?= ($current_page >= $total_pages) ? 'style="pointer-events: none;"' : '' ?>>
 											<i class="ion-chevron-right">
-												<img src="src/images/angle-double-small-right.png" width="20px" style="border: none">
+												<img src="<?= asset_attr('src/images/angle-double-small-right.png'); ?>" width="20" style="border: none" alt="" aria-hidden="true" decoding="async">
 											</i>
 										</a>
 									</li>
@@ -1439,7 +1439,7 @@
 
 			return `
 				<!doctype html>
-				<html>
+				<html lang="en">
 				<head>
 					<meta charset="utf-8">
 					<title>Payment Receipt</title>
