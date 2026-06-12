@@ -108,6 +108,11 @@
 
         event.preventDefault();
         markNotification(item.dataset.notificationId, 'read').finally(function () {
+            if (window.MacproAppShell && typeof window.MacproAppShell.navigate === 'function') {
+                window.MacproAppShell.navigate(item.href);
+                return;
+            }
+
             window.location.href = item.href;
         });
     });

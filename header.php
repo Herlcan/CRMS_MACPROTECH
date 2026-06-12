@@ -9,6 +9,13 @@
 	include 'auth_check.php';
 	require_once __DIR__ . '/src/handlers/asset_helpers.php';
 
+	if (!defined('MACPROTECH_FRAME_MODE')) {
+		define(
+			'MACPROTECH_FRAME_MODE',
+			($_GET['macpro_frame'] ?? '') === '1' || ($_SERVER['HTTP_SEC_FETCH_DEST'] ?? '') === 'iframe'
+		);
+	}
+
 	$user_id = $_SESSION['user_id'];
 
 	// Include profile update handler
@@ -64,14 +71,37 @@
 		})();
 	</script>
 	<link rel="stylesheet" type="text/css" href="<?= asset_attr('src/styles/style-improved.css'); ?>">
+	<?php if (!MACPROTECH_FRAME_MODE): ?>
+	<?php
+	$sidebar_preload_images = [
+		'src/images/MACPROTECH_LOGO_BANNER_SIDEBAR.png',
+		'src/images/MACPROTECH_LOGO_CIRCLE_SIDEBAR.png',
+		'src/images/dashboard.png',
+		'src/images/users.png',
+		'src/images/repair.png',
+		'src/images/dolly-flatbed-alt.png',
+		'src/images/money-bills-simple.png',
+		'src/images/bell-white.png',
+		'src/images/reports.png',
+		'src/images/circle-user.png'
+	];
+	foreach ($sidebar_preload_images as $sidebar_preload_image):
+	?>
+	<link rel="preload" as="image" href="<?= asset_attr($sidebar_preload_image); ?>" fetchpriority="high">
+	<?php endforeach; ?>
+	<?php endif; ?>
 	<script defer src="<?= asset_attr('src/scripts/lazy-script-loader.js'); ?>"></script>
 	<script defer src="<?= asset_attr('src/scripts/dialogs.js'); ?>"></script>
+	<?php if (!MACPROTECH_FRAME_MODE): ?>
 	<script defer src="<?= asset_attr('src/scripts/page-skeleton.js'); ?>"></script>
 	<script defer src="<?= asset_attr('src/scripts/notifications.js'); ?>"></script>
+	<?php endif; ?>
 	<script defer src="<?= asset_attr('src/scripts/transition-tabs.js'); ?>"></script>
+	<script defer src="<?= asset_attr('src/scripts/app-shell.js'); ?>"></script>
 </head>
 
-<body>
+<body<?= MACPROTECH_FRAME_MODE ? ' class="macpro-frame-page"' : ''; ?>>
+	<?php if (!MACPROTECH_FRAME_MODE): ?>
 	<div class="macpro-page-skeleton" id="macproPageSkeleton" role="status" aria-live="polite" aria-label="Loading page" aria-hidden="true">
 		<div class="macpro-page-skeleton-inner">
 			<div class="macpro-page-skeleton-head">
@@ -97,6 +127,7 @@
 			</div>
 		</div>
 	</div>
+	<?php endif; ?>
 	<?php
 	$dialog_flash = $_SESSION['dialog_flash'] ?? null;
 	unset($_SESSION['dialog_flash']);
@@ -126,6 +157,7 @@
 		window.MACPRO_CSRF_TOKEN = <?= json_encode(csrf_token(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 	</script>
 
+	<?php if (!MACPROTECH_FRAME_MODE): ?>
 	<div class="header">
 		<div class="header-left">
 			<button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Toggle sidebar" aria-expanded="true">
@@ -262,3 +294,4 @@
 			</div>
 		</div>
 	</div>
+	<?php endif; ?>

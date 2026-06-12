@@ -132,6 +132,33 @@
     --banner-logo-zoom-height: 166.667%;
 }
 
+@view-transition {
+    navigation: auto;
+}
+
+@supports (view-transition-name: macpro-sidebar) {
+    .left-side-bar {
+        view-transition-name: macpro-sidebar;
+    }
+
+    .header {
+        view-transition-name: macpro-header;
+    }
+
+    .main-container {
+        view-transition-name: macpro-page;
+    }
+
+    ::view-transition-group(macpro-sidebar),
+    ::view-transition-group(macpro-header) {
+        z-index: 20;
+    }
+
+    ::view-transition-group(macpro-page) {
+        z-index: 1;
+    }
+}
+
 /* ================= RESET & BASE STYLES ================= */
 *, *::before, *::after {
     margin: 0;
@@ -2058,6 +2085,14 @@ html.sidebar-transitioning .left-side-bar {
 }
 
 /* ================= MAIN CONTAINER ================= */
+.macpro-app-content {
+    min-height: 100vh;
+}
+
+#macproAppContentBoundary {
+    display: none !important;
+}
+
 .main-container {
     margin-left: var(--sidebar-width);
     padding: calc(var(--header-height) + var(--spacing-6)) var(--spacing-6) var(--spacing-6);
@@ -2066,6 +2101,39 @@ html.sidebar-transitioning .left-side-bar {
     animation: fadePage 0.35s ease;
     background: linear-gradient(180deg, var(--blue-50) 0%, var(--ink-100) 100%);
     min-height: 100vh;
+}
+
+.macpro-frame-host {
+    display: block;
+    min-height: 100vh;
+    animation: none;
+}
+
+.macpro-content-frame {
+    display: block;
+    width: 100%;
+    min-height: 520px;
+    border: 0;
+    background: transparent;
+}
+
+body.macpro-frame-page {
+    min-height: 100vh;
+    background: transparent;
+}
+
+body.macpro-frame-page .main-container {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    min-height: auto;
+    animation: none;
+}
+
+body.macpro-frame-page .mobile-menu-overlay,
+body.macpro-frame-page .left-side-bar,
+body.macpro-frame-page .header,
+body.macpro-frame-page .macpro-page-skeleton {
+    display: none !important;
 }
 
 .macpro-page-skeleton {
