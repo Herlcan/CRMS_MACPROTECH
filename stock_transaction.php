@@ -3,6 +3,7 @@
 	include 'sidebar.php';
 	require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
 	require_once __DIR__ . '/src/handlers/db_helpers.php';
+	require_once __DIR__ . '/src/handlers/sql_filter_helpers.php';
 
 	$item_id = isset($_GET['item_id']) ? (int) $_GET['item_id'] : 0;
 	$item = null;
@@ -103,9 +104,8 @@
 	$product_name = $item ? trim($item['brand_name'] . ' ' . $item['model']) : '';
 	$total_stock_in = 0;
 	$total_stock_out = 0;
-	$transaction_where_clauses = ["item_id = ?"];
-	$transaction_where_types = "i";
-	$transaction_where_params = [$item_id];
+	$transaction_filters = sql_filter_new();
+	sql_filter_add_equals($transaction_filters, 'item_id', $item_id, 'i');
 	$transaction_search = trim($_GET['transaction_search'] ?? '');
 	$transaction_limit = 10;
 	$transaction_current_page = 1;
@@ -149,18 +149,16 @@
 
 		if ($transaction_search !== '') {
 			$escaped_transaction_search = '%' . strtolower($transaction_search) . '%';
-			$transaction_where_clauses[] = "(
+			sql_filter_add_condition($transaction_filters, "(
 				LOWER(CAST(capital AS CHAR)) LIKE ?
 				OR LOWER(CAST(stock_in AS CHAR)) LIKE ?
 				OR LOWER(stock_in_date) LIKE ?
-			)";
-			$transaction_where_types .= "sss";
-			$transaction_where_params[] = $escaped_transaction_search;
-			$transaction_where_params[] = $escaped_transaction_search;
-			$transaction_where_params[] = $escaped_transaction_search;
+			)", "sss", [$escaped_transaction_search, $escaped_transaction_search, $escaped_transaction_search]);
 		}
 
-		$transaction_where = implode(' AND ', $transaction_where_clauses);
+		$transaction_where = sql_filter_where($transaction_filters);
+		$transaction_where_types = sql_filter_types($transaction_filters);
+		$transaction_where_params = sql_filter_params($transaction_filters);
 		$transaction_count_query = mysqli_prepare(
 			$conn,
 			"SELECT COUNT(*) AS total FROM stock_in_transaction WHERE $transaction_where"

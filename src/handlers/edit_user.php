@@ -24,13 +24,13 @@ if (!function_exists('redirectUserWithDialog')) {
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_user'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'update user', isset($_POST['user_id']) ? (int) $_POST['user_id'] : null)) {
         redirectUserWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role('Administrator', function () {
         redirectUserWithDialog('error', 'Permission Required', 'Only administrators can update users.');
-    });
+    }, $conn, 'update user');
 
     $user_id = intval($_POST['user_id']);
 	$username = trim($_POST['username'] ?? '');

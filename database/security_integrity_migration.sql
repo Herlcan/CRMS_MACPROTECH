@@ -16,6 +16,152 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 ALTER TABLE stock_out_transaction
     ADD COLUMN IF NOT EXISTS average_cost_snapshot decimal(10,2) DEFAULT NULL AFTER quantity;
 
+-- Add business-code uniqueness when existing data is already clean.
+SET @sql := (
+    SELECT IF(
+        (
+            SELECT COUNT(*)
+            FROM (
+                SELECT INDEX_NAME
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'users'
+                AND NON_UNIQUE = 0
+                GROUP BY INDEX_NAME
+                HAVING GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',') = 'username'
+            ) existing_unique
+        ) = 0
+        AND (
+            SELECT COUNT(*)
+            FROM (
+                SELECT username
+                FROM users
+                GROUP BY username
+                HAVING COUNT(*) > 1
+            ) duplicate_values
+        ) = 0,
+        'ALTER TABLE users ADD UNIQUE KEY uq_users_username (username)',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+    SELECT IF(
+        (
+            SELECT COUNT(*)
+            FROM (
+                SELECT INDEX_NAME
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'users'
+                AND NON_UNIQUE = 0
+                GROUP BY INDEX_NAME
+                HAVING GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',') = 'email'
+            ) existing_unique
+        ) = 0
+        AND (
+            SELECT COUNT(*)
+            FROM (
+                SELECT email
+                FROM users
+                GROUP BY email
+                HAVING COUNT(*) > 1
+            ) duplicate_values
+        ) = 0,
+        'ALTER TABLE users ADD UNIQUE KEY uq_users_email (email)',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+    SELECT IF(
+        (
+            SELECT COUNT(*)
+            FROM (
+                SELECT INDEX_NAME
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'work_order'
+                AND NON_UNIQUE = 0
+                GROUP BY INDEX_NAME
+                HAVING GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',') = 'code'
+            ) existing_unique
+        ) = 0
+        AND (
+            SELECT COUNT(*)
+            FROM (
+                SELECT code
+                FROM work_order
+                GROUP BY code
+                HAVING COUNT(*) > 1
+            ) duplicate_values
+        ) = 0,
+        'ALTER TABLE work_order ADD UNIQUE KEY uq_work_order_code (code)',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+    SELECT IF(
+        (
+            SELECT COUNT(*)
+            FROM (
+                SELECT INDEX_NAME
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'payments'
+                AND NON_UNIQUE = 0
+                GROUP BY INDEX_NAME
+                HAVING GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',') = 'payment_code'
+            ) existing_unique
+        ) = 0
+        AND (
+            SELECT COUNT(*)
+            FROM (
+                SELECT payment_code
+                FROM payments
+                GROUP BY payment_code
+                HAVING COUNT(*) > 1
+            ) duplicate_values
+        ) = 0,
+        'ALTER TABLE payments ADD UNIQUE KEY uq_payments_payment_code (payment_code)',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql := (
+    SELECT IF(
+        (
+            SELECT COUNT(*)
+            FROM (
+                SELECT INDEX_NAME
+                FROM INFORMATION_SCHEMA.STATISTICS
+                WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'items'
+                AND NON_UNIQUE = 0
+                GROUP BY INDEX_NAME
+                HAVING GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ',') = 'product_code'
+            ) existing_unique
+        ) = 0
+        AND (
+            SELECT COUNT(*)
+            FROM (
+                SELECT product_code
+                FROM items
+                GROUP BY product_code
+                HAVING COUNT(*) > 1
+            ) duplicate_values
+        ) = 0,
+        'ALTER TABLE items ADD UNIQUE KEY uq_items_product_code (product_code)',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
 SET @sql := (
     SELECT IF(COUNT(*) = 0,
         'ALTER TABLE work_order ADD CONSTRAINT fk_work_order_client FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE RESTRICT ON UPDATE CASCADE',

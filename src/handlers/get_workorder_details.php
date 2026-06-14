@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+
 session_start();
 require_once '../db/connection.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -48,6 +51,7 @@ $canView = user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front 
     );
 
 if (!$canView) {
+    audit_authorization_failure($conn, 'view work order details', $id);
     http_response_code(403);
     echo json_encode(['error' => 'You are not allowed to view this work order', 'success' => false]);
     exit;

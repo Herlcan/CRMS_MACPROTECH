@@ -395,7 +395,7 @@ ALTER TABLE `customer_provided_component`
 --
 ALTER TABLE `items`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `product_code` (`product_code`),
+  ADD UNIQUE KEY `uq_items_product_code` (`product_code`),
   ADD KEY `product_name` (`brand_name`),
   ADD KEY `category_id` (`category_id`),
   ADD KEY `model` (`model`);
@@ -452,6 +452,7 @@ ALTER TABLE `ordered_parts`
 --
 ALTER TABLE `payments`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_payments_payment_code` (`payment_code`),
   ADD KEY `work_order_id` (`work_order_id`),
   ADD KEY `date` (`date`);
 
@@ -498,13 +499,14 @@ ALTER TABLE `users`
   ADD KEY `user_name` (`username`),
   ADD KEY `first_name` (`first_name`),
   ADD KEY `last_name` (`last_name`),
-  ADD KEY `email` (`email`);
+  ADD UNIQUE KEY `uq_users_email` (`email`);
 
 --
 -- Indexes for table `work_order`
 --
 ALTER TABLE `work_order`
   ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_work_order_code` (`code`),
   ADD KEY `client_id` (`client_id`),
   ADD KEY `technician_id` (`technician_id`);
 

@@ -23,13 +23,13 @@ if (!function_exists('redirectCategoryWithDialog')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'create item category')) {
         redirectCategoryWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
         redirectCategoryWithDialog('error', 'Permission Required', 'Only authorized staff can create categories.');
-    });
+    }, $conn, 'create item category');
 
     $category_name = trim($_POST['category_name']);
 

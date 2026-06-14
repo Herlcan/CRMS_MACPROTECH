@@ -8,13 +8,14 @@ require_once __DIR__ . '/activity_log_helper.php';
 require_once __DIR__ . '/security_helpers.php';
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_payment_status'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'update payment status', isset($_POST['payment_id']) ? (int) $_POST['payment_id'] : null)) {
         $_SESSION['payment_error'] = 'Your form session expired. Please try again.';
         header("Location: ../../payment.php");
         exit();
     }
 
     if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        audit_authorization_failure($conn, 'update payment status');
         $_SESSION['payment_error'] = 'You are not allowed to update payment status.';
         header("Location: ../../payment.php");
         exit();

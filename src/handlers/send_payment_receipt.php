@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 
 header('Content-Type: application/json');
 
@@ -69,12 +69,13 @@ try {
         throw new Exception('Invalid request method');
     }
 
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'send payment receipt')) {
         http_response_code(403);
         throw new Exception('Your form session expired. Please try again.');
     }
 
     if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        audit_authorization_failure($conn, 'send payment receipt');
         http_response_code(403);
         throw new Exception('You are not allowed to send payment receipts.');
     }
@@ -295,14 +296,36 @@ try {
         $message .= ', but SMS notification was skipped: ' . ($smsResult['message'] ?? 'SMS unavailable');
     }
 
+    $auditMessage = 'Sent payment receipt ' . ($payment['payment_code'] ?: ('#' . $paymentId)) . ' by email';
+    if ($smsResult['attempted'] ?? false) {
+        $auditMessage .= ($smsResult['success'] ?? false) ? ' and SMS' : '; SMS failed';
+    } elseif (app_setting_enabled($appSettings, 'sms_enabled') && app_setting_enabled($appSettings, 'sms_receipt_notifications_enabled')) {
+        $auditMessage .= '; SMS skipped';
+    }
+    log_activity($conn, $auditMessage, $workOrderId);
+
     $response = [
         'success' => true,
         'message' => $message
     ];
 } catch (MailException $e) {
     error_log('Receipt email failed: ' . $e->getMessage());
+    if (isset($payment) && is_array($payment)) {
+        log_security_event(
+            $conn,
+            'Receipt email failed for ' . ($payment['payment_code'] ?? ('payment #' . ($paymentId ?? 0))),
+            isset($payment['work_order_id']) ? (int) $payment['work_order_id'] : null
+        );
+    }
     $response = ['success' => false, 'message' => 'Failed to send receipt email. Please check email settings.'];
 } catch (Exception $e) {
+    if (isset($payment) && is_array($payment)) {
+        log_security_event(
+            $conn,
+            'Receipt send failed for ' . ($payment['payment_code'] ?? ('payment #' . ($paymentId ?? 0))) . ': ' . $e->getMessage(),
+            isset($payment['work_order_id']) ? (int) $payment['work_order_id'] : null
+        );
+    }
     $response = ['success' => false, 'message' => $e->getMessage()];
 }
 

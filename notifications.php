@@ -3,6 +3,7 @@
 	include 'sidebar.php';
 	include 'src/db/connection.php';
 	require_once 'src/handlers/notification_helpers.php';
+	require_once 'src/handlers/sql_filter_helpers.php';
 
 	ensure_notifications_table($conn);
 	$warrantyNotificationRoles = ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'];
@@ -17,21 +18,24 @@
 		$filter = 'all';
 	}
 
-	$where = "user_id = ?";
-	$types = "i";
-	$params = [$userId];
+	$notification_filters = sql_filter_new();
+	sql_filter_add_equals($notification_filters, 'user_id', $userId, 'i');
 
 	if ($filter === 'archived') {
-		$where .= " AND is_archived = 1";
+		sql_filter_add_condition($notification_filters, 'is_archived = 1');
 	} else {
-		$where .= " AND is_archived = 0";
+		sql_filter_add_condition($notification_filters, 'is_archived = 0');
 	}
 
 	if ($filter === 'unread') {
-		$where .= " AND is_read = 0";
+		sql_filter_add_condition($notification_filters, 'is_read = 0');
 	} elseif ($filter === 'read') {
-		$where .= " AND is_read = 1";
+		sql_filter_add_condition($notification_filters, 'is_read = 1');
 	}
+
+	$where = sql_filter_where($notification_filters);
+	$types = sql_filter_types($notification_filters);
+	$params = sql_filter_params($notification_filters);
 
 	$query = mysqli_prepare($conn, "
 		SELECT id, title, message, type, link, is_read, is_archived, created_at

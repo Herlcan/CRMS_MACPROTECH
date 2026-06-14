@@ -77,13 +77,13 @@ function resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_work_order'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'update work order', isset($_POST['work_order_id']) ? (int) $_POST['work_order_id'] : null)) {
         redirectWorkOrderWithDialog((int) ($_POST['client_id'] ?? 0), 'error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
         redirectWorkOrderWithDialog((int) ($_POST['client_id'] ?? 0), 'error', 'Permission Required', 'Only authorized staff can update work orders.');
-    });
+    }, $conn, 'update work order', isset($_POST['work_order_id']) ? (int) $_POST['work_order_id'] : null);
 
     $work_order_id = intval($_POST['work_order_id']);
     $client_id = (int) ($_POST['client_id'] ?? 0);

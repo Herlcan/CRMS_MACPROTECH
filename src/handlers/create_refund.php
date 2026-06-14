@@ -1,7 +1,7 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 
 header('Content-Type: application/json');
 
@@ -22,12 +22,13 @@ try {
         throw new Exception('Invalid request method');
     }
 
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'create refund')) {
         http_response_code(403);
         throw new Exception('Your form session expired. Please try again.');
     }
 
     if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        audit_authorization_failure($conn, 'create refund');
         http_response_code(403);
         throw new Exception('You are not allowed to record refunds.');
     }

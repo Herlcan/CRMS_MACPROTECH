@@ -5,6 +5,7 @@
 	require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
 	require_once __DIR__ . '/src/handlers/category_schema.php';
 	require_once __DIR__ . '/src/handlers/db_helpers.php';
+	require_once __DIR__ . '/src/handlers/sql_filter_helpers.php';
 
 	try {
 		ensure_item_category_name_column($conn);
@@ -367,9 +368,7 @@
 								</tr>
 							</thead>
 							<?php
-								$where_clauses = ["1=1"];
-								$where_types = "";
-								$where_params = [];
+								$item_filters = sql_filter_new();
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -384,29 +383,20 @@
 									$current_page = max(1, intval($_GET['page'])); // Ensure page is at least 1
 								}
 
-								// Secure search
-								if (!empty($_GET['search'])) {
-								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
-									$where_clauses[] = "(LOWER(brand_name) LIKE ? OR LOWER(model) LIKE ? OR LOWER(product_code) LIKE ? OR LOWER(status) LIKE ?)";
-									$where_types .= "ssss";
-									$where_params[] = $s;
-									$where_params[] = $s;
-									$where_params[] = $s;
-									$where_params[] = $s;
-								}
+								sql_filter_add_like_any($item_filters, ['brand_name', 'model', 'product_code', 'status'], $_GET['search'] ?? '');
 								
 								// Category filter
 								if (!empty($_GET['category'])) {
 									$cat = (int) $_GET['category'];
 									if ($cat > 0) {
-										$where_clauses[] = "category_id = ?";
-										$where_types .= "i";
-										$where_params[] = $cat;
+										sql_filter_add_equals($item_filters, 'category_id', $cat, 'i');
 									}
 								}
 
 									// Get total count for pagination info
-								$where = implode(' AND ', $where_clauses);
+								$where = sql_filter_where($item_filters);
+								$where_types = sql_filter_types($item_filters);
+								$where_params = sql_filter_params($item_filters);
 								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM items WHERE $where");
 								db_bind_params($count_query, $where_types, $where_params);
 								mysqli_stmt_execute($count_query);

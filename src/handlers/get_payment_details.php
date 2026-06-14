@@ -1,7 +1,7 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 
 header('Content-Type: application/json');
 
@@ -13,10 +13,10 @@ $response = ['success' => false, 'message' => 'Unknown error'];
 
 try {
     require_authenticated_json($conn);
-    require_json_role(
-        ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
-        'You are not allowed to view payment details.'
-    );
+    if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        audit_authorization_failure($conn, 'view payment details');
+        json_response(['success' => false, 'message' => 'You are not allowed to view payment details.'], 403);
+    }
 
     ensure_payment_detail_columns($conn);
     ensure_items_inventory_columns($conn);
@@ -68,6 +68,7 @@ try {
     }
 
     $workOrderId = (int) $payment['work_order_id'];
+    log_activity($conn, 'Viewed payment details ' . ($payment['payment_code'] ?: ('#' . $paymentId)), $workOrderId);
     $purchasedParts = get_payment_purchased_parts($conn, $workOrderId);
     $orderedParts = get_payment_ordered_parts($conn, $workOrderId);
 

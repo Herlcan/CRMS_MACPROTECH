@@ -13,6 +13,7 @@
 	include 'sidebar.php'; 
 	include 'src/db/connection.php';
 	require_once __DIR__ . '/src/handlers/db_helpers.php';
+	require_once __DIR__ . '/src/handlers/sql_filter_helpers.php';
 
 	$canDeleteClients = isset($_SESSION['role']) && $_SESSION['role'] === 'Administrator';
 
@@ -194,9 +195,7 @@
 								</tr>
 							</thead>
 							<?php
-								$where_clauses = ["1=1"];
-								$where_types = "";
-								$where_params = [];
+								$client_filters = sql_filter_new();
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -211,18 +210,12 @@
 									$current_page = max(1, intval($_GET['page'])); // Ensure page is at least 1
 								}
 
-								// Secure search
-								if (!empty($_GET['search'])) {
-								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
-								    $where_clauses[] = "(LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR LOWER(email) LIKE ?)";
-									$where_types .= "sss";
-									$where_params[] = $s;
-									$where_params[] = $s;
-									$where_params[] = $s;
-								}
+								sql_filter_add_like_any($client_filters, ['first_name', 'last_name', 'email'], $_GET['search'] ?? '');
 
 								// Get total count for pagination info
-								$where = implode(' AND ', $where_clauses);
+								$where = sql_filter_where($client_filters);
+								$where_types = sql_filter_types($client_filters);
+								$where_params = sql_filter_params($client_filters);
 								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM client WHERE $where");
 								db_bind_params($count_query, $where_types, $where_params);
 								mysqli_stmt_execute($count_query);

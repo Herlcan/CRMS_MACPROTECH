@@ -26,13 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['add_inventory_transa
     exit();
 }
 
-if (!verify_csrf_token()) {
+if (!verify_csrf_token_or_audit($conn, 'add inventory transaction', isset($_POST['item_id']) ? (int) $_POST['item_id'] : null)) {
     redirectStockRecordsWithDialog((int) ($_POST['item_id'] ?? 0), 'error', 'Security Check Failed', 'Your form session expired. Please try again.');
 }
 
 require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
     redirectStockRecordsWithDialog((int) ($_POST['item_id'] ?? 0), 'error', 'Permission Required', 'Only authorized staff can add stock.');
-});
+}, $conn, 'add inventory transaction');
 
 $item_id = (int) ($_POST['item_id'] ?? 0);
 $capital = (float) ($_POST['capital'] ?? 0);

@@ -48,6 +48,7 @@ if (session_status() === PHP_SESSION_NONE) {
 						$_SESSION['username'] = $row['username'];
 						$_SESSION['role'] = $row['role'];
 						csrf_token();
+						security_refresh_session_activity();
 						log_activity($conn, "Login success");
 						header("Location: index.php");
 						exit();

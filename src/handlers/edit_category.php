@@ -26,13 +26,13 @@
     }
 
     if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_category'])) {
-        if (!verify_csrf_token()) {
+        if (!verify_csrf_token_or_audit($conn, 'update item category')) {
             redirectCategoryWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
         }
 
         require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
             redirectCategoryWithDialog('error', 'Permission Required', 'Only authorized staff can update categories.');
-        });
+        }, $conn, 'update item category');
 
         $category_id  = (int) ($_POST['id'] ?? 0);
         $category_name = trim($_POST['category']);

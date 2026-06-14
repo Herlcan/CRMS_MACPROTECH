@@ -11,6 +11,7 @@
 	}
 	include 'sidebar.php'; 
 	require_once __DIR__ . '/src/handlers/db_helpers.php';
+	require_once __DIR__ . '/src/handlers/sql_filter_helpers.php';
 ?>
 	<!-- EDIT CATEGORY MODAL (Pure CSS) -->
 	<input type="checkbox" id="editCategoryToggle" class="edit-client-toggle">
@@ -116,9 +117,7 @@
 									</tr>
 								</thead>
 								<?php
-								$where_clauses = ["1=1"];
-								$where_types = "";
-								$where_params = [];
+								$category_filters = sql_filter_new();
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -133,16 +132,12 @@
 									$current_page = max(1, intval($_GET['page'])); // Ensure page is at least 1
 								}
 
-								// Secure search
-								if (!empty($_GET['search'])) {
-								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
-								    $where_clauses[] = "LOWER(category_name) LIKE ?";
-									$where_types .= "s";
-									$where_params[] = $s;
-								}
+								sql_filter_add_like_any($category_filters, ['category_name'], $_GET['search'] ?? '');
 
 								// Get total count for pagination info
-								$where = implode(' AND ', $where_clauses);
+								$where = sql_filter_where($category_filters);
+								$where_types = sql_filter_types($category_filters);
+								$where_params = sql_filter_params($category_filters);
 								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM item_category WHERE $where");
 								db_bind_params($count_query, $where_types, $where_params);
 								mysqli_stmt_execute($count_query);

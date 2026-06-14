@@ -3,6 +3,7 @@
 	include 'sidebar.php'; 
 	require_once __DIR__ . '/src/handlers/work_order_schema.php';
 	require_once __DIR__ . '/src/handlers/db_helpers.php';
+	require_once __DIR__ . '/src/handlers/sql_filter_helpers.php';
 
 	ensure_work_order_priority_column($conn);
 
@@ -210,9 +211,7 @@
 								</tr>
 							</thead>
 							<?php
-								$where_clauses = ["1=1"];
-								$where_types = "";
-								$where_params = [];
+								$work_order_filters = sql_filter_new();
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -227,21 +226,7 @@
 									$current_page = max(1, intval($_GET['page'])); // Ensure page is at least 1
 								}
 
-								// Secure search
-								if (!empty($_GET['search'])) {
-									$s = '%' . strtolower(trim($_GET['search'])) . '%';
-									$where_clauses[] = "(
-										LOWER(code) LIKE ? OR
-										LOWER(unit_type) LIKE ? OR
-										LOWER(brand) LIKE ? OR
-										LOWER(model) LIKE ?
-									)";
-									$where_types .= "ssss";
-									$where_params[] = $s;
-									$where_params[] = $s;
-									$where_params[] = $s;
-									$where_params[] = $s;
-								}
+								sql_filter_add_like_any($work_order_filters, ['code', 'unit_type', 'brand', 'model'], $_GET['search'] ?? '');
 
 								// Secure filter
 								if (!empty($_GET['filter'])) {
@@ -250,14 +235,9 @@
 									if (in_array($_GET['filter'], $allowed_status, true)) {
 										$f = $_GET['filter'];
 										if ($f === 'Repaired') {
-											$where_clauses[] = "status IN (?, ?)";
-											$where_types .= "ss";
-											$where_params[] = 'Repaired';
-											$where_params[] = 'Ready for Release';
+											sql_filter_add_condition($work_order_filters, "status IN (?, ?)", "ss", ['Repaired', 'Ready for Release']);
 										} else {
-											$where_clauses[] = "status = ?";
-											$where_types .= "s";
-											$where_params[] = $f;
+											sql_filter_add_equals($work_order_filters, 'status', $f);
 										}
 									}
 								}
@@ -267,9 +247,7 @@
 
 									if (in_array($_GET['priority_filter'], $allowed_priorities, true)) {
 										$p = $_GET['priority_filter'];
-										$where_clauses[] = "priority = ?";
-										$where_types .= "s";
-										$where_params[] = $p;
+										sql_filter_add_equals($work_order_filters, 'priority', $p);
 									}
 								}
 
@@ -278,14 +256,13 @@
 
 								    $technician_id = intval($_SESSION['user_id']);
 
-								    // Add technician filter to WHERE
-								    $where_clauses[] = "technician_id = ?";
-									$where_types .= "i";
-									$where_params[] = $technician_id;
+									sql_filter_add_equals($work_order_filters, 'technician_id', $technician_id, 'i');
 								}
 
 								// Get total count for pagination info
-								$where = implode(' AND ', $where_clauses);
+								$where = sql_filter_where($work_order_filters);
+								$where_types = sql_filter_types($work_order_filters);
+								$where_params = sql_filter_params($work_order_filters);
 								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM work_order WHERE $where");
 								db_bind_params($count_query, $where_types, $where_params);
 								mysqli_stmt_execute($count_query);
@@ -300,7 +277,9 @@
 								$offset = min($offset, $total_records); // Prevent offset from exceeding total records
 
 								// Correct table + column names with LIMIT and OFFSET
-								$active_priority_sort = "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END";
+								$active_priority_sort = sql_allowed_fragment('active_priority', [
+									'active_priority' => "CASE WHEN priority = 'Rush' AND status NOT IN ('Repaired', 'Ready for Release', 'Released', 'Cancelled') THEN 0 ELSE 1 END"
+								], 'active_priority');
 								$list_query = mysqli_prepare($conn, "SELECT work_order.*, (SELECT p.total_amount FROM payments p WHERE p.work_order_id = work_order.id ORDER BY p.id DESC LIMIT 1) AS payment_total_amount FROM work_order WHERE $where ORDER BY $active_priority_sort, code DESC LIMIT ? OFFSET ?");
 								$list_types = $where_types . "ii";
 								$list_params = array_merge($where_params, [$limit, $offset]);
@@ -420,6 +399,7 @@
 					</div>
 				</div>
 				<!-- Simple Datatable End -->
+			</div>
 		</div>
 	</div>
 
@@ -689,7 +669,8 @@
 		function openViewDrawer() {
 			const modal = document.getElementById('viewWorkOrderDrawer');
 			modal.classList.add('show');
-			modal.style.display = 'block';
+			modal.style.display = 'flex';
+			modal.setAttribute('aria-hidden', 'false');
 			document.body.style.overflow = 'hidden';
 			
 			// Create backdrop
@@ -706,6 +687,7 @@
 			const modal = document.getElementById('viewWorkOrderDrawer');
 			modal.classList.remove('show');
 			modal.style.display = 'none';
+			modal.setAttribute('aria-hidden', 'true');
 			document.body.style.overflow = 'auto';
 			
 			const backdrop = document.querySelector('.modal-backdrop');

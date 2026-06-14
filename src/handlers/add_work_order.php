@@ -76,13 +76,13 @@ function resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'create work order')) {
         redirectWorkOrderWithDialog((int) ($_POST['client_id'] ?? 0), 'error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
         redirectWorkOrderWithDialog((int) ($_POST['client_id'] ?? 0), 'error', 'Permission Required', 'Only authorized staff can create work orders.');
-    });
+    }, $conn, 'create work order');
 
     $client_id = (int) ($_POST['client_id'] ?? 0);
     $unit_type = trim($_POST['unit_type']);
@@ -115,11 +115,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
     try {
         $unit_type = resolveWorkOrderUnitType($conn, $unit_type, $other_unit_type);
+        $temporary_work_order_code = 'WO-TMP-' . bin2hex(random_bytes(8));
 
         $add_query = mysqli_prepare($conn,
             "INSERT INTO work_order
-            (client_id, request_date, unit_type, brand, model, specs_acce, prob_find, diagnostic_fee, work_order_cost, priority, warranty_days, status, technician_id, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            (client_id, code, request_date, unit_type, brand, model, specs_acce, prob_find, diagnostic_fee, work_order_cost, priority, warranty_days, status, technician_id, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
 
         if (!$add_query) {
@@ -128,8 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
 
         mysqli_stmt_bind_param(
             $add_query,
-            "isssssssssisis",
+            "issssssssssisis",
             $client_id,
+            $temporary_work_order_code,
             $request_date,
             $unit_type,
             $brand,
@@ -277,12 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
         // Create Payment Record
         $total_payment_amount += $purchased_parts_total + $ordered_parts_total;
         $payment_status = 'Unpaid';
-
-        // Get the last payment ID to generate payment code
-        $last_payment_query = db_prepared_result($conn, "SELECT id FROM payments ORDER BY id DESC LIMIT 1");
-        $last_payment_row = $last_payment_query ? mysqli_fetch_assoc($last_payment_query) : null;
-        $last_payment_id = $last_payment_row ? $last_payment_row['id'] : 0;
-        $payment_code = "PMT-" . sprintf("%04d", $last_payment_id + 1);
+        $temporary_payment_code = 'PMT-TMP-' . bin2hex(random_bytes(8));
 
         // Insert payment record
         $payment_query = mysqli_prepare($conn,
@@ -293,12 +290,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_work_order'])) {
             throw new Exception('Database error: ' . mysqli_error($conn));
         }
 
-        mysqli_stmt_bind_param($payment_query, "sids", $payment_code, $id, $total_payment_amount, $payment_status);
+        mysqli_stmt_bind_param($payment_query, "sids", $temporary_payment_code, $id, $total_payment_amount, $payment_status);
         if (!mysqli_stmt_execute($payment_query)) {
             throw new Exception('Failed to create payment record: ' . mysqli_stmt_error($payment_query));
         }
         $payment_id = mysqli_insert_id($conn);
         mysqli_stmt_close($payment_query);
+
+        $payment_code = "PMT-" . sprintf("%04d", $payment_id);
+        $payment_code_query = mysqli_prepare($conn, "UPDATE payments SET payment_code = ? WHERE id = ?");
+        if (!$payment_code_query) {
+            throw new Exception('Database error: ' . mysqli_error($conn));
+        }
+
+        mysqli_stmt_bind_param($payment_code_query, "si", $payment_code, $payment_id);
+        if (!mysqli_stmt_execute($payment_code_query)) {
+            throw new Exception('Failed to generate payment code: ' . mysqli_stmt_error($payment_code_query));
+        }
+        mysqli_stmt_close($payment_code_query);
         refresh_payment_summary($conn, (int) $payment_id);
 
         if ($technician_id) {

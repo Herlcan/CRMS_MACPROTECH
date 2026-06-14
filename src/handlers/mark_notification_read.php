@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+
 session_start();
 header('Content-Type: application/json');
 
@@ -12,7 +15,7 @@ require_authenticated_json($conn);
 
 ensure_notifications_table($conn);
 
-if (!verify_csrf_token()) {
+if (!verify_csrf_token_or_audit($conn, 'update notification')) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Your form session expired. Please try again.']);
     exit;

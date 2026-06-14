@@ -3,6 +3,7 @@
 	include 'auth_check.php';
 
 	if (($_SESSION['role'] ?? '') !== 'Administrator') {
+		audit_authorization_failure($conn, 'reports page view');
 		$_SESSION['dialog_flash'] = [
 			'type' => 'error',
 			'title' => 'Reports Restricted',
@@ -47,7 +48,33 @@
 		return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : '';
 	}
 
+	function reports_allowed_date_column(string $column): string {
+		$allowed_columns = [
+			'request_date',
+			'w.request_date',
+			'completion_date',
+			'w.completion_date',
+			'date',
+			'c.date',
+			'COALESCE(p.date, DATE(p.created_at))',
+			'DATE(pt.transaction_at)',
+			'sit.stock_in_date',
+			'sot.stock_out_date',
+			'pi.date',
+			'DATE(op.created_at)',
+			'DATE(al.created_at)',
+			'DATE(r.refunded_at)'
+		];
+
+		if (!in_array($column, $allowed_columns, true)) {
+			throw new InvalidArgumentException('Unsupported report date filter column.');
+		}
+
+		return $column;
+	}
+
 	function reports_date_condition(string $column, string $date_from, string $date_to): array {
+		$column = reports_allowed_date_column($column);
 		$conditions = [];
 		$types = '';
 		$params = [];
@@ -252,6 +279,8 @@
 	if ($date_from !== '' && $date_to !== '' && $date_from > $date_to) {
 		[$date_from, $date_to] = [$date_to, $date_from];
 	}
+
+	log_activity($conn, 'Viewed reports page (' . reports_range_label($date_from, $date_to) . ')');
 
 	try {
 		ensure_work_order_priority_column($conn);

@@ -35,7 +35,7 @@
 	}
 
 	if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_app_settings'])) {
-		if (!verify_csrf_token()) {
+		if (!verify_csrf_token_or_audit($conn, 'update system settings')) {
 			$_SESSION['dialog_flash'] = [
 				'type' => 'error',
 				'title' => 'Security Check Failed',
@@ -46,6 +46,7 @@
 		}
 
 		if (!$can_manage_settings) {
+			audit_authorization_failure($conn, 'update system settings');
 			$_SESSION['dialog_flash'] = [
 				'type' => 'error',
 				'title' => 'Permission Required',
@@ -184,6 +185,9 @@
 								<i class="dw dw-bell"></i> Notifications
 							</a>
 							<?php if ($can_manage_settings): ?>
+								<a href="backup-restore.php" class="btn btn-secondary btn-sm">
+									<i class="dw dw-database"></i> Backup
+								</a>
 								<a href="user.php" class="btn btn-secondary btn-sm">
 									<i class="dw dw-user1"></i> Users
 								</a>

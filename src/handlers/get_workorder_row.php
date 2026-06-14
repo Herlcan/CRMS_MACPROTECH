@@ -45,6 +45,7 @@ if (
         && (int) ($wo['technician_id'] ?? 0) !== (int) ($_SESSION['user_id'] ?? 0)
     )
 ) {
+    audit_authorization_failure($conn, 'refresh work order row', $id);
     http_response_code(403);
     exit;
 }

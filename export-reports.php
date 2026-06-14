@@ -3,6 +3,7 @@ include 'src/db/connection.php';
 include 'auth_check.php';
 
 if (($_SESSION['role'] ?? '') !== 'Administrator') {
+    audit_authorization_failure($conn, 'report export');
     $_SESSION['dialog_flash'] = [
         'type' => 'error',
         'title' => 'Export Restricted',
@@ -18,6 +19,7 @@ require_once __DIR__ . '/src/handlers/inventory_transaction_schema.php';
 require_once __DIR__ . '/src/handlers/ordered_part_schema.php';
 require_once __DIR__ . '/src/handlers/activity_log_helper.php';
 require_once __DIR__ . '/src/handlers/db_helpers.php';
+require_once __DIR__ . '/src/handlers/sql_filter_helpers.php';
 
 function export_report_safe_date($date): string
 {
@@ -25,8 +27,26 @@ function export_report_safe_date($date): string
     return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : '';
 }
 
+function export_report_allowed_date_column(string $column): string
+{
+    $allowedColumns = [
+        'w.request_date',
+        'COALESCE(p.date, DATE(p.created_at))',
+        'DATE(pt.transaction_at)',
+        'c.date',
+        'i.date'
+    ];
+
+    if (!in_array($column, $allowedColumns, true)) {
+        throw new InvalidArgumentException('Unsupported export date filter column.');
+    }
+
+    return $column;
+}
+
 function export_report_date_condition(string $column, string $dateFrom, string $dateTo, string &$types, array &$params): string
 {
+    $column = export_report_allowed_date_column($column);
     $conditions = [];
 
     if ($dateFrom !== '') {
@@ -189,7 +209,11 @@ function export_report_apply_payment_filters(array &$where, string &$types, arra
     $allowedMethods = ['Cash', 'GCash', 'Maya', 'Bank Transfer'];
     $paymentMethod = $_GET['payment_method'] ?? '';
     if (in_array($paymentMethod, $allowedMethods, true)) {
-        $methodColumn = $useTransactionDate ? 'pt.method' : 'p.payment_method';
+        $methodColumn = sql_allowed_fragment(
+            $useTransactionDate ? 'transaction' : 'payment',
+            ['transaction' => 'pt.method', 'payment' => 'p.payment_method'],
+            'payment'
+        );
         $where[] = "$methodColumn = ?";
         $types .= "s";
         $params[] = $paymentMethod;

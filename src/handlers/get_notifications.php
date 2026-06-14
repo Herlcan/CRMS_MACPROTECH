@@ -1,12 +1,16 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+
 session_start();
 header('Content-Type: application/json');
 
 require_once '../db/connection.php';
 require_once 'notification_helpers.php';
 require_once 'security_helpers.php';
+require_once 'sql_filter_helpers.php';
 
 require_authenticated_json($conn);
 
@@ -22,20 +26,19 @@ $limit = isset($_GET['limit']) ? max(1, min(50, (int) $_GET['limit'])) : 5;
 $includeArchived = isset($_GET['archived']) && $_GET['archived'] === '1';
 $filter = $_GET['filter'] ?? 'active';
 
-$where = "user_id = ?";
-$types = "i";
-$params = [$userId];
+$notification_filters = sql_filter_new();
+sql_filter_add_equals($notification_filters, 'user_id', $userId, 'i');
 
 if ($includeArchived || $filter === 'archived') {
-    $where .= " AND is_archived = 1";
+    sql_filter_add_condition($notification_filters, 'is_archived = 1');
 } else {
-    $where .= " AND is_archived = 0";
+    sql_filter_add_condition($notification_filters, 'is_archived = 0');
 }
 
 if ($filter === 'unread') {
-    $where .= " AND is_read = 0";
+    sql_filter_add_condition($notification_filters, 'is_read = 0');
 } elseif ($filter === 'read') {
-    $where .= " AND is_read = 1";
+    sql_filter_add_condition($notification_filters, 'is_read = 1');
 }
 
 $countQuery = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM notifications WHERE user_id = ? AND is_read = 0 AND is_archived = 0");
@@ -45,6 +48,10 @@ $countResult = mysqli_stmt_get_result($countQuery);
 $unreadCount = (int) (mysqli_fetch_assoc($countResult)['total'] ?? 0);
 mysqli_stmt_close($countQuery);
 
+$where = sql_filter_where($notification_filters);
+$types = sql_filter_types($notification_filters) . "i";
+$params = array_merge(sql_filter_params($notification_filters), [$limit]);
+
 $sql = "
     SELECT id, title, message, type, link, is_read, is_archived, created_at
     FROM notifications
@@ -52,8 +59,6 @@ $sql = "
     ORDER BY created_at DESC, id DESC
     LIMIT ?
 ";
-$types .= "i";
-$params[] = $limit;
 
 $query = mysqli_prepare($conn, $sql);
 notification_bind_params($query, $types, $params);

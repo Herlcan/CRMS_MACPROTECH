@@ -81,13 +81,13 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'create product item')) {
         redirectItemWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
         redirectItemWithDialog('error', 'Permission Required', 'Only authorized staff can create product items.');
-    });
+    }, $conn, 'create product item');
 
     $brand_name = trim($_POST['brand_name']);
     $model = trim($_POST['model']);
@@ -118,10 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
 
         mysqli_begin_transaction($conn);
 
+        $temporary_product_code = 'PI-TMP-' . bin2hex(random_bytes(8));
+
         $add_query = mysqli_prepare($conn,
             "INSERT INTO items
-            (brand_name, model, description, category_id, quantity, markup_percentage, average_price, status, date, image)
-            VALUES (?, ?, ?, ?, 0, 0.00, 0.00, '', ?, ?)"
+            (product_code, brand_name, model, description, category_id, quantity, markup_percentage, average_price, status, date, image)
+            VALUES (?, ?, ?, ?, ?, 0, 0.00, 0.00, '', ?, ?)"
         );
 
         if (!$add_query) {
@@ -131,7 +133,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_item'])) {
 
         mysqli_stmt_bind_param(
             $add_query,
-            "sssiss",
+            "ssssiss",
+            $temporary_product_code,
             $brand_name,
             $model,
             $description,

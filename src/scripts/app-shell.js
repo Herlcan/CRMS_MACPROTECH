@@ -5,6 +5,35 @@
     const frameId = 'macproContentFrame';
     const frameMessagePrefix = 'macpro:';
     const minimumFrameHeight = 520;
+    const modalToggleSelector = [
+        '.profile-toggle:checked',
+        '.add-client-toggle:checked',
+        '.edit-client-toggle:checked',
+        '.add-user-toggle:checked',
+        '.add-item-toggle:checked',
+        '.category-toggle:checked',
+        '.edit-category-toggle:checked',
+        '.edit-item-toggle:checked',
+        '.delete-client-toggle:checked'
+    ].join(',');
+    const modalVisibleSelector = [
+        '.modal.show',
+        '.payment-modal.show',
+        '.refund-modal.show',
+        '.report-export-status.show',
+        '.macpro-dialog-overlay.show',
+        '#addInventoryStockModal',
+        '#editInventoryTransactionModal',
+        '#deleteWorkOrderModal'
+    ].join(',');
+    const scrollLockClasses = [
+        'macpro-modal-open',
+        'macpro-frame-modal-open',
+        'macpro-dialog-open',
+        'modal-open'
+    ];
+    let frameModalOpen = false;
+    let lastLocalModalOpen = null;
     const layoutByPage = {
         'index.php': 'dashboard',
         'reports.php': 'reports',
@@ -185,6 +214,118 @@
         }
     }
 
+    function shouldDocumentScrollLock() {
+        const html = document.documentElement;
+        const body = document.body;
+
+        return scrollLockClasses.some(function (className) {
+            return html.classList.contains(className) || body.classList.contains(className);
+        });
+    }
+
+    function refreshDocumentScrollLock() {
+        const shouldLock = shouldDocumentScrollLock();
+
+        document.documentElement.style.overflow = shouldLock ? 'hidden' : '';
+
+        if (document.body) {
+            document.body.style.overflow = shouldLock ? 'hidden' : '';
+        }
+    }
+
+    function setDocumentScrollLockClass(className, isOpen) {
+        document.documentElement.classList.toggle(className, isOpen);
+
+        if (document.body) {
+            document.body.classList.toggle(className, isOpen);
+        }
+
+        refreshDocumentScrollLock();
+    }
+
+    function isVisibleModalElement(element) {
+        if (!element || !document.documentElement.contains(element)) {
+            return false;
+        }
+
+        const style = window.getComputedStyle(element);
+
+        return style.display !== 'none' &&
+            style.visibility !== 'hidden' &&
+            Number(style.opacity) !== 0 &&
+            Boolean(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+    }
+
+    function hasOpenLocalModal() {
+        if (document.querySelector(modalToggleSelector)) {
+            return true;
+        }
+
+        return Array.prototype.some.call(
+            document.querySelectorAll(modalVisibleSelector),
+            isVisibleModalElement
+        );
+    }
+
+    function queueLocalModalState(notifyParent) {
+        window.clearTimeout(queueLocalModalState.timer);
+        queueLocalModalState.timer = window.setTimeout(function () {
+            syncLocalModalState(notifyParent);
+        }, 40);
+    }
+
+    function syncLocalModalState(notifyParent) {
+        const isOpen = hasOpenLocalModal();
+
+        setDocumentScrollLockClass('macpro-modal-open', isOpen);
+
+        if (notifyParent && isOpen !== lastLocalModalOpen) {
+            postToParent({
+                type: frameMessagePrefix + 'modal-state',
+                open: isOpen
+            });
+        }
+
+        if (notifyParent && !isOpen && lastLocalModalOpen === true) {
+            queueFrameHeight();
+        }
+
+        lastLocalModalOpen = isOpen;
+    }
+
+    function initLocalModalTracking(notifyParent) {
+        syncLocalModalState(notifyParent);
+
+        document.addEventListener('change', function () {
+            queueLocalModalState(notifyParent);
+        }, true);
+
+        document.addEventListener('click', function () {
+            queueLocalModalState(notifyParent);
+        }, true);
+
+        document.addEventListener('keydown', function () {
+            queueLocalModalState(notifyParent);
+        }, true);
+
+        window.addEventListener('load', function () {
+            queueLocalModalState(notifyParent);
+        });
+
+        if ('MutationObserver' in window) {
+            const modalObserver = new MutationObserver(function () {
+                queueLocalModalState(notifyParent);
+            });
+
+            modalObserver.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['class', 'style', 'aria-hidden'],
+                childList: true,
+                subtree: true
+            });
+        }
+    }
+
     function ensureShell() {
         let shell = document.getElementById(shellId);
 
@@ -245,6 +386,7 @@
         shell.appendChild(host);
 
         frame.addEventListener('load', function () {
+            setFrameModalOpen(false);
             hideLoading();
             updateHistoryFromFrame(frame);
             setActiveNavigation(frame.src);
@@ -270,6 +412,54 @@
         }
     }
 
+    function visibleFrameViewport(frame) {
+        const rect = frame.getBoundingClientRect();
+        const header = document.querySelector('.header');
+        const headerBottom = header ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+        const visibleTop = Math.max(rect.top, headerBottom, 0);
+        const visibleBottom = Math.min(rect.bottom, window.innerHeight);
+        const fallbackHeight = Math.max(320, window.innerHeight - headerBottom);
+        const visibleHeight = Math.max(320, visibleBottom - visibleTop || fallbackHeight);
+
+        return {
+            top: Math.max(0, Math.round(visibleTop - rect.top)),
+            height: Math.round(visibleHeight)
+        };
+    }
+
+    function postFrameModalViewport() {
+        const frame = document.getElementById(frameId);
+
+        if (!frame || !frame.contentWindow) {
+            return;
+        }
+
+        const viewport = visibleFrameViewport(frame);
+
+        frame.contentWindow.postMessage({
+            type: frameMessagePrefix + 'modal-viewport',
+            top: viewport.top,
+            height: viewport.height
+        }, window.location.origin);
+    }
+
+    function setFrameModalOpen(isOpen) {
+        frameModalOpen = Boolean(isOpen);
+        setDocumentScrollLockClass('macpro-frame-modal-open', frameModalOpen);
+
+        if (frameModalOpen) {
+            postFrameModalViewport();
+        }
+    }
+
+    function applyFrameModalViewport(top, height) {
+        const modalTop = Math.max(0, Number(top) || 0);
+        const modalHeight = Math.max(320, Number(height) || window.innerHeight || minimumFrameHeight);
+
+        document.documentElement.style.setProperty('--macpro-frame-modal-top', modalTop + 'px');
+        document.documentElement.style.setProperty('--macpro-frame-modal-height', modalHeight + 'px');
+    }
+
     function updateHistoryFromFrame(frame) {
         let frameLocation;
 
@@ -293,26 +483,15 @@
     }
 
     function navigate(href, shouldPushState) {
-        const nextFrameUrl = frameUrl(href);
         const nextCleanUrl = cleanUrl(href);
-        const frame = ensureFrame();
 
-        if (!frame || !nextFrameUrl || !nextCleanUrl || !isSameAppUrl(nextCleanUrl)) {
-            if (nextCleanUrl) {
-                window.location.href = nextCleanUrl.href;
-            }
+        if (!nextCleanUrl) {
             return;
         }
 
         showLoading(nextCleanUrl.href);
-        setFrameHeight(minimumFrameHeight);
-        frame.src = nextFrameUrl.href;
         setActiveNavigation(nextCleanUrl.href);
-        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-
-        if (shouldPushState) {
-            window.history.pushState({ macproAppShell: true }, '', nextCleanUrl.href);
-        }
+        window.location.href = nextCleanUrl.href;
     }
 
     function setActiveNavigation(href) {
@@ -374,7 +553,19 @@
             if (frame) {
                 setFrameHeight(parseInt(frame.style.height, 10));
             }
+
+            if (frameModalOpen) {
+                postFrameModalViewport();
+            }
         });
+
+        window.addEventListener('scroll', function () {
+            if (frameModalOpen) {
+                postFrameModalViewport();
+            }
+        }, { passive: true });
+
+        initLocalModalTracking(false);
     }
 
     function postToParent(message) {
@@ -463,6 +654,7 @@
             });
         }
 
+        initLocalModalTracking(true);
         queueFrameHeight();
     }
 
@@ -474,7 +666,21 @@
         }
 
         if (data.type === frameMessagePrefix + 'height') {
-            setFrameHeight(data.height);
+            if (frameModalOpen) {
+                postFrameModalViewport();
+            } else {
+                setFrameHeight(data.height);
+            }
+            return;
+        }
+
+        if (data.type === frameMessagePrefix + 'modal-state') {
+            setFrameModalOpen(Boolean(data.open));
+            return;
+        }
+
+        if (data.type === frameMessagePrefix + 'modal-viewport') {
+            applyFrameModalViewport(data.top, data.height);
             return;
         }
 

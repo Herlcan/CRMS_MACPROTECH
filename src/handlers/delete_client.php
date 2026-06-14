@@ -54,7 +54,7 @@
     }
 
     if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
-        if (!verify_csrf_token()) {
+        if (!verify_csrf_token_or_audit($conn, 'delete customer', isset($_POST['id']) ? (int) $_POST['id'] : null)) {
             redirectClientWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
         }
 
@@ -62,6 +62,7 @@
         $transactionStarted = false;
 
         if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'Administrator') {
+            audit_authorization_failure($conn, 'delete customer');
             redirectClientWithDialog('error', 'Unauthorized', 'Only administrators can delete customers.');
         }
 

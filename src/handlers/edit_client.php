@@ -21,13 +21,13 @@
     }
 
     if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_client'])) {
-        if (!verify_csrf_token()) {
+        if (!verify_csrf_token_or_audit($conn, 'update customer')) {
             redirectClientWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
         }
 
         require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
             redirectClientWithDialog('error', 'Permission Required', 'Only authorized staff can update customers.');
-        });
+        }, $conn, 'update customer');
 
         $client_id  = (int) ($_POST['id'] ?? 0);
         $first_name = trim($_POST['first_name']);

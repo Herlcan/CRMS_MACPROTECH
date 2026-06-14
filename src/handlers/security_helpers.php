@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/db_helpers.php';
+require_once __DIR__ . '/activity_log_helper.php';
 
 if (!function_exists('csrf_token')) {
     function csrf_token(): string {
@@ -38,6 +39,107 @@ if (!function_exists('verify_csrf_token')) {
     }
 }
 
+if (!function_exists('audit_security_event')) {
+    function audit_security_event(mysqli $conn, string $action, ?int $work_order_id = null): void {
+        log_security_event($conn, $action, $work_order_id);
+    }
+}
+
+if (!function_exists('audit_csrf_failure')) {
+    function audit_csrf_failure(mysqli $conn, string $context, ?int $work_order_id = null): void {
+        audit_security_event($conn, "Security check failed: invalid CSRF token for {$context}", $work_order_id);
+    }
+}
+
+if (!function_exists('audit_authorization_failure')) {
+    function audit_authorization_failure(mysqli $conn, string $context, ?int $work_order_id = null): void {
+        $role = current_user_role() ?: 'anonymous';
+        audit_security_event($conn, "Authorization failed for {$context} by role {$role}", $work_order_id);
+    }
+}
+
+if (!function_exists('verify_csrf_token_or_audit')) {
+    function verify_csrf_token_or_audit(mysqli $conn, string $context, ?int $work_order_id = null, ?string $token = null): bool {
+        if (verify_csrf_token($token)) {
+            return true;
+        }
+
+        audit_csrf_failure($conn, $context, $work_order_id);
+        return false;
+    }
+}
+
+if (!function_exists('security_idle_timeout_seconds')) {
+    function security_idle_timeout_seconds(): int {
+        return defined('MACPROTECH_IDLE_TIMEOUT_SECONDS') ? (int) MACPROTECH_IDLE_TIMEOUT_SECONDS : 1800;
+    }
+}
+
+if (!function_exists('security_session_timed_out')) {
+    function security_session_timed_out(): bool {
+        if (empty($_SESSION['user_id'])) {
+            return false;
+        }
+
+        $lastActivity = isset($_SESSION['last_activity']) ? (int) $_SESSION['last_activity'] : 0;
+        if ($lastActivity <= 0) {
+            return false;
+        }
+
+        return (time() - $lastActivity) > security_idle_timeout_seconds();
+    }
+}
+
+if (!function_exists('security_refresh_session_activity')) {
+    function security_refresh_session_activity(): void {
+        $_SESSION['last_activity'] = time();
+    }
+}
+
+if (!function_exists('security_clear_session_cookie')) {
+    function security_clear_session_cookie(): void {
+        if (!ini_get('session.use_cookies')) {
+            return;
+        }
+
+        $params = session_get_cookie_params();
+        if (PHP_VERSION_ID >= 70300) {
+            setcookie(session_name(), '', [
+                'expires' => time() - 42000,
+                'path' => $params['path'],
+                'domain' => $params['domain'],
+                'secure' => $params['secure'],
+                'httponly' => $params['httponly'],
+                'samesite' => $params['samesite'] ?? 'Lax'
+            ]);
+            return;
+        }
+
+        setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+    }
+}
+
+if (!function_exists('security_destroy_session')) {
+    function security_destroy_session(): void {
+        $_SESSION = [];
+        security_clear_session_cookie();
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_destroy();
+        }
+    }
+}
+
+if (!function_exists('security_expire_idle_session')) {
+    function security_expire_idle_session(?mysqli $conn = null, string $context = 'session timeout'): void {
+        if ($conn instanceof mysqli) {
+            log_security_event($conn, 'Session expired after ' . (int) (security_idle_timeout_seconds() / 60) . " minutes of inactivity during {$context}");
+        }
+
+        security_destroy_session();
+    }
+}
+
 if (!function_exists('current_user_role')) {
     function current_user_role(): string {
         return (string) ($_SESSION['role'] ?? '');
@@ -53,9 +155,13 @@ if (!function_exists('user_has_role')) {
 }
 
 if (!function_exists('require_role')) {
-    function require_role($roles, ?callable $onFailure = null): void {
+    function require_role($roles, ?callable $onFailure = null, ?mysqli $conn = null, string $context = 'restricted action', ?int $work_order_id = null): void {
         if (user_has_role($roles)) {
             return;
+        }
+
+        if ($conn instanceof mysqli) {
+            audit_authorization_failure($conn, $context, $work_order_id);
         }
 
         if ($onFailure) {
@@ -85,6 +191,11 @@ if (!function_exists('require_authenticated_json')) {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         if ($userId <= 0) {
             json_response(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        if (security_session_timed_out()) {
+            security_expire_idle_session($conn, 'JSON API access');
+            json_response(['success' => false, 'message' => 'Your session expired due to inactivity. Please sign in again.'], 401);
         }
 
         $statement = mysqli_prepare(
@@ -126,15 +237,20 @@ if (!function_exists('require_authenticated_json')) {
         $_SESSION['first_name'] = $user['first_name'] ?? '';
         $_SESSION['last_name'] = $user['last_name'] ?? '';
         csrf_token();
+        security_refresh_session_activity();
 
         return $user;
     }
 }
 
 if (!function_exists('require_json_role')) {
-    function require_json_role($roles, string $message = 'Forbidden'): void {
+    function require_json_role($roles, string $message = 'Forbidden', ?mysqli $conn = null, string $context = 'JSON API access', ?int $work_order_id = null): void {
         if (user_has_role($roles)) {
             return;
+        }
+
+        if ($conn instanceof mysqli) {
+            audit_authorization_failure($conn, $context, $work_order_id);
         }
 
         json_response(['success' => false, 'message' => $message], 403);
@@ -151,6 +267,12 @@ if (!function_exists('require_authenticated_fragment')) {
         if ($userId <= 0) {
             http_response_code(401);
             exit('Unauthorized');
+        }
+
+        if (security_session_timed_out()) {
+            security_expire_idle_session($conn, 'fragment access');
+            http_response_code(401);
+            exit('Session expired.');
         }
 
         $statement = mysqli_prepare(
@@ -180,6 +302,7 @@ if (!function_exists('require_authenticated_fragment')) {
         $_SESSION['first_name'] = $user['first_name'] ?? '';
         $_SESSION['last_name'] = $user['last_name'] ?? '';
         csrf_token();
+        security_refresh_session_activity();
 
         return $user;
     }

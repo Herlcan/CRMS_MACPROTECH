@@ -29,13 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['id'], $_POST['item_i
 $transaction_id = (int) $_POST['id'];
 $item_id = (int) $_POST['item_id'];
 
-if (!verify_csrf_token()) {
+if (!verify_csrf_token_or_audit($conn, 'delete inventory transaction', $item_id)) {
     redirectStockRecordsWithDialog($item_id, 'error', 'Security Check Failed', 'Your form session expired. Please try again.');
 }
 
 require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () use ($item_id) {
     redirectStockRecordsWithDialog($item_id, 'error', 'Permission Required', 'Only authorized staff can delete stock transactions.');
-});
+}, $conn, 'delete inventory transaction');
 
 if ($transaction_id <= 0 || $item_id <= 0) {
     redirectStockRecordsWithDialog($item_id, 'error', 'Transaction Not Deleted', 'Invalid inventory transaction.');

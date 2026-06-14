@@ -1,4 +1,8 @@
 <?php
+require_once __DIR__ . '/../handlers/security_headers.php';
+
+macprotech_send_security_headers();
+
 // Secure session configuration and start only if none exists
 if (session_status() === PHP_SESSION_NONE) {
     // Determine if connection is secure

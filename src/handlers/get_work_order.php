@@ -1,7 +1,7 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 
 header('Content-Type: application/json');
 
@@ -113,6 +113,7 @@ try {
     }
 
     if (!work_order_can_view($work_order)) {
+        audit_authorization_failure($conn, 'view work order details', $work_order_id);
         http_response_code(403);
         throw new Exception('You are not allowed to view this work order.');
     }

@@ -16,11 +16,12 @@ function redirectUserWithDialog($type, $title, $message) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
 
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'delete user', isset($_POST['id']) ? (int) $_POST['id'] : null)) {
         redirectUserWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Administrator') {
+        audit_authorization_failure($conn, 'delete user', isset($_POST['id']) ? (int) $_POST['id'] : null);
         redirectUserWithDialog('error', 'Unauthorized', 'You are not allowed to delete users.');
     }
 

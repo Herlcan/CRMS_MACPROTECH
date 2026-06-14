@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+
 session_start();
 
 header('Content-Type: application/json');
@@ -60,13 +63,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['update_status'])) {
     exit;
 }
 
-if (!verify_csrf_token()) {
+if (!verify_csrf_token_or_audit($conn, 'update work order status', isset($_POST['id']) ? (int) $_POST['id'] : null)) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Your form session expired. Please try again.']);
     exit;
 }
 
 if (!canEditStatus($conn)) {
+    audit_authorization_failure($conn, 'update work order status', isset($_POST['id']) ? (int) $_POST['id'] : null);
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Unauthorized access.']);
     exit;
@@ -135,8 +139,11 @@ try {
     $stmt->close();
 
     if (user_has_role('Technician') && (int) $technicianId !== (int) $_SESSION['user_id']) {
+        audit_authorization_failure($conn, 'update unassigned work order status', $id);
         throw new Exception("You can only update work orders assigned to you.");
     }
+
+    $isTechnicianUpdate = user_has_role('Technician');
 
     if ($status === 'Released') {
         $paymentStmt = $conn->prepare("
@@ -166,26 +173,51 @@ try {
      * Update status
      */
     if (in_array($status, ['Repaired', 'Released'], true)) {
-        $stmt = $conn->prepare("
-            UPDATE work_order
-            SET status = ?, completion_date = COALESCE(completion_date, CURDATE())
-            WHERE id = ?
-            AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
-        ");
+        if ($isTechnicianUpdate) {
+            $stmt = $conn->prepare("
+                UPDATE work_order
+                SET status = ?, completion_date = COALESCE(completion_date, CURDATE())
+                WHERE id = ?
+                AND technician_id = ?
+                AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
+            ");
+        } else {
+            $stmt = $conn->prepare("
+                UPDATE work_order
+                SET status = ?, completion_date = COALESCE(completion_date, CURDATE())
+                WHERE id = ?
+                AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
+            ");
+        }
     } else {
-        $stmt = $conn->prepare("
-            UPDATE work_order
-            SET status = ?, completion_date = NULL
-            WHERE id = ?
-            AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
-        ");
+        if ($isTechnicianUpdate) {
+            $stmt = $conn->prepare("
+                UPDATE work_order
+                SET status = ?, completion_date = NULL
+                WHERE id = ?
+                AND technician_id = ?
+                AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
+            ");
+        } else {
+            $stmt = $conn->prepare("
+                UPDATE work_order
+                SET status = ?, completion_date = NULL
+                WHERE id = ?
+                AND COALESCE(CASE WHEN status = 'Ready for Release' THEN 'Repaired' ELSE status END, '') <> ?
+            ");
+        }
     }
 
     if (!$stmt) {
         throw new Exception("Failed to prepare work order update.");
     }
 
-    $stmt->bind_param("sis", $status, $id, $status);
+    if ($isTechnicianUpdate) {
+        $currentTechnicianId = (int) $_SESSION['user_id'];
+        $stmt->bind_param("siis", $status, $id, $currentTechnicianId, $status);
+    } else {
+        $stmt->bind_param("sis", $status, $id, $status);
+    }
 
     if (!$stmt->execute()) {
         throw new Exception("Failed to update work order.");

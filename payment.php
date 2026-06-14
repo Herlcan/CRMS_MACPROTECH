@@ -14,6 +14,7 @@
 	require_once 'src/handlers/payment_schema.php';
 	require_once 'src/handlers/settings_helpers.php';
 	require_once __DIR__ . '/src/handlers/db_helpers.php';
+	require_once __DIR__ . '/src/handlers/sql_filter_helpers.php';
 
 	ensure_payment_detail_columns($conn);
 	refresh_payment_summaries($conn);
@@ -452,11 +453,13 @@
 								</tr>
 							</thead>
 							<?php
-								$where_clauses = ["1=1"];
-								$where_types = "";
-								$where_params = [];
-								$from_clause = "payments p LEFT JOIN work_order wo ON p.work_order_id = wo.id";
-								$payment_status_sql = "COALESCE(NULLIF(p.payment_status, ''), CASE WHEN p.status IS NULL OR p.status = 'Pending' OR p.status = '' THEN 'Unpaid' ELSE p.status END)";
+								$payment_filters = sql_filter_new();
+								$from_clause = sql_allowed_fragment('payments_with_work_orders', [
+									'payments_with_work_orders' => "payments p LEFT JOIN work_order wo ON p.work_order_id = wo.id"
+								], 'payments_with_work_orders');
+								$payment_status_sql = sql_allowed_fragment('payment_status', [
+									'payment_status' => "COALESCE(NULLIF(p.payment_status, ''), CASE WHEN p.status IS NULL OR p.status = 'Pending' OR p.status = '' THEN 'Unpaid' ELSE p.status END)"
+								], 'payment_status');
 								$limit = 10; // Default limit
 								$current_page = 1; // Default page
 
@@ -474,7 +477,7 @@
 								// Secure search
 								if (!empty($_GET['search'])) {
 								    $s = '%' . strtolower(trim($_GET['search'])) . '%';
-								    $where_clauses[] = "(
+									sql_filter_add_condition($payment_filters, "(
 										LOWER(p.payment_code) LIKE ? OR
 										LOWER(wo.code) LIKE ? OR
 										CAST(p.total_amount AS CHAR) LIKE ? OR
@@ -485,12 +488,7 @@
 											WHERE pi.work_order_id = p.work_order_id
 											AND LOWER(i.product_code) LIKE ?
 										)
-									)";
-									$where_types .= "ssss";
-									$where_params[] = $s;
-									$where_params[] = $s;
-									$where_params[] = $s;
-									$where_params[] = $s;
+									)", "ssss", [$s, $s, $s, $s]);
 								}
 
 								// Secure filter
@@ -499,14 +497,14 @@
 
 									if (in_array($_GET['filter'], $allowed_payment_status, true)) {
 										$f = $_GET['filter'];
-										$where_clauses[] = "$payment_status_sql = ?";
-										$where_types .= "s";
-										$where_params[] = $f;
+										sql_filter_add_condition($payment_filters, "$payment_status_sql = ?", "s", [$f]);
 									}
 								}
 
 								// Get total count for pagination info
-								$where = implode(' AND ', $where_clauses);
+								$where = sql_filter_where($payment_filters);
+								$where_types = sql_filter_types($payment_filters);
+								$where_params = sql_filter_params($payment_filters);
 								$count_query = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM $from_clause WHERE $where");
 								db_bind_params($count_query, $where_types, $where_params);
 								mysqli_stmt_execute($count_query);

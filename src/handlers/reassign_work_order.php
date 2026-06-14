@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+
 session_start();
 
 header('Content-Type: application/json');
@@ -45,13 +48,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-if (!verify_csrf_token()) {
+if (!verify_csrf_token_or_audit($conn, 'reassign work order', isset($_POST['work_order_id']) ? (int) $_POST['work_order_id'] : null)) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'Your form session expired. Please try again.']);
     exit;
 }
 
 if (!can_reassign_work_order($conn)) {
+    audit_authorization_failure($conn, 'reassign work order', isset($_POST['work_order_id']) ? (int) $_POST['work_order_id'] : null);
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'You are not allowed to reassign work orders.']);
     exit;

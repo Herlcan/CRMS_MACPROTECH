@@ -1,6 +1,7 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
 
 include '../db/connection.php';
 require_once __DIR__ . '/item_schema.php';
@@ -11,10 +12,10 @@ header('Content-Type: application/json');
 
 try {
     require_authenticated_json($conn);
-    require_json_role(
-        ['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'],
-        'You are not allowed to search inventory items.'
-    );
+    if (!user_has_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'])) {
+        audit_authorization_failure($conn, 'search inventory items');
+        json_response(['success' => false, 'error' => 'You are not allowed to search inventory items.'], 403);
+    }
     ensure_items_inventory_columns($conn);
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);

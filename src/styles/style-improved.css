@@ -2120,6 +2120,8 @@ html.sidebar-transitioning .left-side-bar {
 body.macpro-frame-page {
     min-height: 100vh;
     background: transparent;
+    --macpro-frame-modal-top: 0px;
+    --macpro-frame-modal-height: 100dvh;
 }
 
 body.macpro-frame-page .main-container {
@@ -2134,6 +2136,77 @@ body.macpro-frame-page .left-side-bar,
 body.macpro-frame-page .header,
 body.macpro-frame-page .macpro-page-skeleton {
     display: none !important;
+}
+
+html.macpro-modal-open,
+body.macpro-modal-open,
+html.macpro-frame-modal-open,
+body.macpro-frame-modal-open,
+html.modal-open,
+body.modal-open {
+    overflow: hidden;
+}
+
+body.macpro-frame-page.macpro-modal-open .modal,
+body.macpro-frame-page.macpro-modal-open .css-modal,
+body.macpro-frame-page.macpro-modal-open .css-modal-overlay,
+body.macpro-frame-page.macpro-modal-open .add-client-modal-container,
+body.macpro-frame-page.macpro-modal-open .edit-client-modal-container,
+body.macpro-frame-page.macpro-modal-open .add-user-modal-container,
+body.macpro-frame-page.macpro-modal-open .category-modal-container,
+body.macpro-frame-page.macpro-modal-open .category-management-modal-container,
+body.macpro-frame-page.macpro-modal-open .edit-category-modal-container,
+body.macpro-frame-page.macpro-modal-open .edit-item-modal-container,
+body.macpro-frame-page.macpro-modal-open .delete-client-modal-container,
+body.macpro-frame-page.macpro-modal-open #addInventoryStockModal,
+body.macpro-frame-page.macpro-modal-open #editInventoryTransactionModal,
+body.macpro-frame-page.macpro-modal-open #deleteWorkOrderModal,
+body.macpro-frame-page.macpro-modal-open .payment-modal,
+body.macpro-frame-page.macpro-modal-open .refund-modal,
+body.macpro-frame-page.macpro-modal-open .report-export-status,
+body.macpro-frame-page.macpro-modal-open .macpro-dialog-overlay {
+    top: var(--macpro-frame-modal-top, 0px) !important;
+    bottom: auto !important;
+    min-height: 0 !important;
+    height: var(--macpro-frame-modal-height, 100dvh) !important;
+    max-height: var(--macpro-frame-modal-height, 100dvh) !important;
+    overflow: hidden;
+}
+
+body.macpro-frame-page.macpro-modal-open .modal-dialog,
+body.macpro-frame-page.macpro-modal-open .css-modal-content,
+body.macpro-frame-page.macpro-modal-open .payment-modal-dialog,
+body.macpro-frame-page.macpro-modal-open .refund-modal-dialog,
+body.macpro-frame-page.macpro-modal-open .report-export-dialog,
+body.macpro-frame-page.macpro-modal-open .macpro-dialog {
+    max-height: calc(var(--macpro-frame-modal-height, 100dvh) - 32px) !important;
+}
+
+body.macpro-frame-page.macpro-modal-open .payment-modal-dialog {
+    height: calc(var(--macpro-frame-modal-height, 100dvh) - 48px) !important;
+    margin: 24px auto !important;
+}
+
+body.macpro-frame-page.macpro-modal-open .refund-modal-dialog {
+    display: flex;
+    flex-direction: column;
+    margin: 24px auto !important;
+    min-height: 0;
+}
+
+body.macpro-frame-page.macpro-modal-open .refund-modal-dialog form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+}
+
+body.macpro-frame-page.macpro-modal-open .payment-modal-body,
+body.macpro-frame-page.macpro-modal-open .modal-body,
+body.macpro-frame-page.macpro-modal-open .css-modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .macpro-page-skeleton {
@@ -3672,10 +3745,7 @@ table tbody tr:hover {
 
 /* ================= UPDTE STATUS ================= */
 .status-select.loading {
-    background-image: url('https://i.imgur.com/6RMhx.gif');
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    background-size: 16px;
+    background-image: none;
 }
 
 .status-select:disabled {
@@ -3761,11 +3831,11 @@ table tbody tr:hover {
 .bg-staff { background-color: var(--ink-800);}
 /* ================= MODALS ================= */
 .modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: fixed !important;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     background: rgba(var(--brand-black-rgb), 0.5);
     display: flex;
     align-items: center;
@@ -3774,11 +3844,13 @@ table tbody tr:hover {
     visibility: hidden;
     transition: all 0.25s ease;
     z-index: 2000;
-    overflow-y: auto;
+    overflow: hidden;
     padding: var(--spacing-4);
+    box-sizing: border-box;
 }
 
 .modal.show {
+    display: flex !important;
     opacity: 1;
     visibility: visible;
 }
@@ -3789,7 +3861,8 @@ table tbody tr:hover {
     margin: auto;
     display: flex;
     flex-direction: column;
-    max-height: calc(100% - 30px);
+    max-height: calc(100dvh - 30px);
+    min-height: 0;
 }
 
 .modal-dialog-centered {
@@ -3840,8 +3913,11 @@ table tbody tr:hover {
     box-shadow: var(--shadow-lg);
     position: relative;
     animation: slideUp 0.3s ease;
-    max-height: calc(100vh - 60px);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 60px);
+    overflow: hidden;
+    min-height: 0;
 }
 
 @keyframes slideUp {
@@ -3921,6 +3997,7 @@ table tbody tr:hover {
 .modal-body {
     position: relative;
     flex: 1 1 auto;
+    min-height: 0;
     padding: var(--spacing-6);
     overflow-y: auto;
 }
@@ -4878,10 +4955,10 @@ table tbody tr:hover {
 /* Modal overlay - appears when checkbox is checked */
 .css-modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     background: rgba(var(--brand-black-rgb), 0.5);
     opacity: 0;
     visibility: hidden;
@@ -4920,10 +4997,10 @@ table tbody tr:hover {
 
 .add-user-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5336,8 +5413,7 @@ textarea.form-control {
 }
 
 /* Use the same overlay style as profile modal for add item */
-.add-item-toggle:checked ~ .category-overlay .add-client-overlay {
-
+.add-item-toggle:checked ~ .add-client-overlay {
     display: block !important;
     visibility: visible !important;
     pointer-events: auto !important;
@@ -5366,10 +5442,10 @@ textarea.form-control {
 /* Base styling for category-modal-container (add item) */
 .category-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5384,10 +5460,10 @@ textarea.form-control {
 /* Base styling for category-management-modal-container (category management) */
 .category-management-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5433,10 +5509,10 @@ textarea.form-control {
 /* Base styling for add-client-modal-container */
 .add-client-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5487,10 +5563,10 @@ textarea.form-control {
 /* Base styling for edit-client-modal-container */
 .edit-client-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5541,10 +5617,10 @@ textarea.form-control {
 /* Base styling for edit-category-modal-container */
 .edit-category-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5595,10 +5671,10 @@ textarea.form-control {
 /* Base styling for edit-item-modal-container */
 .edit-item-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5644,10 +5720,10 @@ textarea.form-control {
 /* Base styling for delete-client-modal-container */
 .delete-client-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5689,10 +5765,10 @@ textarea.form-control {
 /* Show modal when add-user checkbox is checked */
 .add-user-toggle:checked ~ .add-user-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
     display: flex !important;
     align-items: center;
     justify-content: center;
@@ -5707,11 +5783,11 @@ textarea.form-control {
 /* Base styling for add-user-modal-container */
 .add-user-modal-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: none;
+    inset: 0;
+    width: 100vw;
+    min-height: 100vh;
+    height: 100dvh;
+    display: flex;
     align-items: center;
     justify-content: center;
     opacity: 0;

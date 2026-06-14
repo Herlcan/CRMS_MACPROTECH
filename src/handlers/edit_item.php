@@ -81,13 +81,13 @@ function resolveItemCategoryId($conn, $category, $other_category, &$error) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_item'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'update product item', isset($_POST['id']) ? (int) $_POST['id'] : null)) {
         redirectItemWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
         redirectItemWithDialog('error', 'Permission Required', 'Only authorized staff can update product items.');
-    });
+    }, $conn, 'update product item');
 
     $item_id      = (int) $_POST['id'];
     $brand_name   = trim($_POST['brand_name']);

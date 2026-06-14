@@ -1,6 +1,6 @@
 # MACPROTECH
 
-MACPROTECH is a PHP and MySQL repair service management system for a computer repair shop. It manages the full shop workflow: customer intake, work orders, technician assignment, repair status tracking, inventory and parts, payments, refunds, receipts, notifications, reports, and configurable email/SMS communication.
+MACPROTECH is a PHP and MySQL repair service management system for a computer repair shop. It manages the full shop workflow: customer intake, work orders, technician assignment, repair status tracking, inventory and parts, payments, refunds, receipts, notifications, reports, database backup/restore, and configurable email/SMS communication.
 
 The application is built as a classic PHP web app with MySQL/MariaDB, root-level page controllers, reusable handlers under `src/handlers/`, shared partials under `src/partials/`, and PHPMailer under `vendor/PHPMailer-master/`.
 
@@ -21,6 +21,34 @@ MACPROTECH supports these main operational areas:
 - In-app notifications for work assignments, reassignment, status changes, low-stock conditions, payment events, and sent SMS messages.
 - Administrator reports for work orders, revenue, customers, payments, inventory, technicians, activity logs, and CSV exports.
 - System settings for business profile, receipt text, service policy, automatic release behavior, SMTP email delivery, and httpSMS delivery.
+- Administrator database backup and restore for disaster recovery and business continuity.
+
+---
+
+## Recent System Additions
+
+Recent system updates added or expanded these areas:
+
+- Separate administrator and staff/technician login portals with role enforcement.
+- CSRF protection for login forms and important form/AJAX actions, with audit logging for failed CSRF checks.
+- Login attempt tracking and temporary lockouts after repeated failed sign-in attempts.
+- Stronger session handling, including regenerated session IDs, hardened session cookies, and deleted-user session invalidation.
+- Common security headers and a compatibility Content Security Policy are sent from the database/session bootstrap.
+- Idle session timeout logs users out after 30 minutes of inactivity by default.
+- Reusable authentication and role guards for page, JSON, and fragment handlers.
+- Stricter SQL filter helpers for dynamic search/filter pages, including placeholder validation and allow-listed SQL fragments.
+- Audit logging for failed authorization attempts, report page views/exports, payment-detail reads, and receipt email/SMS sending.
+- JSON/AJAX handlers now disable PHP error display so runtime details are not returned in API responses.
+- Unique database constraints now cover usernames, emails, work order codes, payment codes, and product codes.
+- Work order, item, and payment code creation now uses temporary unique codes before final ID-based codes are written.
+- Technician status updates are validated at the server and constrained in the database update to the assigned technician.
+- Administrator backup/restore page with CSRF protection, audit logging, SQL export, restore upload limits, and restore statement allow-listing.
+- Password policy checks for new users, edited users, and profile password changes.
+- Encrypted Settings secrets for SMTP passwords and httpSMS API keys.
+- Secure inventory image uploads with size limits, extension/MIME checks, randomized filenames, and script execution blocking in `src/uploads/`.
+- A security/integrity migration for existing installations, covering `login_attempts`, unique business codes, inventory cost snapshots, and core foreign keys.
+- Role-specific dashboards, work order reassignment history, ordered/customer-provided parts, payment refunds, receipt email/SMS delivery, notifications, and expanded reports/exports.
+- App shell and modal behavior improvements so drawers/modals lock scroll correctly and remain usable inside the shared frame layout.
 
 ---
 
@@ -49,7 +77,7 @@ Front-desk roles can reassign eligible work orders to a different technician.
 
 Technicians get a focused dashboard showing assigned active repairs, waiting-parts jobs, completions for the day, aged jobs, and parts readiness. The work order list is filtered to the logged-in technician's assigned work orders.
 
-Technicians can update work order status through the status controls. The UI limits their list to assigned work orders; the status handler validates the role before accepting status updates.
+Technicians can update work order status through the status controls. The UI limits their list to assigned work orders; the status handler validates ownership and constrains the database update to the logged-in technician before accepting status changes.
 
 ---
 
@@ -62,14 +90,22 @@ Important files:
 - `auth_check.php`
 - `logout.php`
 - `src/db/connection.php`
+- `src/handlers/security_helpers.php`
+- `database/security_integrity_migration.sql`
 
 Implemented behavior:
 
-- Passwords are verified with `password_verify()`.
-- Successful login regenerates the session ID.
+- Passwords are hashed with `password_hash()` when users are created or updated and verified with `password_verify()` during login.
+- Successful login regenerates the session ID to reduce session fixation risk.
 - Session cookies are configured with strict mode, cookie-only sessions, `HttpOnly`, `SameSite=Lax`, and `secure` when HTTPS is detected.
 - `auth_check.php` protects authenticated pages and handlers.
 - If a logged-in user has been deleted from the `users` table, the session is cleared and the user is redirected to login.
+- Idle sessions expire after 30 minutes of inactivity by default. The timeout can be changed by defining `MACPROTECH_IDLE_TIMEOUT_SECONDS`.
+- Login forms include CSRF tokens and reject expired or invalid tokens.
+- Failed login attempts are recorded by username and IP address. Five failed attempts inside 15 minutes lock the username/IP pair for 15 minutes.
+- Administrator accounts are accepted only through `admin-login.php`; regular staff and technician accounts use `login.php`.
+- Shared helpers provide `require_role()`, `require_authenticated_json()`, `require_json_role()`, and `require_authenticated_fragment()` for protected actions.
+- Logout records an activity entry when possible, clears session data, removes the session cookie, and destroys the session.
 
 ---
 
@@ -399,6 +435,32 @@ Encrypted settings use an application key. For normal installs, the system creat
 
 ---
 
+## Backup And Restore
+
+Important files:
+
+- `backup-restore.php`
+- `src/handlers/database_backup_helpers.php`
+- `sidebar.php`
+- `settings.php`
+
+Backup and restore is administrator-only.
+
+The backup page includes:
+
+- Full SQL database export with table structure and data.
+- Download filenames in the `backup_YYYY-mm-dd_His.sql` format.
+- Restore upload for `.sql` files up to 50MB.
+- CSRF protection for export and restore actions.
+- Audit logging for backup downloads, restore start, restore completion, and restore failures.
+- Restore SQL statement allow-listing for expected dump operations such as table drops, table creation, inserts, table alters, transactions, and session settings.
+
+Administrators can open Backup from the sidebar or from the Settings header actions.
+
+Important restore note: restoring a backup replaces the current database contents. Download a fresh backup before restoring, and keep `src/handlers/config.local.php` with deployment backups so encrypted SMTP/SMS settings remain decryptable.
+
+---
+
 ## Reports And Exports
 
 Important files:
@@ -463,6 +525,7 @@ User account features:
 Important files:
 
 - `src/handlers/activity_log_helper.php`
+- `src/handlers/security_helpers.php`
 - `activity_logs` table
 
 The system records operational activity for:
@@ -473,6 +536,10 @@ The system records operational activity for:
 - Product item and category changes.
 - Customer and user deletion.
 - Settings updates.
+- Receipt email/SMS sending outcomes.
+- Report page views and report exports.
+- Payment-detail reads.
+- Failed authorization and failed CSRF/security checks.
 
 Activity logs are used in work order timelines and reports.
 
@@ -491,6 +558,7 @@ Core tables included in the dump:
 - `customer_provided_component`
 - `items`
 - `inventory_transaction`
+- `login_attempts`
 - `stock_in_transaction`
 - `stock_out_transaction`
 - `item_category`
@@ -510,7 +578,17 @@ Tables created or updated at runtime by schema helpers:
 - `notifications`
 - `sms_delivery_log`
 
-Many handlers call schema helper functions before use. These helpers add missing columns/tables for newer features such as payment details, ordered parts, stock movement, work order priority, assignment history, notifications, and settings.
+Many handlers call schema helper functions before use. These helpers add missing columns/tables for newer features such as payment details, ordered parts, stock movement, work order priority, assignment history, notifications, settings, and login-attempt tracking.
+
+Database uniqueness rules:
+
+- `users.username`
+- `users.email`
+- `work_order.code`
+- `payments.payment_code`
+- `items.product_code`
+
+Existing installations should run `database/security_integrity_migration.sql` after backing up the database. The migration creates `login_attempts`, adds `average_cost_snapshot` to stock-out history, adds the unique constraints above when existing data has no duplicates, and adds core foreign keys for work orders, payments, refunds, and payment transactions.
 
 ---
 
@@ -591,7 +669,7 @@ For an existing database that was installed before the security update, back up 
 database/security_integrity_migration.sql
 ```
 
-This migration adds login-attempt tracking, inventory cost snapshots, and core foreign keys. If foreign keys fail, check for orphan records before rerunning the migration.
+This migration adds login-attempt tracking, inventory cost snapshots, unique business-code constraints, and core foreign keys. If a unique constraint is skipped, check for duplicate usernames, emails, work order codes, payment codes, or product codes before rerunning the migration. If foreign keys fail, check for orphan records before rerunning the migration.
 
 ### 5. Configure The Database Connection
 
@@ -704,6 +782,7 @@ Before using the system in production, test these flows:
 - Record payment and print/send receipt.
 - Create a refund.
 - Export a report as administrator.
+- Download a database backup as administrator.
 
 ### Troubleshooting
 
@@ -732,6 +811,7 @@ The current shared sidebar uses role-based navigation for:
 - Notifications
 - Reports
 - Users
+- Backup
 
 Settings is available from the header profile dropdown.
 
@@ -743,7 +823,10 @@ Settings is available from the header profile dropdown.
 .
 +-- *.php                         Root page controllers
 +-- auth_check.php                Session guard
++-- backup-restore.php            Administrator database backup/restore page
 +-- crms_macprotech.sql           Database schema dump
++-- database/
+|   +-- security_integrity_migration.sql
 +-- src/
 |   +-- db/connection.php         Database/session bootstrap
 |   +-- handlers/                 Form/AJAX handlers and schema helpers
@@ -757,21 +840,41 @@ Settings is available from the header profile dropdown.
 
 ---
 
-## Security Notes
+## Security Implementation
 
-- Passwords are hashed with `password_hash()` and verified with `password_verify()`.
-- Login regenerates the session ID.
-- Session cookies are hardened in `src/db/connection.php`.
-- `auth_check.php` protects pages and handlers.
-- Administrator-only areas include reports, exports, user management, customer deletion, and settings updates.
-- Many handlers use prepared statements and transactions for critical writes.
-- Some list/search/filter pages still build SQL strings manually with escaping. Keep validation strict if extending those endpoints.
-- SMTP password and httpSMS API key are encrypted before storage in `app_settings`.
+The current security layer includes:
+
+- `src/db/connection.php` starts sessions with strict mode, cookie-only sessions, `HttpOnly`, `SameSite=Lax`, and HTTPS-only secure cookies when applicable.
+- `src/handlers/security_headers.php` sends `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a Content Security Policy from the common bootstrap.
+- The current CSP uses `default-src 'self'`, `frame-ancestors 'self'`, `object-src 'none'`, self/data images, and self-only connections/fonts. It still allows inline scripts/styles for compatibility with existing inline handlers and can be tightened further after those handlers are moved to external JavaScript.
+- `src/handlers/security_helpers.php` centralizes CSRF generation/validation, audited CSRF checks, role checks, JSON/fragment authentication guards, password policy validation, and login attempt tracking.
+- Login and mutation forms include CSRF tokens through `csrf_input()`. Sensitive handlers use audited CSRF verification so failed checks are written to `activity_logs`.
+- Staff/technician login and administrator login are separated. Each login endpoint rejects accounts that belong to the other portal.
+- Failed login attempts are stored in `login_attempts`; repeated failures create a temporary lockout and successful login clears previous failures for that username/IP pair.
+- Idle authenticated sessions expire after 30 minutes by default. Expired sessions are destroyed and logged before the user is redirected or a JSON 401 response is returned.
+- New and changed passwords must be at least eight characters and include uppercase, lowercase, and numeric characters.
+- `auth_check.php` verifies that the active session still maps to an existing user record before allowing access.
+- Role checks protect administrator-only features such as reports, exports, user management, customer deletion, and settings updates.
+- Technician work order status updates are checked against `work_order.technician_id`; the update statement itself also requires the assigned technician to match the current user.
+- Failed authorization attempts are logged with the attempted action context and current role when available.
+- AJAX endpoints use authenticated JSON guards and return 401/403 responses instead of rendering protected content to unauthorized users.
+- JSON/AJAX handlers disable `display_errors` and `display_startup_errors` to avoid leaking PHP runtime details in API responses.
+- Critical database writes use prepared statements, helper binding, and transactions where multi-table updates must stay consistent.
+- Runtime schema checks and migrations enforce unique usernames, emails, work order codes, payment codes, and product codes when existing data is clean.
+- Dynamic search/filter pages use `src/handlers/sql_filter_helpers.php` to build strict `WHERE` clauses with checked placeholder counts, validated identifiers, and explicit parameter types.
+- Dynamic SQL fragments that cannot be parameter-bound, such as payment/report status expressions, date filter columns, table sources, and priority sort expressions, are selected from allow-lists instead of request input.
+- Receipt email/SMS sending, receipt send failures, report page views, report exports, and payment-detail reads are logged for audit visibility.
+- Backup/restore is administrator-only, CSRF-protected, audited, limited to `.sql` uploads up to 50MB, and restore execution is limited to expected SQL dump statement types.
+- Settings secrets are encrypted with AES-256-GCM before being stored in `app_settings`.
 - Normal installs use an auto-generated local key in `src/handlers/config.local.php`; advanced installs may provide `MACPROTECH_APP_KEY` through the web server environment.
+- Inventory uploads are limited to JPG, PNG, and WEBP files, checked by extension and MIME type, capped at 10MB, saved with random filenames, and protected by `src/uploads/.htaccess`.
+- The database dump and `database/security_integrity_migration.sql` include security/integrity updates for `login_attempts`, stock-out cost snapshots, unique business codes, and foreign-key relationships.
+
+Maintenance note: when adding new search, filter, report, or export behavior, prefer `sql_filter_helpers.php` and allow-listed fragments over ad hoc SQL string assembly.
 
 ---
 
 ## Version
 
-Version: 1.2
-Last Updated: 2026-06-09
+Version: 1.5
+Last Updated: 2026-06-14

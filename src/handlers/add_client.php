@@ -22,13 +22,13 @@ if (!function_exists('redirectClientWithDialog')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_client'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'create customer')) {
         redirectClientWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
         redirectClientWithDialog('error', 'Permission Required', 'Only authorized staff can create customers.');
-    });
+    }, $conn, 'create customer');
 
     $first_name = trim($_POST['first_name']);
     $last_name  = trim($_POST['last_name']);

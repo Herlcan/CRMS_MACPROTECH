@@ -14,7 +14,7 @@ require_once __DIR__ . '/security_helpers.php';
 
 // Handle profile update
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['update_profile'])) {
-	if (!verify_csrf_token()) {
+	if (!verify_csrf_token_or_audit($conn, 'update own profile')) {
 		$update_error = 'Your form session expired. Please try again.';
 		return;
 	}

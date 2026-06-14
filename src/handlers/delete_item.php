@@ -21,13 +21,13 @@ if (!function_exists('redirectItemWithDialog')) {
 }
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'delete product item', isset($_POST['id']) ? (int) $_POST['id'] : null)) {
         redirectItemWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role(['Administrator', 'Cashier/Front Desk', 'Cashier/Front Desk Staff'], function () {
         redirectItemWithDialog('error', 'Permission Required', 'Only authorized staff can delete product items.');
-    });
+    }, $conn, 'delete product item');
 
     $item_id = (int) $_POST['id'];
     $item_label = "product item #{$item_id}";

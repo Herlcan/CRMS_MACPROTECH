@@ -24,13 +24,13 @@ if (!function_exists('redirectUserWithDialog')) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
-    if (!verify_csrf_token()) {
+    if (!verify_csrf_token_or_audit($conn, 'create user')) {
         redirectUserWithDialog('error', 'Security Check Failed', 'Your form session expired. Please try again.');
     }
 
     require_role('Administrator', function () {
         redirectUserWithDialog('error', 'Permission Required', 'Only administrators can create users.');
-    });
+    }, $conn, 'create user');
 
     $username   = trim($_POST['username']);
     $first_name = trim($_POST['first_name']);
