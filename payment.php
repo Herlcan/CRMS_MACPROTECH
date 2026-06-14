@@ -69,7 +69,7 @@
 			display: none;
 			position: fixed;
 			inset: 0;
-			z-index: 2500;
+			z-index: 9000;
 		}
 
 		.payment-modal.show {
@@ -113,6 +113,7 @@
 		}
 
 		.payment-modal-header {
+			flex-shrink: 0;
 			background: #1f2937;
 			color: #fff;
 		}
@@ -312,7 +313,7 @@
 			display: none;
 			position: fixed;
 			inset: 0;
-			z-index: 2700;
+			z-index: 9020;
 		}
 
 		.refund-modal.show {
@@ -635,7 +636,7 @@
 				<h5 id="paymentModalTitle">Payment Details</h5>
 				<button type="button" class="payment-modal-close" onclick="closePaymentModal()" aria-label="Close">&times;</button>
 			</div>
-			<form id="paymentForm">
+			<form id="paymentForm" method="post" action="src/handlers/confirm_payment.php" data-no-app-shell>
 				<div class="payment-modal-body">
 					<div id="paymentAlert" class="payment-alert"></div>
 					<?= csrf_input() ?>
@@ -815,7 +816,7 @@
 				<h5 id="refundModalTitle">Refund Payment</h5>
 				<button type="button" class="payment-modal-close" onclick="closeRefundModal()" aria-label="Close">&times;</button>
 			</div>
-			<form id="refundForm">
+			<form id="refundForm" method="post" action="src/handlers/create_refund.php" data-no-app-shell>
 				<div class="payment-modal-body" style="max-height: calc(100vh - 220px);">
 					<div id="refundAlert" class="payment-alert"></div>
 					<?= csrf_input() ?>
@@ -959,11 +960,34 @@
 			alert.className = 'payment-alert';
 		}
 
+		function portalPaymentModals() {
+			['paymentModal', 'refundModal'].forEach(function (modalId) {
+				const modal = document.getElementById(modalId);
+
+				if (!modal || modal.parentNode === document.body) {
+					return;
+				}
+
+				modal.dataset.macproPagePortal = 'payment';
+				document.body.appendChild(modal);
+			});
+		}
+
+		function refreshPaymentModalLock() {
+			const hasOpenPaymentModal = Boolean(document.querySelector('.payment-modal.show, .refund-modal.show'));
+
+			document.documentElement.classList.toggle('modal-open', hasOpenPaymentModal);
+			document.body.classList.toggle('modal-open', hasOpenPaymentModal);
+			document.documentElement.style.overflow = '';
+			document.body.style.overflow = '';
+		}
+
 		function openPaymentModal(paymentId) {
+			portalPaymentModals();
 			const modal = document.getElementById('paymentModal');
 			modal.classList.add('show');
 			modal.setAttribute('aria-hidden', 'false');
-			document.body.style.overflow = 'hidden';
+			refreshPaymentModalLock();
 			clearPaymentAlert();
 			document.getElementById('paymentForm').reset();
 			document.getElementById('payment_id').value = paymentId;
@@ -995,7 +1019,7 @@
 			const modal = document.getElementById('paymentModal');
 			modal.classList.remove('show');
 			modal.setAttribute('aria-hidden', 'true');
-			document.body.style.overflow = 'auto';
+			refreshPaymentModalLock();
 		}
 
 		function populatePaymentModal(data) {
@@ -1226,6 +1250,7 @@
 		}
 
 		function openRefundModal() {
+			portalPaymentModals();
 			if (!currentPaymentDetails) return;
 
 			const values = getComputedPaymentValues(false, false);
@@ -1243,11 +1268,13 @@
 			document.getElementById('refund_amount').max = values.refundable.toFixed(2);
 			document.getElementById('refundModal').classList.add('show');
 			document.getElementById('refundModal').setAttribute('aria-hidden', 'false');
+			refreshPaymentModalLock();
 		}
 
 		function closeRefundModal() {
 			document.getElementById('refundModal').classList.remove('show');
 			document.getElementById('refundModal').setAttribute('aria-hidden', 'true');
+			refreshPaymentModalLock();
 		}
 
 		document.getElementById('paymentForm').addEventListener('submit', function (event) {

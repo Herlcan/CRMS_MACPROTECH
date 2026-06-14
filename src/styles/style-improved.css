@@ -5051,6 +5051,7 @@ table tbody tr:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
     padding: var(--spacing-5);
     border-bottom: 1px solid var(--border-light);
 }
@@ -5086,6 +5087,7 @@ table tbody tr:hover {
     padding: var(--spacing-5);
     overflow-y: auto;
     flex: 1;
+    min-height: 0;
 }
 
 .profile-pic-container {
@@ -5204,6 +5206,7 @@ textarea.form-control {
     display: flex;
     justify-content: flex-end;
     gap: var(--spacing-3);
+    flex-shrink: 0;
     padding: var(--spacing-4) var(--spacing-5);
     border-top: 1px solid var(--border-light);
     background: var(--bg-secondary);
@@ -5760,6 +5763,7 @@ textarea.form-control {
     visibility: visible !important;
     pointer-events: auto !important;
     opacity: 1 !important;
+    z-index: 9000 !important;
 }
 
 /* Show modal when add-user checkbox is checked */
@@ -5775,7 +5779,7 @@ textarea.form-control {
     visibility: visible !important;
     pointer-events: auto !important;
     opacity: 1 !important;
-    z-index: 1051;
+    z-index: 9001;
     padding: var(--spacing-4);
     animation: slideUp 0.3s ease !important;
 }
@@ -5794,7 +5798,7 @@ textarea.form-control {
     visibility: hidden;
     pointer-events: none;
     transition: opacity 0.3s ease, visibility 0.3s ease;
-    z-index: 1051;
+    z-index: 9001;
     padding: var(--spacing-4);
 }
 

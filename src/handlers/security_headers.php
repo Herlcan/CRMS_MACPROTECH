@@ -12,6 +12,8 @@ if (!function_exists('macprotech_content_security_policy')) {
             "default-src 'self'",
             "base-uri 'self'",
             "frame-ancestors 'self'",
+            "frame-src 'self'",
+            "child-src 'self'",
             "form-action 'self'",
             "img-src 'self' data:",
             "script-src 'self' 'unsafe-inline'",

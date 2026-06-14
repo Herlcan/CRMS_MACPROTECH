@@ -161,7 +161,11 @@
         });
     }
 
-    window.addEventListener('popstate', function () {
+    window.addEventListener('popstate', function (event) {
+        if (!event.state || !event.state.macproTransitionTabs) {
+            return;
+        }
+
         const tabs = document.querySelector('[data-transition-tabs]');
 
         if (!tabs) {
@@ -196,4 +200,6 @@
     } else {
         initTransitionTabs();
     }
+
+    document.addEventListener('macpro:content-ready', initTransitionTabs);
 })();

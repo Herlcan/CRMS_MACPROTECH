@@ -721,7 +721,7 @@
 		let workOrderIdToDelete = null;
 
 		function openDeleteModal() {
-			document.getElementById('deleteWorkOrderModal').style.display = 'block';
+			document.getElementById('deleteWorkOrderModal').style.display = 'flex';
 			document.body.classList.add('modal-open');
 		}
 
@@ -1683,7 +1683,9 @@ function viewWorkOrder(id) {
 								<p><?= htmlspecialchars($row['contact_num'])?></p>
 							</div>
 						</div>
-						<div class="col-md-6 col-sm-12"></div>	
+						<div class="col-md-6 col-sm-12 text-right" style="margin-left: auto;">
+							<a href="clients.php" class="btn btn-secondary">Back to Customers</a>
+						</div>
 					</div>
 				</div>
 				<!-- Simple Datatable start -->

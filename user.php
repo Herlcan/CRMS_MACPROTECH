@@ -66,7 +66,7 @@
 				</div>-->
 
 				<!-- Profile Form -->
-				<form method="POST" action="src/handlers/edit_user.php" class="profile-form">
+				<form method="POST" action="src/handlers/edit_user.php" class="profile-form" data-no-app-shell>
 					<?= csrf_input() ?>
 					<input type="hidden" name="user_id" id="userIdField" value="">
 					<div class="form-group">
@@ -107,6 +107,7 @@
 							<option value="Administrator">Administrator</option>
 							<option value="Technician">Technician</option>
 							<option value="Cashier/Front Desk">Cashier/Front Desk</option>
+							<option value="Cashier/Front Desk Staff">Cashier/Front Desk Staff</option>
 						</select>
 					</div>
 
@@ -235,7 +236,22 @@
 								<?php while ($row = mysqli_fetch_assoc($result)) { 
 
 								$first_name = $row['first_name'];
-								$last_name = $row['last_name'];?>
+								$last_name = $row['last_name'];
+								$edit_user_payload = [
+									'username' => $row['username'],
+									'firstName' => $row['first_name'],
+									'lastName' => $row['last_name'],
+									'contact' => $row['contact_num'],
+									'email' => $row['email'],
+									'role' => $row['role'],
+									'userId' => (int) $row['id']
+								];
+								$edit_user_payload_json = htmlspecialchars(
+									json_encode($edit_user_payload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP),
+									ENT_QUOTES,
+									'UTF-8'
+								);
+								?>
 
 								<tr>
 									<td>
@@ -258,11 +274,12 @@
 												<img src="<?= asset_attr('src/images/menu-dots.png'); ?>" width="25" style="border: none margin: auto;" alt="" aria-hidden="true" decoding="async">
 											</a>
 											<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
-												<a>
-													<label class="dropdown-item" onclick="editUser('<?= htmlspecialchars($row['username']) ?>', '<?= htmlspecialchars($row['first_name']) ?>', '<?= htmlspecialchars($row['last_name']) ?>', '<?= htmlspecialchars($row['contact_num']) ?>', '<?= htmlspecialchars($row['email']) ?>', '<?= htmlspecialchars($row['role']) ?>', '<?= $row['id'] ?>');">
-														<i class="dw dw-edit2"></i> Edit
-													</label>
-												</a>
+												<button type="button"
+													class="dropdown-item"
+													style="border: 0; background: transparent; width: 100%; text-align: left;"
+													data-user-edit="<?= $edit_user_payload_json ?>">
+													<i class="dw dw-edit2"></i> Edit
+												</button>
 												<form method="POST" action="src/handlers/delete_user.php" style="margin: 0;">
 													<?= csrf_input() ?>
 													<input type="hidden" name="id" value="<?= (int) $row['id'] ?>">
@@ -382,7 +399,7 @@
 				<?php endif; ?>
 
 				<!-- Form -->
-				<form method="POST" action="src/handlers/add_user.php">
+				<form method="POST" action="src/handlers/add_user.php" data-no-app-shell>
 					<?= csrf_input() ?>
 
 					<div class="form-group">
@@ -428,7 +445,7 @@
 					<!-- Modal Footer -->
 					<div class="css-modal-footer">
 						<button type="button" class="btn btn-secondary"
-							onclick="document.getElementById('addUserToggle').checked = false;">
+							onclick="setMacproModalToggle('addUserToggle', false);">
 							Cancel
 						</button>
 						<button type="submit" name="add_user" class="btn btn-primary">Add User</button>
@@ -440,10 +457,52 @@
 </html>
 
 <script>
+	function portalAddUserModal() {
+		const toggle = document.getElementById('addUserToggle');
+		const overlay = document.querySelector('.add-user-overlay');
+		const modal = document.querySelector('.add-user-modal-container');
+
+		if (!toggle || !overlay || !modal) {
+			return;
+		}
+
+		if (toggle.parentNode === document.body &&
+			overlay.parentNode === document.body &&
+			modal.parentNode === document.body) {
+			return;
+		}
+
+		[toggle, overlay, modal].forEach(function (element) {
+			element.dataset.macproPagePortal = 'add-user';
+			document.body.appendChild(element);
+		});
+	}
+
+	function setMacproModalToggle(toggleId, checked) {
+		if (toggleId === 'addUserToggle') {
+			portalAddUserModal();
+		}
+
+		const toggle = document.getElementById(toggleId);
+
+		if (!toggle || toggle.checked === checked) {
+			return;
+		}
+
+		toggle.checked = checked;
+		toggle.dispatchEvent(new Event('change', { bubbles: true }));
+	}
+
 	// Open add user modal if there was an error
 	<?php if (!empty($_SESSION['add_user_error'])): ?>
-		document.getElementById('addUserToggle').checked = true;
+		setMacproModalToggle('addUserToggle', true);
 	<?php endif; ?>
+
+	document.addEventListener('click', function(event) {
+		if (event.target.closest('label[for="addUserToggle"]')) {
+			portalAddUserModal();
+		}
+	}, true);
 
 	// Function to populate edit modal and open it
 	function editUser(username, firstName, lastName, contact, email, role, userId) {
@@ -456,8 +515,38 @@
 		document.getElementById('userIdField').value = userId;
 		
 		// Trigger checkbox to open modal
-		document.getElementById('editUserToggle').checked = true;
+		setMacproModalToggle('editUserToggle', true);
 	}
+
+	function editUserFromPayload(payload) {
+		if (!payload) {
+			return;
+		}
+
+		editUser(
+			payload.username || '',
+			payload.firstName || '',
+			payload.lastName || '',
+			payload.contact || '',
+			payload.email || '',
+			payload.role || '',
+			payload.userId || ''
+		);
+	}
+
+	document.addEventListener('click', function(event) {
+		const trigger = event.target.closest('[data-user-edit]');
+
+		if (!trigger) {
+			return;
+		}
+
+		try {
+			editUserFromPayload(JSON.parse(trigger.getAttribute('data-user-edit') || '{}'));
+		} catch (error) {
+			console.error('Unable to open user editor', error);
+		}
+	});
 
 	// Close edit modal when clicking outside
 	document.getElementById('editUserToggle').addEventListener('change', function() {

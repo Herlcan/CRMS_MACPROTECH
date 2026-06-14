@@ -93,7 +93,8 @@
 
 	const statusChart = document.getElementById("statusChart");
 
-	if (statusChart) {
+	if (statusChart && statusChart.dataset.macproDashboardChartReady !== "true") {
+		statusChart.dataset.macproDashboardChartReady = "true";
 		const labels = parseJson(statusChart.dataset.labels, []);
 		const data = parseJson(statusChart.dataset.data, []);
 		const colors = labels.map(statusColor);
@@ -170,7 +171,8 @@
 		});
 	}
 
-	if (statusChart) {
+	if (statusChart && statusChart.dataset.macproDashboardSparklinesReady !== "true") {
+		statusChart.dataset.macproDashboardSparklinesReady = "true";
 		const woData = parseJson(statusChart.dataset.woTrend, [0, 0, 0, 0, 0, 0]);
 		const lowStockData = parseJson(statusChart.dataset.lowStockTrend, [0, 0, 0, 0, 0, 0]);
 		const openData = parseJson(statusChart.dataset.openTrend, [0, 0, 0, 0, 0, 0]);
@@ -183,7 +185,8 @@
 	}
 
 	const monthlyChart = document.getElementById("monthlyChart");
-	if (monthlyChart) {
+	if (monthlyChart && monthlyChart.dataset.macproDashboardChartReady !== "true") {
+		monthlyChart.dataset.macproDashboardChartReady = "true";
 		const labels = parseJson(monthlyChart.dataset.labels, []);
 		const workorders = parseJson(monthlyChart.dataset.workorders, []);
 		const revenue = parseJson(monthlyChart.dataset.revenue, []);
@@ -260,9 +263,15 @@
 	}
 	}
 
+	window.MacproDashboardCharts = {
+		init: initDashboardCharts
+	};
+
 	if (document.readyState === "loading") {
 		document.addEventListener("DOMContentLoaded", initDashboardCharts);
 	} else {
 		initDashboardCharts();
 	}
+
+	document.addEventListener("macpro:content-ready", initDashboardCharts);
 })();

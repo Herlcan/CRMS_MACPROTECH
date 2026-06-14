@@ -9,11 +9,21 @@
 	include 'auth_check.php';
 	require_once __DIR__ . '/src/handlers/asset_helpers.php';
 
+	if (!function_exists('macprotech_is_frame_mode_request')) {
+		function macprotech_is_frame_mode_request(): bool {
+			$frameParam = ($_GET['macpro_frame'] ?? '') === '1';
+			$fetchDest = strtolower((string) ($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
+
+			if ($fetchDest !== '') {
+				return $fetchDest === 'iframe';
+			}
+
+			return $frameParam;
+		}
+	}
+
 	if (!defined('MACPROTECH_FRAME_MODE')) {
-		define(
-			'MACPROTECH_FRAME_MODE',
-			($_GET['macpro_frame'] ?? '') === '1' || ($_SERVER['HTTP_SEC_FETCH_DEST'] ?? '') === 'iframe'
-		);
+		define('MACPROTECH_FRAME_MODE', macprotech_is_frame_mode_request());
 	}
 
 	$user_id = $_SESSION['user_id'];

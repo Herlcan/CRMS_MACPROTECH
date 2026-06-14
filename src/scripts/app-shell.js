@@ -26,6 +26,25 @@
         '#editInventoryTransactionModal',
         '#deleteWorkOrderModal'
     ].join(',');
+    const modalContainerSelector = [
+        '.modal',
+        '.css-modal',
+        '.payment-modal',
+        '.refund-modal',
+        '.report-export-status',
+        '.macpro-dialog-overlay',
+        '.add-client-modal-container',
+        '.edit-client-modal-container',
+        '.add-user-modal-container',
+        '.category-modal-container',
+        '.category-management-modal-container',
+        '.edit-category-modal-container',
+        '.edit-item-modal-container',
+        '.delete-client-modal-container',
+        '#addInventoryStockModal',
+        '#editInventoryTransactionModal',
+        '#deleteWorkOrderModal'
+    ].join(',');
     const scrollLockClasses = [
         'macpro-modal-open',
         'macpro-frame-modal-open',
@@ -34,6 +53,9 @@
     ];
     let frameModalOpen = false;
     let lastLocalModalOpen = null;
+    let activeNavigationController = null;
+    let pageScriptController = null;
+    let navigationSerial = 0;
     const layoutByPage = {
         'index.php': 'dashboard',
         'reports.php': 'reports',
@@ -151,9 +173,26 @@
             form.hasAttribute('data-no-app-shell') ||
             form.hasAttribute('data-no-page-skeleton') ||
             form.closest('[data-no-app-shell]') ||
+            isFormInsideVisibleModal(form) ||
             form.target && form.target !== '_self' ||
             method === 'dialog' ||
             !isSameAppUrl(actionUrl);
+    }
+
+    function shouldHandleAutoSubmitControl(control) {
+        if (!control || !control.form) {
+            return false;
+        }
+
+        return control.hasAttribute('onchange') ||
+            control.form.hasAttribute('data-macpro-autosubmit') ||
+            control.closest('[data-macpro-autosubmit]');
+    }
+
+    function isFormInsideVisibleModal(form) {
+        const modal = form.closest(modalContainerSelector);
+
+        return Boolean(modal && isVisibleModalElement(modal));
     }
 
     function formUrl(form) {
@@ -268,10 +307,16 @@
     }
 
     function queueLocalModalState(notifyParent) {
+        if (queueLocalModalState.raf) {
+            window.cancelAnimationFrame(queueLocalModalState.raf);
+        }
+
         window.clearTimeout(queueLocalModalState.timer);
-        queueLocalModalState.timer = window.setTimeout(function () {
+
+        queueLocalModalState.raf = window.requestAnimationFrame(function () {
+            queueLocalModalState.raf = null;
             syncLocalModalState(notifyParent);
-        }, 40);
+        });
     }
 
     function syncLocalModalState(notifyParent) {
@@ -386,6 +431,10 @@
         shell.appendChild(host);
 
         frame.addEventListener('load', function () {
+            if (promoteFrameLocationIfNeeded(frame)) {
+                return;
+            }
+
             setFrameModalOpen(false);
             hideLoading();
             updateHistoryFromFrame(frame);
@@ -482,16 +531,496 @@
         }
     }
 
-    function navigate(href, shouldPushState) {
-        const nextCleanUrl = cleanUrl(href);
+    function cleanFrameLocation(frame) {
+        try {
+            return cleanUrl(frame.contentWindow.location.href);
+        } catch (error) {
+            return null;
+        }
+    }
 
-        if (!nextCleanUrl) {
+    function shouldPromoteFrameLocation(url) {
+        if (!url || url.origin !== window.location.origin) {
+            return false;
+        }
+
+        const name = pageName(url);
+
+        return name === 'login.php' ||
+            name === 'admin-login.php' ||
+            name === 'logout.php';
+    }
+
+    function promoteFrameLocationIfNeeded(frame) {
+        const url = cleanFrameLocation(frame);
+
+        if (!shouldPromoteFrameLocation(url)) {
+            return false;
+        }
+
+        window.location.href = url.href;
+        return true;
+    }
+
+    function abortPageScriptListeners() {
+        if (pageScriptController) {
+            pageScriptController.abort();
+            pageScriptController = null;
+        }
+    }
+
+    function pageContentStart(nextDocument) {
+        const boundary = nextDocument.getElementById(boundaryId);
+
+        if (boundary) {
+            return boundary.nextSibling;
+        }
+
+        return nextDocument.querySelector('.mobile-menu-overlay') ||
+            nextDocument.querySelector('.main-container');
+    }
+
+    function extractPageContent(nextDocument) {
+        const start = pageContentStart(nextDocument);
+        const nodes = [];
+        let node = start;
+
+        while (node) {
+            nodes.push(node);
+            node = node.nextSibling;
+        }
+
+        return nodes;
+    }
+
+    function importPageContent(nodes) {
+        const fragment = document.createDocumentFragment();
+
+        nodes.forEach(function (node) {
+            fragment.appendChild(document.importNode(node, true));
+        });
+
+        return fragment;
+    }
+
+    function isExecutableScript(script) {
+        const type = (script.getAttribute('type') || '').trim().toLowerCase();
+
+        return type === '' ||
+            type === 'text/javascript' ||
+            type === 'application/javascript' ||
+            type === 'application/ecmascript' ||
+            type === 'module';
+    }
+
+    function copyScriptAttributes(source, target) {
+        Array.prototype.forEach.call(source.attributes, function (attribute) {
+            target.setAttribute(attribute.name, attribute.value);
+        });
+
+        target.dataset.macproContentScript = 'true';
+    }
+
+    function contentScriptFunctionNames(source) {
+        const matcher = /^\s*(?:async\s+)?function\s+([A-Za-z_$][0-9A-Za-z_$]*)\s*\(/gm;
+        const names = [];
+        const seen = {};
+        let match;
+
+        while ((match = matcher.exec(source))) {
+            if (!seen[match[1]]) {
+                seen[match[1]] = true;
+                names.push(match[1]);
+            }
+        }
+
+        return names;
+    }
+
+    function wrappedInlineScript(source, pageUrl, index) {
+        const exports = contentScriptFunctionNames(source).map(function (name) {
+            const safeName = JSON.stringify(name);
+
+            return 'if (typeof ' + name + ' === "function") { window[' + safeName + '] = ' + name + '; }';
+        }).join('\n');
+        const sourceUrl = pageUrl ? '\n//# sourceURL=' + pageUrl.href + '#macpro-content-script-' + index : '';
+
+        return '(function () {\n' + source + '\n' + exports + '\n})();' + sourceUrl;
+    }
+
+    function executeExternalScript(script) {
+        return new Promise(function (resolve) {
+            const scriptUrl = safeUrl(script.src);
+            const replacement = document.createElement('script');
+
+            if (!scriptUrl || scriptUrl.origin !== window.location.origin) {
+                script.remove();
+                resolve();
+                return;
+            }
+
+            copyScriptAttributes(script, replacement);
+            replacement.async = false;
+            replacement.src = scriptUrl.href;
+            replacement.addEventListener('load', resolve, { once: true });
+            replacement.addEventListener('error', resolve, { once: true });
+            script.replaceWith(replacement);
+        });
+    }
+
+    function executeInlineScript(script, pageUrl, index) {
+        const replacement = document.createElement('script');
+        const type = (script.getAttribute('type') || '').trim().toLowerCase();
+        const source = script.textContent || '';
+
+        copyScriptAttributes(script, replacement);
+
+        if (type === 'module') {
+            replacement.text = source;
+        } else {
+            replacement.text = wrappedInlineScript(source, pageUrl, index);
+        }
+
+        script.replaceWith(replacement);
+        return Promise.resolve();
+    }
+
+    function optionsWithPageSignal(options) {
+        if (!pageScriptController) {
+            return options;
+        }
+
+        if (typeof options === 'boolean') {
+            return {
+                capture: options,
+                signal: pageScriptController.signal
+            };
+        }
+
+        if (options && typeof options === 'object') {
+            if (options.signal) {
+                return options;
+            }
+
+            return Object.assign({}, options, {
+                signal: pageScriptController.signal
+            });
+        }
+
+        return {
+            signal: pageScriptController.signal
+        };
+    }
+
+    function installPageScriptHooks(readyCallbacks) {
+        const originalDocumentAdd = document.addEventListener;
+        const originalWindowAdd = window.addEventListener;
+
+        pageScriptController = 'AbortController' in window ? new AbortController() : null;
+
+        document.addEventListener = function (type, listener, options) {
+            if (type === 'DOMContentLoaded' && listener) {
+                readyCallbacks.push({
+                    target: document,
+                    type: type,
+                    listener: listener
+                });
+                return;
+            }
+
+            return originalDocumentAdd.call(document, type, listener, optionsWithPageSignal(options));
+        };
+
+        window.addEventListener = function (type, listener, options) {
+            if (type === 'load' && listener && document.readyState === 'complete') {
+                readyCallbacks.push({
+                    target: window,
+                    type: type,
+                    listener: listener
+                });
+                return;
+            }
+
+            return originalWindowAdd.call(window, type, listener, optionsWithPageSignal(options));
+        };
+
+        return function () {
+            document.addEventListener = originalDocumentAdd;
+            window.addEventListener = originalWindowAdd;
+        };
+    }
+
+    function runReadyCallback(callback) {
+        const event = new Event(callback.type);
+
+        try {
+            if (typeof callback.listener === 'function') {
+                callback.listener.call(callback.target, event);
+                return;
+            }
+
+            if (callback.listener && typeof callback.listener.handleEvent === 'function') {
+                callback.listener.handleEvent(event);
+            }
+        } catch (error) {
+            window.console.error(error);
+        }
+    }
+
+    function runContentScripts(root, pageUrl) {
+        const scripts = Array.prototype.slice.call(root.querySelectorAll('script'));
+        const readyCallbacks = [];
+        const restoreHooks = installPageScriptHooks(readyCallbacks);
+
+        return scripts.reduce(function (chain, script, index) {
+            return chain.then(function () {
+                if (!isExecutableScript(script)) {
+                    return;
+                }
+
+                if (script.src) {
+                    return executeExternalScript(script);
+                }
+
+                return executeInlineScript(script, pageUrl, index);
+            });
+        }, Promise.resolve()).then(function () {
+            readyCallbacks.forEach(runReadyCallback);
+        }).catch(function (error) {
+            window.console.error(error);
+        }).then(function () {
+            restoreHooks();
+        });
+    }
+
+    function assignedJsonValue(source, name) {
+        const marker = 'window.' + name;
+        const markerIndex = source.indexOf(marker);
+
+        if (markerIndex === -1) {
+            return undefined;
+        }
+
+        const equalsIndex = source.indexOf('=', markerIndex + marker.length);
+
+        if (equalsIndex === -1) {
+            return undefined;
+        }
+
+        let index = equalsIndex + 1;
+        let quote = '';
+        let depth = 0;
+        let start;
+
+        while (/\s/.test(source.charAt(index))) {
+            index += 1;
+        }
+
+        start = index;
+
+        for (; index < source.length; index += 1) {
+            const char = source.charAt(index);
+            const previous = source.charAt(index - 1);
+
+            if (quote) {
+                if (char === quote && previous !== '\\') {
+                    quote = '';
+                }
+                continue;
+            }
+
+            if (char === '"' || char === "'") {
+                quote = char;
+                continue;
+            }
+
+            if (char === '{' || char === '[') {
+                depth += 1;
+                continue;
+            }
+
+            if (char === '}' || char === ']') {
+                depth -= 1;
+                if (depth === 0) {
+                    index += 1;
+                    break;
+                }
+                continue;
+            }
+
+            if (char === ';' && depth === 0) {
+                break;
+            }
+        }
+
+        try {
+            return JSON.parse(source.slice(start, index));
+        } catch (error) {
+            return undefined;
+        }
+    }
+
+    function readWindowAssignment(nextDocument, name) {
+        const scripts = Array.prototype.slice.call(nextDocument.querySelectorAll('script'));
+        let value;
+
+        scripts.some(function (script) {
+            value = assignedJsonValue(script.textContent || '', name);
+            return value !== undefined;
+        });
+
+        return value;
+    }
+
+    function syncFetchedPageGlobals(nextDocument) {
+        const csrfToken = readWindowAssignment(nextDocument, 'MACPRO_CSRF_TOKEN');
+        const dialogFlash = readWindowAssignment(nextDocument, 'MACPRO_DIALOG_FLASH');
+
+        if (csrfToken !== undefined) {
+            window.MACPRO_CSRF_TOKEN = csrfToken;
+        }
+
+        if (dialogFlash && window.MacproDialog && typeof window.MacproDialog.alert === 'function') {
+            window.MACPRO_DIALOG_FLASH = dialogFlash;
+            window.MacproDialog.alert(dialogFlash);
+        } else {
+            window.MACPRO_DIALOG_FLASH = null;
+        }
+    }
+
+    function removePortaledPageContent() {
+        document.querySelectorAll('[data-macpro-page-portal]').forEach(function (element) {
+            element.remove();
+        });
+    }
+
+    function resetModalLocks() {
+        document.documentElement.classList.remove('modal-open', 'macpro-frame-modal-open');
+        document.body.classList.remove('modal-open', 'macpro-frame-modal-open');
+
+        if (!document.querySelector('.macpro-dialog-overlay.show')) {
+            document.body.classList.remove('macpro-dialog-open');
+        }
+
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+        syncLocalModalState(false);
+    }
+
+    function dispatchContentReady(url) {
+        document.dispatchEvent(new CustomEvent(frameMessagePrefix + 'content-ready', {
+            detail: {
+                url: url.href
+            }
+        }));
+    }
+
+    function fallbackNavigation(url) {
+        window.location.href = url.href;
+    }
+
+    function loadPageContent(nextCleanUrl, shouldPushState) {
+        const shell = ensureShell();
+        const navId = navigationSerial + 1;
+        const controller = 'AbortController' in window ? new AbortController() : null;
+
+        navigationSerial = navId;
+
+        if (activeNavigationController) {
+            activeNavigationController.abort();
+        }
+
+        activeNavigationController = controller;
+
+        if (!shell || !window.fetch || !window.DOMParser) {
+            fallbackNavigation(nextCleanUrl);
             return;
         }
 
         showLoading(nextCleanUrl.href);
+        shell.setAttribute('aria-busy', 'true');
+
+        fetch(nextCleanUrl.href, {
+            credentials: 'same-origin',
+            signal: controller ? controller.signal : undefined,
+            headers: {
+                'Accept': 'text/html,application/xhtml+xml',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function (response) {
+            const finalUrl = cleanUrl(response.url || nextCleanUrl.href);
+            const contentType = response.headers.get('Content-Type') || '';
+
+            if (!finalUrl || !isSameAppUrl(finalUrl)) {
+                fallbackNavigation(finalUrl || nextCleanUrl);
+                return null;
+            }
+
+            if (!response.ok || contentType.indexOf('text/html') === -1) {
+                throw new Error('Unable to load page content.');
+            }
+
+            return response.text().then(function (html) {
+                return {
+                    html: html,
+                    url: finalUrl
+                };
+            });
+        }).then(function (result) {
+            if (!result || navId !== navigationSerial) {
+                return;
+            }
+
+            const nextDocument = new DOMParser().parseFromString(result.html, 'text/html');
+            const contentNodes = extractPageContent(nextDocument);
+
+            if (!contentNodes.length) {
+                throw new Error('Page content boundary was not found.');
+            }
+
+            abortPageScriptListeners();
+            removePortaledPageContent();
+            resetModalLocks();
+            shell.replaceChildren(importPageContent(contentNodes));
+            document.title = nextDocument.title || document.title;
+            setActiveNavigation(result.url.href);
+            syncFetchedPageGlobals(nextDocument);
+
+            if (shouldPushState) {
+                window.history.pushState({ macproAppShell: true }, '', result.url.href);
+            }
+
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+            return runContentScripts(shell, result.url).then(function () {
+                resetModalLocks();
+                dispatchContentReady(result.url);
+            });
+        }).catch(function (error) {
+            if (error && error.name === 'AbortError') {
+                return;
+            }
+
+            fallbackNavigation(nextCleanUrl);
+        }).then(function () {
+            if (navId !== navigationSerial) {
+                return;
+            }
+
+            hideLoading();
+            shell.removeAttribute('aria-busy');
+        });
+    }
+
+    function navigate(href, shouldPushState) {
+        const nextCleanUrl = cleanUrl(href);
+
+        if (!nextCleanUrl || !isSameAppUrl(nextCleanUrl)) {
+            return;
+        }
+
         setActiveNavigation(nextCleanUrl.href);
-        window.location.href = nextCleanUrl.href;
+        loadPageContent(nextCleanUrl, shouldPushState);
     }
 
     function setActiveNavigation(href) {
@@ -541,6 +1070,26 @@
             }
 
             event.preventDefault();
+            navigate(nextUrl.href, true);
+        }, true);
+
+        document.addEventListener('change', function (event) {
+            const control = event.target;
+            const form = control && control.form;
+            const method = form ? (form.method || 'get').toLowerCase() : '';
+
+            if (!form || method !== 'get' || !shouldHandleAutoSubmitControl(control) || shouldSkipForm(form, event)) {
+                return;
+            }
+
+            const nextUrl = formUrl(form);
+
+            if (!nextUrl) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
             navigate(nextUrl.href, true);
         }, true);
 
