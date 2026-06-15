@@ -1,7 +1,7 @@
 <?php
 	error_reporting(E_ALL);
-	ini_set('display_errors', '1');
-	ini_set('display_startup_errors', '1');
+	ini_set('display_errors', getenv('APP_ENV') === 'production' ? '0' : '1');
+	ini_set('display_startup_errors', getenv('APP_ENV') === 'production' ? '0' : '1');
 
 	include 'header.php';
 	include 'sidebar.php';

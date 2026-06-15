@@ -1,5 +1,10 @@
 /src/handlers/config.php
 /src/handlers/config.local.php
+.env
+.env.*
+!.env.example
+backups/*
+!backups/.gitkeep
 src/uploads/*
 !src/uploads/.htaccess
 /test/sms_test.php

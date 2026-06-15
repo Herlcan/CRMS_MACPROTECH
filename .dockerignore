@@ -1,0 +1,14 @@
+.git/
+.agents/
+.codex/
+.github/
+graphify-out/
+test/sms_test.php
+.env
+.env.*
+!.env.example
+backups/
+src/handlers/config.php
+src/handlers/config.local.php
+src/uploads/*
+!src/uploads/.htaccess

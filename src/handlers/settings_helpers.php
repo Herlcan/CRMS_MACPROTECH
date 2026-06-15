@@ -9,6 +9,12 @@ require_once __DIR__ . '/db_helpers.php';
 if (!function_exists('app_settings_config_value')) {
     function app_settings_config_value(string $constantName, string $default = ''): string
     {
+        $envValue = getenv($constantName);
+
+        if ($envValue !== false && trim((string) $envValue) !== '') {
+            return (string) $envValue;
+        }
+
         return defined($constantName) ? (string) constant($constantName) : $default;
     }
 }

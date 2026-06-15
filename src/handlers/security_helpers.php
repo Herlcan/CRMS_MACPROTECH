@@ -71,6 +71,11 @@ if (!function_exists('verify_csrf_token_or_audit')) {
 
 if (!function_exists('security_idle_timeout_seconds')) {
     function security_idle_timeout_seconds(): int {
+        $envValue = getenv('MACPROTECH_IDLE_TIMEOUT_SECONDS');
+        if ($envValue !== false && ctype_digit((string) $envValue)) {
+            return (int) $envValue;
+        }
+
         return defined('MACPROTECH_IDLE_TIMEOUT_SECONDS') ? (int) MACPROTECH_IDLE_TIMEOUT_SECONDS : 1800;
     }
 }

@@ -612,6 +612,287 @@ Existing installations should run `database/security_integrity_migration.sql` af
 
 ---
 
+## Docker Local Setup
+
+Use this path if you want to run the system locally without installing XAMPP, PHP, Apache, or MySQL directly on your computer.
+
+### What Docker Runs
+
+The included Docker setup starts three containers:
+
+- `app`: Apache with PHP 8.2, serving this project at `http://localhost:8080/`.
+- `db`: MariaDB 10.11, initialized with `crms_macprotech.sql`.
+- `phpmyadmin`: phpMyAdmin at `http://localhost:8081/` for database viewing and manual edits.
+
+The app container reads database settings from environment variables, so the same `src/db/connection.php` still works for normal XAMPP installs and for Docker.
+
+### 1. Install Docker
+
+Install Docker Desktop on Windows or macOS, or Docker Engine on Linux.
+
+After installing, open a terminal and confirm Docker Compose works:
+
+```bash
+docker compose version
+```
+
+If the command prints a version, Docker is ready.
+
+### 2. Start The System
+
+From the project folder, run:
+
+```bash
+docker compose up -d --build
+```
+
+What this does:
+
+- Downloads the PHP, MariaDB, and phpMyAdmin images the first time.
+- Builds the MACPROTECH PHP/Apache image.
+- Creates a persistent MariaDB volume.
+- Creates the `crms_macprotech` database.
+- Imports `crms_macprotech.sql` during the first database startup.
+
+Check that everything is running:
+
+```bash
+docker compose ps
+```
+
+### 3. Open The App
+
+Open these URLs in your browser:
+
+```text
+Application:       http://localhost:8080/
+Administrator:     http://localhost:8080/admin-login.php
+Staff/technician:  http://localhost:8080/login.php
+phpMyAdmin:        http://localhost:8081/
+```
+
+phpMyAdmin login:
+
+```text
+Server: db
+Username: root
+Password: root
+```
+
+You can also use:
+
+```text
+Username: macprotech
+Password: macprotech
+Database: crms_macprotech
+```
+
+The database is exposed to your host machine on port `3307`, so a local database tool can connect to `127.0.0.1:3307`.
+
+### 4. Stop And Restart
+
+Stop the containers:
+
+```bash
+docker compose stop
+```
+
+Start them again:
+
+```bash
+docker compose start
+```
+
+Stop and remove the containers, while keeping the database data:
+
+```bash
+docker compose down
+```
+
+### 5. Reset The Local Database
+
+MariaDB imports `crms_macprotech.sql` only when the database volume is created for the first time. If you want to wipe local Docker data and re-import the SQL dump:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+This deletes the Docker database volume. Do not run it if you need to keep local test data.
+
+### 6. Upload Folder Permissions
+
+The app stores inventory item images in:
+
+```text
+src/uploads/
+```
+
+If uploads fail on Linux because Apache inside Docker cannot write to the mounted folder, run this from the project folder:
+
+```bash
+chmod -R a+rwX src/uploads
+```
+
+### 7. App Key For Settings Secrets
+
+The Docker setup provides a local development `MACPROTECH_APP_KEY` so Settings secrets such as SMTP passwords and httpSMS API keys can be encrypted without creating `src/handlers/config.local.php`.
+
+For real production deployment, set your own persistent `MACPROTECH_APP_KEY` instead of using the default local development value in `docker-compose.yml`.
+
+### Useful Docker Commands
+
+```bash
+docker compose logs -f app       # Watch PHP/Apache logs
+docker compose logs -f db        # Watch MariaDB logs
+docker compose exec app php -v   # Check PHP inside the app container
+docker compose exec db mariadb -u macprotech -pmacprotech crms_macprotech
+```
+
+---
+
+## Shop Production Docker Setup
+
+Use this setup when installing MACPROTECH on the repair shop computer. It is stricter than the local development setup:
+
+- The app image includes the PHP source code instead of bind-mounting the whole project folder.
+- MariaDB is not exposed to the host network.
+- phpMyAdmin is disabled unless you explicitly start the `tools` profile.
+- Uploaded inventory images persist in a Docker volume.
+- Database data persists in a Docker volume.
+- Browser PHP error display is disabled through `APP_ENV=production`.
+
+### 1. Create The Production Environment File
+
+Copy the template:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and fill in:
+
+```text
+DB_PASSWORD=
+DB_ROOT_PASSWORD=
+MACPROTECH_APP_KEY=
+```
+
+Generate the application key with:
+
+```bash
+openssl rand -base64 32
+```
+
+Paste it into `.env` with the `base64:` prefix:
+
+```text
+MACPROTECH_APP_KEY=base64:PASTE_GENERATED_VALUE_HERE
+```
+
+Use strong unique values for `DB_PASSWORD` and `DB_ROOT_PASSWORD`. Keep `.env` private; it is ignored by Git and Docker builds.
+
+### 2. Start The Production Stack
+
+Run:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Open:
+
+```text
+http://localhost:8080/
+```
+
+The default production binding is `127.0.0.1`, which means only the shop computer itself can open the app. If trusted computers on the shop LAN must access it, change this in `.env`:
+
+```text
+APP_BIND_ADDRESS=0.0.0.0
+```
+
+Only do that on a trusted local network, and make sure the computer firewall allows the chosen `APP_HTTP_PORT`.
+
+### 3. phpMyAdmin When Needed
+
+phpMyAdmin does not start by default in the production setup. Start it temporarily with:
+
+```bash
+docker compose -f docker-compose.prod.yml --profile tools up -d phpmyadmin
+```
+
+Open:
+
+```text
+http://localhost:8081/
+```
+
+Stop phpMyAdmin after use:
+
+```bash
+docker compose -f docker-compose.prod.yml stop phpmyadmin
+```
+
+### 4. Database Backups
+
+Create a backup:
+
+```bash
+docker/backup/backup-db.sh
+```
+
+Backups are written to:
+
+```text
+backups/
+```
+
+Copy backups to an external drive or another trusted computer regularly. A database backup stored only on the same computer does not protect against drive failure.
+
+### 5. Production Maintenance Commands
+
+Check containers:
+
+```bash
+docker compose -f docker-compose.prod.yml ps
+```
+
+Watch logs:
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f app
+docker compose -f docker-compose.prod.yml logs -f db
+```
+
+Stop the system:
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+Rebuild after updating code:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Do not run `docker compose -f docker-compose.prod.yml down -v` on the shop computer unless you intentionally want to delete the production database and uploaded image volume.
+
+### 6. Shop Install Checklist
+
+Before relying on the system:
+
+- Change the initial administrator password.
+- Create staff/technician accounts with the correct roles.
+- Configure business details in Settings.
+- Configure SMTP/httpSMS only if receipt email or SMS delivery is needed.
+- Create a test customer, work order, inventory item, payment, refund, report export, and backup.
+- Confirm the computer starts Docker after reboot.
+- Confirm a recent backup can be found outside the computer.
+
+---
+
 ## Installation
 
 These steps assume XAMPP, Apache, PHP, and MySQL/MariaDB. Adjust paths if you use a different web server.
@@ -681,16 +962,19 @@ This migration adds login-attempt tracking, inventory cost snapshots, unique bus
 
 ### 5. Configure The Database Connection
 
-Open:
+By default, no change is needed for standard XAMPP. If your local database uses different credentials, open:
 
 ```text
 src/db/connection.php
 ```
 
-Confirm the credentials match your local database:
+Update the fallback values or provide matching environment variables:
 
-```php
-$conn = mysqli_connect("localhost", "root", "", "crms_macprotech");
+```text
+DB_HOST=localhost
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=crms_macprotech
 ```
 
 Default XAMPP usually uses:
@@ -799,7 +1083,9 @@ If a page is blank, check the Apache/PHP error log first.
 Common issues:
 
 - Apache or MySQL is not running.
-- Database name or credentials in `src/db/connection.php` are incorrect.
+- Database name or credentials are incorrect. XAMPP uses the defaults in `src/db/connection.php`; Docker uses the `DB_HOST`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` environment variables from `docker-compose.yml`.
+- In Docker, check `docker compose logs -f app` and `docker compose logs -f db` when the page says the database connection failed.
+- In Docker, `crms_macprotech.sql` imports only on the first database volume creation. Use `docker compose down -v` only when you intentionally want a fresh local database.
 - `src/handlers/config.local.php` is missing after encrypted settings were saved.
 - Apache/PHP cannot write to `src/handlers/` when saving SMTP or SMS secrets for the first time.
 - PHP extensions such as `mysqli`, `openssl`, `curl`, or `fileinfo` are disabled.

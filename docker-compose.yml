@@ -1,0 +1,56 @@
+services:
+  app:
+    build: .
+    container_name: macprotech-app
+    ports:
+      - "8080:80"
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: crms_macprotech
+      DB_USER: macprotech
+      DB_PASSWORD: macprotech
+      MACPROTECH_APP_KEY: "${MACPROTECH_APP_KEY:-base64:TUFDUFJPVEVDSF9sb2NhbF9kb2NrZXJfZGV2X2tleV8yMDI2IQ==}"
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:10.11
+    container_name: macprotech-db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: crms_macprotech
+      MYSQL_USER: macprotech
+      MYSQL_PASSWORD: macprotech
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./crms_macprotech.sql:/docker-entrypoint-initdb.d/01-crms_macprotech.sql:ro
+      - ./database/security_integrity_migration.sql:/docker-entrypoint-initdb.d/02-security_integrity_migration.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    container_name: macprotech-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: "3306"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:

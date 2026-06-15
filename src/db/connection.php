@@ -32,9 +32,31 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$conn = mysqli_connect("localhost", "root", "", "crms_macprotech");
+if (!function_exists('macprotech_database_env')) {
+    function macprotech_database_env(string $name, string $default = ''): string
+    {
+        $value = getenv($name);
+
+        if ($value === false || $value === '') {
+            return $default;
+        }
+
+        return (string) $value;
+    }
+}
+
+$dbHost = macprotech_database_env('DB_HOST', 'localhost');
+$dbUser = macprotech_database_env('DB_USER', 'root');
+$dbPassword = macprotech_database_env('DB_PASSWORD', '');
+$dbName = macprotech_database_env('DB_NAME', 'crms_macprotech');
+$dbPortValue = macprotech_database_env('DB_PORT', '3306');
+$dbPort = ctype_digit($dbPortValue) ? (int) $dbPortValue : 3306;
+
+$conn = mysqli_connect($dbHost, $dbUser, $dbPassword, $dbName, $dbPort);
 
 if (!$conn) {
     die("Database connection failed");
 }
+
+mysqli_set_charset($conn, 'utf8mb4');
 ?>
