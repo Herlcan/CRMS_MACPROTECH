@@ -270,9 +270,9 @@
 									</td>
 									<td>
 										<div class="dropdown">
-											<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
+											<button type="button" class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle action-menu-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 												<img src="<?= asset_attr('src/images/menu-dots.png'); ?>" width="25" style="border: none margin: auto;" alt="" aria-hidden="true" decoding="async">
-											</a>
+											</button>
 											<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 												<button type="button"
 													class="dropdown-item"

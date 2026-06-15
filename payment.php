@@ -553,7 +553,7 @@
 									<td style="text-align: center;" id="payment-date-paid-<?= (int) $row['id'] ?>"><?= htmlspecialchars(payment_display_date($row['date'])) ?></td>
 									
 									<td>
-										<button type="button" class="btn btn-sm btn-primary" style="margin-right: 5px;" onclick="openPaymentModal(<?= (int) $row['id'] ?>)">
+										<button type="button" class="btn btn-sm btn-outline-primary" style="margin-right: 5px;" onclick="openPaymentModal(<?= (int) $row['id'] ?>)">
 											<i class="dw dw-eye"></i> View
 										</button>
 									</td>

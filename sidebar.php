@@ -104,11 +104,11 @@ if (defined('MACPROTECH_FRAME_MODE') && MACPROTECH_FRAME_MODE) {
 				<?php endif; ?>
 				<?php if ($_SESSION['role'] == 'Administrator'): ?>
 				<li>
-					<a href="backup-restore.php" class="dropdown-toggle no-arrow">
-						<span class="micon dw dw-database">
+					<a href="settings.php" class="dropdown-toggle no-arrow">
+						<span class="micon dw dw-settings2">
 							<img src="<?= asset_attr('src/images/setting-lines.png'); ?>" width="20" height="20" alt="" aria-hidden="true" loading="eager" decoding="sync" fetchpriority="high">
 						</span>
-						<span class="mtext">Backup</span>
+						<span class="mtext">Settings</span>
 					</a>
 				</li>
 				<?php endif; ?>

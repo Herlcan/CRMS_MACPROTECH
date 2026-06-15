@@ -430,9 +430,9 @@
 												<?php if ($canManageInventory): ?>
 													<td style="text-align: center;">
 														<div class="dropdown">
-															<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
+															<button type="button" class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle action-menu-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 																<img src="<?= asset_attr('src/images/menu-dots.png'); ?>" width="25" style="border: none" alt="" aria-hidden="true" decoding="async">
-															</a>
+															</button>
 															<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 																<a class="dropdown-item" href="#" onclick='editInventoryTransaction(<?= htmlspecialchars(json_encode($edit_payload, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES) ?>); return false;'><i class="dw dw-edit2"></i> Edit</a>
 																<form method="POST" action="src/handlers/delete_inventory_transaction.php" style="margin: 0;">

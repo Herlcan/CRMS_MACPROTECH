@@ -206,7 +206,6 @@
 					</a>
 					<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 						<label class="dropdown-item profile-toggle-label" for="profileToggle"><img src="<?= asset_attr('src/images/user-dark.png'); ?>" width="20" height="20" alt="" aria-hidden="true" decoding="async"> Profile</label>
-						<a class="dropdown-item" href="settings.php"><img src="<?= asset_attr('src/images/settings-sliders-dark.png'); ?>" width="20" height="20" alt="" aria-hidden="true" decoding="async"> Setting</a>
 						<hr>
 						<a class="dropdown-item" href="logout.php"><img src="<?= asset_attr('src/images/user-logout.png'); ?>" width="20" height="20" alt="" aria-hidden="true" decoding="async"> Log Out</a>
 					</div>

@@ -1694,7 +1694,7 @@ function viewWorkOrder(id) {
 						<div class="row">
 							<div class="col-md-6 col-sm-12" style="margin-top: auto; margin-bottom: auto;">
 								<div class="">
-									<h4><i></i> Transaction</h4>
+									<h4><i></i> Work Order List</h4>
 								</div>
 							</div>
 							<div class="col-sm-12 col-md-6">
@@ -1733,19 +1733,8 @@ function viewWorkOrder(id) {
 						</div>
 					</div>
 
-					<!-- Tabs -->
-					<div class="tabs">
-						<input type="radio" id="tab-workorder" name="transaction-tab" checked>
-						<input type="radio" id="tab-purchase" name="transaction-tab">
-
-						<div class="tab-header">
-							<label for="tab-workorder">Work Order List</label>
-							<label for="tab-purchase">Purchased List</label>
-						</div>
-
-						<div class="tab-body">
-							<!-- WORK ORDER TAB -->
-							<div class="tab-panel workorder-panel">
+					<!-- Work Order List -->
+					<div class="pd-20">
 								<table class="data-table table responsive">
 									<thead>
 										<tr>
@@ -1867,9 +1856,9 @@ function viewWorkOrder(id) {
 											
 											<td style="text-align: center;">
 												<div class="dropdown">
-													<a class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle" href="#" role="button" data-toggle="dropdown">
+													<button type="button" class="btn btn-link font-24 p-0 line-height-1 no-arrow dropdown-toggle action-menu-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 														<img src="<?= asset_attr('src/images/menu-dots.png'); ?>" width="25" style="border: none" alt="" aria-hidden="true" decoding="async">
-													</a>
+													</button>
 													<div class="dropdown-menu dropdown-menu-right dropdown-menu-icon-list">
 														<a class="dropdown-item" href="#" onclick="viewWorkOrder(<?= $wo['id'] ?>); return false;"><i class="dw dw-eye"></i> View</a>
 														<a class="dropdown-item" href="#" onclick="editWorkOrder(<?= $wo['id'] ?>); return false;"><i class="dw dw-edit"></i> Edit</a>
@@ -1886,9 +1875,8 @@ function viewWorkOrder(id) {
 										<?php endif; ?>
 									</tbody>
 								</table>
-							</div>
-							<!-- Pagination -->
-							<div class="row">
+								<!-- Pagination -->
+								<div class="row">
 									<div class="col-sm-12 col-md-5">
 										<div class="dataTables_info" id="DataTables_Table_0_info" role="status" aria-live="polite">
 											<?php 
@@ -1944,12 +1932,6 @@ function viewWorkOrder(id) {
 										</div>
 									</div>
 								</div>
-							</div>
-
-							<!-- PURCHASE TAB -->
-							<div class="tab-panel purchase-panel">
-								<p class="pd-20">Purchased items will appear here.</p>
-							</div>
 						</div>
 					</div>
 				</div>

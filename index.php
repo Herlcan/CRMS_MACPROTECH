@@ -507,12 +507,12 @@
 				</div>
 				<a href="work-order.php" class="quick-action-btn">
 					<span class="qa-icon">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5h6"/><path d="M9 12h6"/><path d="M9 19h6"/><path d="M5 5h.01"/><path d="M5 12h.01"/><path d="M5 19h.01"/><rect x="3" y="2" width="18" height="20" rx="2"/></svg>
 					</span>
-					Create Work Order
+					Manage Work Order
 				</a>
 				<?php if ($can_manage_clients): ?>
-					<a href="clients.php" class="quick-action-btn">
+					<a href="clients.php?open_add_client=1" class="quick-action-btn">
 						<span class="qa-icon">
 							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
 						</span>

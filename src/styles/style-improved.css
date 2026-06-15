@@ -6222,6 +6222,17 @@ table tbody tr:hover,
     gap: var(--spacing-2);
 }
 
+.action-menu-toggle,
+.action-menu-toggle:hover,
+.action-menu-toggle:focus,
+.action-menu-toggle:active,
+.action-menu-toggle.show {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    transform: none;
+}
+
 .btn-primary,
 .macpro-dialog-btn-primary {
     background: var(--brand-blue);
