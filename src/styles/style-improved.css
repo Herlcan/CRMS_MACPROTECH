@@ -913,6 +913,33 @@ h6, .h6 {
     margin-bottom: 0;
 }
 
+.login-alert {
+    margin-bottom: var(--spacing-5);
+    padding: var(--spacing-4);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.login-alert-success {
+    border: 1px solid rgba(22, 163, 74, 0.25);
+    background: #ecfdf5;
+    color: #166534;
+}
+
+.login-alert-error {
+    border: 1px solid rgba(var(--brand-red-rgb), 0.24);
+    background: #fff1f2;
+    color: var(--brand-red);
+}
+
+.login-alert-info {
+    border: 1px solid rgba(var(--brand-blue-rgb), 0.22);
+    background: #eff6ff;
+    color: var(--brand-blue);
+}
+
 .login-field {
     margin-bottom: var(--spacing-5);
 }
@@ -1030,6 +1057,15 @@ h6, .h6 {
     margin-top: var(--spacing-6);
     text-align: center;
     font-size: 14px;
+}
+
+.login-reset-actions {
+    display: grid;
+    gap: var(--spacing-3);
+}
+
+.login-reset-actions .login-admin-link {
+    margin-top: var(--spacing-3);
 }
 
 @media (max-width: 900px) {

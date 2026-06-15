@@ -13,6 +13,38 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     KEY idx_login_attempts_lock (username, ip_address, lock_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+CREATE TABLE IF NOT EXISTS password_resets (
+    id int(11) NOT NULL AUTO_INCREMENT,
+    user_id int(11) NOT NULL,
+    selector char(16) NOT NULL,
+    token_hash char(64) NOT NULL,
+    expires_at datetime NOT NULL,
+    used_at datetime DEFAULT NULL,
+    verify_attempts int(11) NOT NULL DEFAULT 0,
+    locked_at datetime DEFAULT NULL,
+    created_at datetime NOT NULL DEFAULT current_timestamp(),
+    request_ip varchar(45) NOT NULL,
+    user_agent varchar(255) DEFAULT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_password_resets_selector (selector),
+    KEY idx_password_resets_user_active (user_id, used_at, expires_at),
+    CONSTRAINT fk_password_resets_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+ALTER TABLE password_resets
+    ADD COLUMN IF NOT EXISTS verify_attempts int(11) NOT NULL DEFAULT 0 AFTER used_at,
+    ADD COLUMN IF NOT EXISTS locked_at datetime DEFAULT NULL AFTER verify_attempts;
+
+CREATE TABLE IF NOT EXISTS password_reset_attempts (
+    id int(11) NOT NULL AUTO_INCREMENT,
+    identifier varchar(190) NOT NULL,
+    ip_address varchar(45) NOT NULL,
+    success tinyint(1) NOT NULL DEFAULT 0,
+    requested_at datetime NOT NULL DEFAULT current_timestamp(),
+    PRIMARY KEY (id),
+    KEY idx_password_reset_attempts_lookup (identifier, ip_address, requested_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 ALTER TABLE stock_out_transaction
     ADD COLUMN IF NOT EXISTS average_cost_snapshot decimal(10,2) DEFAULT NULL AFTER quantity;
 

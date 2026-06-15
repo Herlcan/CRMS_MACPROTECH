@@ -147,6 +147,20 @@ CREATE TABLE `login_attempts` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `password_reset_attempts`
+--
+
+CREATE TABLE `password_reset_attempts` (
+  `id` int(11) NOT NULL,
+  `identifier` varchar(190) NOT NULL,
+  `ip_address` varchar(45) NOT NULL,
+  `success` tinyint(1) NOT NULL DEFAULT 0,
+  `requested_at` datetime NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `item_category`
 --
 
@@ -320,6 +334,26 @@ INSERT INTO `users` (`id`, `username`, `first_name`, `last_name`, `contact_num`,
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `password_resets`
+--
+
+CREATE TABLE `password_resets` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `selector` char(16) NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `verify_attempts` int(11) NOT NULL DEFAULT 0,
+  `locked_at` datetime DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `request_ip` varchar(45) NOT NULL,
+  `user_agent` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `work_order`
 --
 
@@ -441,6 +475,13 @@ ALTER TABLE `login_attempts`
   ADD KEY `idx_login_attempts_lock` (`username`,`ip_address`,`lock_until`);
 
 --
+-- Indexes for table `password_reset_attempts`
+--
+ALTER TABLE `password_reset_attempts`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_password_reset_attempts_lookup` (`identifier`,`ip_address`,`requested_at`);
+
+--
 -- Indexes for table `ordered_parts`
 --
 ALTER TABLE `ordered_parts`
@@ -455,6 +496,14 @@ ALTER TABLE `payments`
   ADD UNIQUE KEY `uq_payments_payment_code` (`payment_code`),
   ADD KEY `work_order_id` (`work_order_id`),
   ADD KEY `date` (`date`);
+
+--
+-- Indexes for table `password_resets`
+--
+ALTER TABLE `password_resets`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_password_resets_selector` (`selector`),
+  ADD KEY `idx_password_resets_user_active` (`user_id`,`used_at`,`expires_at`);
 
 --
 -- Indexes for table `payment_transaction`
@@ -578,6 +627,12 @@ ALTER TABLE `login_attempts`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `password_reset_attempts`
+--
+ALTER TABLE `password_reset_attempts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `ordered_parts`
 --
 ALTER TABLE `ordered_parts`
@@ -620,6 +675,12 @@ ALTER TABLE `users`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
+-- AUTO_INCREMENT for table `password_resets`
+--
+ALTER TABLE `password_resets`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `work_order`
 --
 ALTER TABLE `work_order`
@@ -634,6 +695,12 @@ ALTER TABLE `work_order_assignments`
 --
 -- Constraints for dumped tables
 --
+
+--
+-- Constraints for table `password_resets`
+--
+ALTER TABLE `password_resets`
+  ADD CONSTRAINT `fk_password_resets_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `payments`

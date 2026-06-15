@@ -138,7 +138,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 					<div class="login-form-links">
 						<span>Administrator access</span>
-						<a href="forgot-password.html">Forgot Password?</a>
+						<a href="forgot-password.php">Forgot Password?</a>
 					</div>
 
 					<button class="login-submit" type="submit" name="login" value="1">

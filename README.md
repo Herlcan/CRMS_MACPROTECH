@@ -32,6 +32,7 @@ Recent system updates added or expanded these areas:
 - Separate administrator and staff/technician login portals with role enforcement.
 - CSRF protection for login forms and important form/AJAX actions, with audit logging for failed CSRF checks.
 - Login attempt tracking and temporary lockouts after repeated failed sign-in attempts.
+- Forgot-password flow with one-time email OTP codes, token expiry, request throttling, verification-attempt limits, and password policy enforcement.
 - Stronger session handling, including regenerated session IDs, hardened session cookies, and deleted-user session invalidation.
 - Common security headers and a compatibility Content Security Policy are sent from the database/session bootstrap.
 - Idle session timeout logs users out after 30 minutes of inactivity by default.
@@ -87,10 +88,13 @@ Important files:
 
 - `login.php`
 - `admin-login.php`
+- `forgot-password.php`
+- `reset-password.php`
 - `auth_check.php`
 - `logout.php`
 - `src/db/connection.php`
 - `src/handlers/security_helpers.php`
+- `src/handlers/password_reset_helpers.php`
 - `database/security_integrity_migration.sql`
 
 Implemented behavior:
@@ -103,6 +107,8 @@ Implemented behavior:
 - Idle sessions expire after 30 minutes of inactivity by default. The timeout can be changed by defining `MACPROTECH_IDLE_TIMEOUT_SECONDS`.
 - Login forms include CSRF tokens and reject expired or invalid tokens.
 - Failed login attempts are recorded by username and IP address. Five failed attempts inside 15 minutes lock the username/IP pair for 15 minutes.
+- Forgot-password requests accept username or email, always return a generic response, throttle repeated requests, and send one-time OTP codes through the configured SMTP mailer.
+- Password reset OTPs store only keyed token hashes, expire after 10 minutes, lock after repeated invalid verification attempts, must be verified before the password form is shown, can be used once, and require the same password policy as user creation/profile updates.
 - Administrator accounts are accepted only through `admin-login.php`; regular staff and technician accounts use `login.php`.
 - Shared helpers provide `require_role()`, `require_authenticated_json()`, `require_json_role()`, and `require_authenticated_fragment()` for protected actions.
 - Logout records an activity entry when possible, clears session data, removes the session cookie, and destroys the session.
@@ -559,6 +565,8 @@ Core tables included in the dump:
 - `items`
 - `inventory_transaction`
 - `login_attempts`
+- `password_reset_attempts`
+- `password_resets`
 - `stock_in_transaction`
 - `stock_out_transaction`
 - `item_category`
@@ -578,7 +586,7 @@ Tables created or updated at runtime by schema helpers:
 - `notifications`
 - `sms_delivery_log`
 
-Many handlers call schema helper functions before use. These helpers add missing columns/tables for newer features such as payment details, ordered parts, stock movement, work order priority, assignment history, notifications, settings, and login-attempt tracking.
+Many handlers call schema helper functions before use. These helpers add missing columns/tables for newer features such as payment details, ordered parts, stock movement, work order priority, assignment history, notifications, settings, login-attempt tracking, and password reset tracking.
 
 Database uniqueness rules:
 
@@ -588,7 +596,7 @@ Database uniqueness rules:
 - `payments.payment_code`
 - `items.product_code`
 
-Existing installations should run `database/security_integrity_migration.sql` after backing up the database. The migration creates `login_attempts`, adds `average_cost_snapshot` to stock-out history, adds the unique constraints above when existing data has no duplicates, and adds core foreign keys for work orders, payments, refunds, and payment transactions.
+Existing installations should run `database/security_integrity_migration.sql` after backing up the database. The migration creates `login_attempts`, `password_resets`, and `password_reset_attempts`, adds `average_cost_snapshot` to stock-out history, adds the unique constraints above when existing data has no duplicates, and adds core foreign keys for work orders, payments, refunds, and payment transactions.
 
 ---
 
@@ -857,6 +865,7 @@ The current security layer includes:
 - Role checks protect administrator-only features such as reports, exports, user management, customer deletion, and settings updates.
 - Technician work order status updates are checked against `work_order.technician_id`; the update statement itself also requires the assigned technician to match the current user.
 - Failed authorization attempts are logged with the attempted action context and current role when available.
+- Password reset requests use generic public responses to avoid account enumeration; reset OTPs are stored as keyed hashes, expire after 10 minutes, lock after repeated invalid verification attempts, must be verified before password creation, and are invalidated after use.
 - AJAX endpoints use authenticated JSON guards and return 401/403 responses instead of rendering protected content to unauthorized users.
 - JSON/AJAX handlers disable `display_errors` and `display_startup_errors` to avoid leaking PHP runtime details in API responses.
 - Critical database writes use prepared statements, helper binding, and transactions where multi-table updates must stay consistent.
@@ -868,7 +877,7 @@ The current security layer includes:
 - Settings secrets are encrypted with AES-256-GCM before being stored in `app_settings`.
 - Normal installs use an auto-generated local key in `src/handlers/config.local.php`; advanced installs may provide `MACPROTECH_APP_KEY` through the web server environment.
 - Inventory uploads are limited to JPG, PNG, and WEBP files, checked by extension and MIME type, capped at 10MB, saved with random filenames, and protected by `src/uploads/.htaccess`.
-- The database dump and `database/security_integrity_migration.sql` include security/integrity updates for `login_attempts`, stock-out cost snapshots, unique business codes, and foreign-key relationships.
+- The database dump and `database/security_integrity_migration.sql` include security/integrity updates for `login_attempts`, password reset tables, stock-out cost snapshots, unique business codes, and foreign-key relationships.
 
 Maintenance note: when adding new search, filter, report, or export behavior, prefer `sql_filter_helpers.php` and allow-listed fragments over ad hoc SQL string assembly.
 
@@ -877,4 +886,4 @@ Maintenance note: when adding new search, filter, report, or export behavior, pr
 ## Version
 
 Version: 1.5
-Last Updated: 2026-06-14
+Last Updated: 2026-06-15
