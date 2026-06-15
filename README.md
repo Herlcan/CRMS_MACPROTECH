@@ -803,18 +803,77 @@ docker compose -f docker-compose.prod.yml up -d --build
 Open:
 
 ```text
-http://localhost:8080/
+https://localhost/
 ```
 
-The default production binding is `127.0.0.1`, which means only the shop computer itself can open the app. If trusted computers on the shop LAN must access it, change this in `.env`:
+The production setup includes a Caddy HTTPS reverse proxy. It listens on ports `80` and `443` and forwards traffic to the PHP/Apache app container.
+
+The default production binding is `127.0.0.1`, which means only the shop computer itself can open the HTTPS site. If trusted computers on the shop LAN must access it, change this in `.env`:
 
 ```text
-APP_BIND_ADDRESS=0.0.0.0
+HTTPS_HOSTNAME=macprotech.local
+HTTPS_BIND_ADDRESS=0.0.0.0
 ```
 
-Only do that on a trusted local network, and make sure the computer firewall allows the chosen `APP_HTTP_PORT`.
+Then map `macprotech.local` to the shop computer's LAN IP address using your router DNS or each client computer's hosts file.
 
-### 3. phpMyAdmin When Needed
+Only expose HTTPS on a trusted local network, and make sure the computer firewall allows the chosen `HTTPS_PORT`, usually `443`.
+
+The direct HTTP app port remains bound to `APP_BIND_ADDRESS` and `APP_HTTP_PORT` for local fallback access. Use HTTPS for normal shop use.
+
+### 3. Trust The Local HTTPS Certificate
+
+The production setup uses Caddy's internal certificate authority so the shop can run HTTPS without buying a domain. The connection is encrypted, but browsers will warn until the Caddy root certificate is trusted on each computer that opens the system.
+
+After the production stack is running, export the root certificate:
+
+```bash
+docker cp macprotech-proxy:/data/caddy/pki/authorities/local/root.crt ./macprotech-caddy-root.crt
+```
+
+On Linux, trust it on the shop computer with:
+
+```bash
+sudo cp macprotech-caddy-root.crt /usr/local/share/ca-certificates/macprotech-caddy-root.crt
+sudo update-ca-certificates
+```
+
+On Windows, import `macprotech-caddy-root.crt` into:
+
+```text
+Trusted Root Certification Authorities
+```
+
+Restart the browser after trusting the certificate.
+
+### 4. Start Automatically After Reboot
+
+All production services use Docker restart policies, so Docker can restart them after reboot. First make sure Docker starts on boot:
+
+```bash
+sudo systemctl enable --now docker
+```
+
+Start the production stack once:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+For a stricter Linux boot setup, install the included systemd service:
+
+```bash
+sudo cp docker/systemd/macprotech.service.example /etc/systemd/system/macprotech.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now macprotech
+sudo systemctl status macprotech
+```
+
+If the project is not installed at `/opt/lampp/htdocs/MACPROTECH`, edit `WorkingDirectory` in `/etc/systemd/system/macprotech.service` before enabling it.
+
+On Windows with Docker Desktop, enable Docker Desktop's "Start Docker Desktop when you sign in" setting, then keep the production stack created with `docker compose -f docker-compose.prod.yml up -d --build`.
+
+### 5. phpMyAdmin When Needed
 
 phpMyAdmin does not start by default in the production setup. Start it temporarily with:
 
@@ -834,7 +893,7 @@ Stop phpMyAdmin after use:
 docker compose -f docker-compose.prod.yml stop phpmyadmin
 ```
 
-### 4. Database Backups
+### 6. Database Backups
 
 Create a backup:
 
@@ -850,7 +909,7 @@ backups/
 
 Copy backups to an external drive or another trusted computer regularly. A database backup stored only on the same computer does not protect against drive failure.
 
-### 5. Production Maintenance Commands
+### 7. Production Maintenance Commands
 
 Check containers:
 
@@ -879,7 +938,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 Do not run `docker compose -f docker-compose.prod.yml down -v` on the shop computer unless you intentionally want to delete the production database and uploaded image volume.
 
-### 6. Shop Install Checklist
+### 8. Shop Install Checklist
 
 Before relying on the system:
 
@@ -888,6 +947,7 @@ Before relying on the system:
 - Configure business details in Settings.
 - Configure SMTP/httpSMS only if receipt email or SMS delivery is needed.
 - Create a test customer, work order, inventory item, payment, refund, report export, and backup.
+- Confirm HTTPS opens without browser warnings on every computer that will use the system.
 - Confirm the computer starts Docker after reboot.
 - Confirm a recent backup can be found outside the computer.
 

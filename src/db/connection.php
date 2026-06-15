@@ -6,7 +6,10 @@ macprotech_send_security_headers();
 // Secure session configuration and start only if none exists
 if (session_status() === PHP_SESSION_NONE) {
     // Determine if connection is secure
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+    $forwardedProto = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443)
+        || $forwardedProto === 'https';
 
     // Set strict and cookie-only mode
     ini_set('session.use_strict_mode', 1);
