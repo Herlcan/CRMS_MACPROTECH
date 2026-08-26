@@ -4,6 +4,8 @@ MACPROTECH is a PHP and MySQL repair service management system for a computer re
 
 The application is built as a classic PHP web app with MySQL/MariaDB, root-level page controllers, reusable handlers under `src/handlers/`, shared partials under `src/partials/`, and PHPMailer under `vendor/PHPMailer-master/`.
 
+![My Project Screenshot](src/images/Project_Image.png)
+
 ---
 
 ## What The System Does
